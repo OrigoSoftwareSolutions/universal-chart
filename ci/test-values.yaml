@@ -1,0 +1,13 @@
+# Smoke test: one deployment, one service
+deployments:
+  web:
+    containers:
+      - name: web
+        image: nginx
+        imageTag: "1.25"
+
+services:
+  web:
+    ports:
+      - port: 80
+        targetPort: 80
