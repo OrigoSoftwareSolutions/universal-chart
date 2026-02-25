@@ -13,42 +13,46 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
           version: v3.14.0
 
-      - name: Configure Git
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
       - name: Package chart
         run: helm package . --destination /tmp/chart-packages
 
       - name: Publish to GitHub Pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Check out gh-pages branch (create it if it doesn't exist)
-          git fetch origin gh-pages || true
-          git worktree add /tmp/gh-pages gh-pages 2>/dev/null || \
-            (git worktree add --orphan /tmp/gh-pages gh-pages && \
-             git -C /tmp/gh-pages checkout --orphan gh-pages && \
-             git -C /tmp/gh-pages rm -rf . 2>/dev/null || true)
+          set -e
+          REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          PAGES_URL="https://origosoftwaresolutions.github.io/universal-chart"
 
-          # Copy packaged chart to gh-pages worktree
-          cp /tmp/chart-packages/*.tgz /tmp/gh-pages/
+          mkdir /tmp/gh-pages
+          cd /tmp/gh-pages
+          git init
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git remote add origin "${REPO_URL}"
 
-          # Update or create the Helm repo index
-          if [ -f /tmp/gh-pages/index.yaml ]; then
-            helm repo index /tmp/gh-pages --url https://origosoftwaresolutions.github.io/universal-chart --merge /tmp/gh-pages/index.yaml
+          # Check out existing gh-pages, or start a fresh orphan branch
+          if git ls-remote --exit-code --heads origin gh-pages; then
+            git fetch origin gh-pages
+            git checkout -b gh-pages origin/gh-pages
           else
-            helm repo index /tmp/gh-pages --url https://origosoftwaresolutions.github.io/universal-chart
+            git checkout --orphan gh-pages
           fi
 
-          # Commit and push
-          git -C /tmp/gh-pages add .
-          git -C /tmp/gh-pages commit -m "Release ${{ github.ref_name }}"
-          git -C /tmp/gh-pages push origin gh-pages
+          # Copy new chart package and update the Helm repo index
+          cp /tmp/chart-packages/*.tgz .
+          if [ -f index.yaml ]; then
+            helm repo index . --url "${PAGES_URL}" --merge index.yaml
+          else
+            helm repo index . --url "${PAGES_URL}"
+          fi
+
+          git add .
+          git commit -m "Release ${{ github.ref_name }}"
+          git push origin gh-pages
