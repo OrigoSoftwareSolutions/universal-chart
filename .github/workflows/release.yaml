@@ -51,6 +51,6 @@ jobs:
         uses: helm/chart-releaser-action@v1.6.0
         with:
           charts_dir: .
-          charts_repo_url: https://origosoftwaresolutions.github.io/universal-chart
+          config: cr.yaml
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
