@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Lint
+        run: helm lint universal-chart/ --strict
+
+      - name: Install kubeconform
+        run: |
+          curl -sLO https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf kubeconform-linux-amd64.tar.gz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Schema validation
+        run: |
+          helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
+            | kubeconform \
+              -strict \
+              -ignore-missing-schemas \
+              -kubernetes-version 1.28.0 \
+              -schema-location default \
+              -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Install helm-unittest plugin
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest --version 0.4.4
+
+      - name: Run unit tests
+        run: helm unittest universal-chart/ --strict --file 'tests/*.yaml'
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Render manifests
+        run: helm template test universal-chart/ -f universal-chart/ci/test-values.yaml > /tmp/rendered.yaml
+
+      - name: Trivy security scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: /tmp/rendered.yaml
+          severity: HIGH,CRITICAL
+          exit-code: ${{ github.event_name == 'push' && '1' || '0' }}
+          format: table
+
+  docs-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install helm-docs
+        run: |
+          curl -sLO https://github.com/norwoodj/helm-docs/releases/download/v1.13.1/helm-docs_1.13.1_Linux_x86_64.tar.gz
+          tar -xzf helm-docs_1.13.1_Linux_x86_64.tar.gz helm-docs
+          sudo mv helm-docs /usr/local/bin/
+
+      - name: Check docs are up to date
+        run: |
+          helm-docs --chart-search-root universal-chart/
+          git diff --exit-code universal-chart/README.md \
+            || (echo "ERROR: README.md is out of date. Run 'helm-docs --chart-search-root universal-chart/' locally and commit." && exit 1)
+
+  release:
+    needs: [lint, unittest, security]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Package chart
+        run: helm package universal-chart/
+
+      - name: Push to GHCR
+        run: helm push universal-chart-*.tgz oci://ghcr.io/origosoftwaresolutions
