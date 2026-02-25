@@ -1,0 +1,15 @@
+{{- range $name, $ci := .Values.clusterIssuers }}
+{{- if not ($ci.disabled | default false) }}
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  labels: {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
+  {{- with $ci.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- toYaml $ci.spec | nindent 2 }}
+{{- end }}
+{{- end }}

@@ -73,3 +73,48 @@ clusterExternalSecrets:
         target:
           name: shared-config
         data: []
+
+clusterIssuers:
+  letsencrypt-prod:
+    spec:
+      acme:
+        server: https://acme-v02.api.letsencrypt.org/directory
+        email: devops@origo.is
+        privateKeySecretRef:
+          name: letsencrypt-prod
+        solvers:
+          - dns01:
+              azureDNS:
+                subscriptionID: fake-sub-id
+                resourceGroupName: fake-rg
+                hostedZoneName: origo.is
+
+httpRoutes:
+  web:
+    spec:
+      parentRefs:
+        - name: istio-gateway
+          namespace: istio-ingress
+      hostnames:
+        - app.origo.is
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: web
+              port: 80
+
+istioPeerAuthentications:
+  default:
+    spec:
+      mtls:
+        mode: STRICT
+
+istioAuthorizationPolicies:
+  deny-all:
+    spec:
+      action: DENY
+      rules:
+        - {}

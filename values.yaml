@@ -96,6 +96,17 @@ defaultImageTag: latest
 defaultImagePullPolicy: "IfNotPresent"
 
 ingresses: {}
+
+httpRoutes: {}
+# httpRoutes:
+#   my-app:
+#     spec:
+#       parentRefs:
+#         - name: istio-gateway
+#           namespace: istio-ingress
+#       hostnames:
+#         - app.example.com
+#       rules: []
 #  nixys.io:
 #    annotations:
 #      nginx.ingress.kubernetes.io/ssl-redirect: "true"
@@ -432,6 +443,21 @@ istiodestinationrules: {}
   #   exportTo:
   #     - "."
   #     - "another-namespace"
+istioPeerAuthentications: {}
+# istioPeerAuthentications:
+#   default:
+#     spec:
+#       mtls:
+#         mode: STRICT
+
+istioAuthorizationPolicies: {}
+# istioAuthorizationPolicies:
+#   deny-all:
+#     spec:
+#       action: DENY
+#       rules:
+#         - {}
+
 # -- External Secrets Operator
 externalSecrets: {}
 # externalSecrets:
@@ -464,3 +490,14 @@ clusterExternalSecrets: {}
 # clusterExternalSecrets:
 #   cluster-secret:
 #     spec: {}
+
+clusterIssuers: {}
+# clusterIssuers:
+#   letsencrypt-prod:
+#     spec:
+#       acme:
+#         server: https://acme-v02.api.letsencrypt.org/directory
+#         email: devops@example.com
+#         privateKeySecretRef:
+#           name: letsencrypt-prod
+#         solvers: []
