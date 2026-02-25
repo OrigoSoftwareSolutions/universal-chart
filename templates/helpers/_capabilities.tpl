@@ -128,9 +128,13 @@
 {{- .Values.global.apiVersions.istioGateway -}}
 {{- else if .Capabilities.APIVersions.Has "networking.istio.io/v1" -}}
 {{- print "networking.istio.io/v1" -}}
+{{- else -}}
+{{- print "networking.istio.io/v1beta1" -}}
 {{- end -}}
 {{- else if .Capabilities.APIVersions.Has "networking.istio.io/v1" -}}
 {{- print "networking.istio.io/v1" -}}
+{{- else -}}
+{{- print "networking.istio.io/v1beta1" -}}
 {{- end -}}
 {{- end -}}
 
@@ -140,9 +144,13 @@
 {{- .Values.global.apiVersions.istioVirtualService -}}
 {{- else if .Capabilities.APIVersions.Has "networking.istio.io/v1" -}}
 {{- print "networking.istio.io/v1" -}}
+{{- else -}}
+{{- print "networking.istio.io/v1beta1" -}}
 {{- end -}}
 {{- else if .Capabilities.APIVersions.Has "networking.istio.io/v1" -}}
 {{- print "networking.istio.io/v1" -}}
+{{- else -}}
+{{- print "networking.istio.io/v1beta1" -}}
 {{- end -}}
 {{- end -}}
 
@@ -152,8 +160,12 @@
 {{- .Values.global.apiVersions.istioDestinationRule -}}
 {{- else if .Capabilities.APIVersions.Has "networking.istio.io/v1" -}}
 {{- print "networking.istio.io/v1" -}}
+{{- else -}}
+{{- print "networking.istio.io/v1beta1" -}}
 {{- end -}}
 {{- else if .Capabilities.APIVersions.Has "networking.istio.io/v1" -}}
 {{- print "networking.istio.io/v1" -}}
+{{- else -}}
+{{- print "networking.istio.io/v1beta1" -}}
 {{- end -}}
 {{- end -}}
