@@ -1,0 +1,17 @@
+suite: service
+templates:
+  - svc.yml
+tests:
+  - it: renders a Service with correct kind
+    set:
+      services.web.ports[0].port: 80
+      services.web.ports[0].targetPort: 80
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: apiVersion
+          value: v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -web$

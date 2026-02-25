@@ -1,0 +1,30 @@
+suite: deployment
+templates:
+  - deployment.yml
+tests:
+  - it: renders a Deployment with correct kind and apiVersion
+    set:
+      deployments.web.containers[0].name: web
+      deployments.web.containers[0].image: nginx
+      deployments.web.containers[0].imageTag: "1.25"
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: apiVersion
+          value: apps/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -web$
+      - isNotEmpty:
+          path: metadata.labels
+
+  - it: respects the disabled flag
+    set:
+      deployments.web.disabled: true
+      deployments.web.containers[0].name: web
+      deployments.web.containers[0].image: nginx
+      deployments.web.containers[0].imageTag: "1.25"
+    asserts:
+      - hasDocuments:
+          count: 0

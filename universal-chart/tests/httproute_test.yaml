@@ -1,0 +1,17 @@
+suite: httproute
+templates:
+  - httproutes.yaml
+tests:
+  - it: renders an HTTPRoute with correct apiVersion
+    set:
+      httpRoutes.my-route.spec.parentRefs[0].name: gateway
+      httpRoutes.my-route.spec.rules[0].matches[0].path.type: PathPrefix
+      httpRoutes.my-route.spec.rules[0].matches[0].path.value: /
+    asserts:
+      - isKind:
+          of: HTTPRoute
+      - equal:
+          path: apiVersion
+          value: gateway.networking.k8s.io/v1
+      - isNotEmpty:
+          path: metadata.namespace

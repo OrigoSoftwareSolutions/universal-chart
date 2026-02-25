@@ -1,0 +1,16 @@
+suite: clusterissuer
+templates:
+  - clusterissuers.yaml
+tests:
+  - it: renders a ClusterIssuer without namespace
+    set:
+      clusterIssuers.letsencrypt.spec.acme.server: https://acme-v02.api.letsencrypt.org/directory
+      clusterIssuers.letsencrypt.spec.acme.email: admin@example.com
+    asserts:
+      - isKind:
+          of: ClusterIssuer
+      - equal:
+          path: apiVersion
+          value: cert-manager.io/v1
+      - notExists:
+          path: metadata.namespace
