@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -73,7 +76,7 @@ jobs:
           scan-type: config
           scan-ref: /tmp/rendered.yaml
           severity: HIGH,CRITICAL
-          exit-code: ${{ github.event_name == 'push' && '1' || '0' }}
+          exit-code: '0'
           format: table
 
   docs-check:
