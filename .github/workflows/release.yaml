@@ -43,9 +43,9 @@ jobs:
 
           # Update or create the Helm repo index
           if [ -f /tmp/gh-pages/index.yaml ]; then
-            helm repo index /tmp/gh-pages --url https://origo-is.github.io/universal-chart --merge /tmp/gh-pages/index.yaml
+            helm repo index /tmp/gh-pages --url https://origosoftwaresolutions.github.io/universal-chart --merge /tmp/gh-pages/index.yaml
           else
-            helm repo index /tmp/gh-pages --url https://origo-is.github.io/universal-chart
+            helm repo index /tmp/gh-pages --url https://origosoftwaresolutions.github.io/universal-chart
           fi
 
           # Commit and push
