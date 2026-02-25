@@ -118,3 +118,142 @@ istioAuthorizationPolicies:
       action: DENY
       rules:
         - {}
+
+# --- StatefulSet ---
+statefulSets:
+  cache:
+    serviceName: cache
+    containers:
+      - name: cache
+        image: redis
+        imageTag: "7"
+
+# --- CronJob ---
+cronJobs:
+  cleanup:
+    schedule: "0 3 * * *"
+    containers:
+      - name: cleanup
+        image: busybox
+        imageTag: "latest"
+        command: ["/bin/sh", "-c", "echo cleanup"]
+
+# --- Job ---
+jobs:
+  migrate:
+    containers:
+      - name: migrate
+        image: busybox
+        imageTag: "latest"
+        command: ["/bin/sh", "-c", "echo migrate"]
+
+# --- ConfigMap ---
+configMaps:
+  app-config:
+    data:
+      APP_ENV: production
+      LOG_LEVEL: info
+
+# --- HPA ---
+hpas:
+  web:
+    scaleTargetRef:
+      name: web
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPU: 70
+
+# --- Certificate (requires cert-manager.io/v1) ---
+certificates:
+  app-tls:
+    dnsNames:
+      - app.origo.is
+    issuerRef:
+      name: letsencrypt-prod
+      kind: ClusterIssuer
+      group: cert-manager.io
+
+# --- Issuer (requires cert-manager.io/v1) ---
+issuers:
+  self-signed:
+    selfSigned: {}
+
+# --- ServiceMonitor ---
+serviceMonitors:
+  web:
+    endpoints:
+      - port: http
+        interval: 30s
+        path: /metrics
+
+# --- IstioVirtualService ---
+istiovirtualservices:
+  web:
+    hosts:
+      - app.origo.is
+    gateways:
+      - istio-ingress/istio-gateway
+    http:
+      - name: default
+        route:
+          - destination:
+              host: web
+              port:
+                number: 80
+
+# --- IstioDestinationRule ---
+istiodestinationrules:
+  web:
+    host: web.default.svc.cluster.local
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 100
+
+# --- IstioGateway ---
+istiogateways:
+  main:
+    selector:
+      istio: ingressgateway
+    servers:
+      - hosts:
+          - app.origo.is
+        port:
+          name: https
+          number: 443
+          protocol: HTTPS
+
+# --- Ingress ---
+ingresses:
+  web:
+    hosts:
+      - hostname: app.origo.is
+        paths:
+          - path: /
+            serviceName: web
+            servicePort: 80
+
+# --- PodDisruptionBudget ---
+pdbs:
+  web:
+    minAvailable: 1
+
+# --- PersistentVolumeClaim ---
+pvcs:
+  data:
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+    storageClassName: standard
+
+# --- Secret ---
+secrets:
+  app-secret:
+    data:
+      API_KEY: c2VjcmV0
+
+# --- SealedSecret ---
+sealedSecrets:
+  sealed-demo:
+    encryptedData:
+      password: AgBnFakeEncryptedDataForTestingOnly==
