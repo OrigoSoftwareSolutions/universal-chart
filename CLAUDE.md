@@ -18,12 +18,13 @@ helm template test universal-chart/ -f universal-chart/ci/test-values.yaml --api
 helm template test universal-chart/ -f universal-chart/ci/test-values.yaml | grep "^kind:" | sort | uniq
 
 # Release: bump version in universal-chart/Chart.yaml then push to main
-# chart-releaser-action detects the version bump and creates a GitHub Release automatically
+# GitHub Actions packages and pushes to oci://ghcr.io/origosoftwaresolutions/universal-chart
+# Install: helm install app oci://ghcr.io/origosoftwaresolutions/universal-chart --version <version>
 ```
 
 ## Architecture
 
-This is a fork of [nixys/nxs-universal-chart](https://github.com/nixys/nxs-universal-chart) adapted for Origo. The chart source lives in the `universal-chart/` subdirectory (required by `helm/chart-releaser-action`). On every push to `main`, `.github/workflows/release.yaml` runs `chart-releaser-action`, which detects a new `version:` in `universal-chart/Chart.yaml`, creates a GitHub Release with the `.tgz` as an asset, and updates `index.yaml` on the `gh-pages` branch. To release a new version, bump `version:` in `universal-chart/Chart.yaml` and push to `main` — no manual tagging needed.
+This is a fork of [nixys/nxs-universal-chart](https://github.com/nixys/nxs-universal-chart) adapted for Origo. The chart source lives in the `universal-chart/` subdirectory. On every push to `main`, `.github/workflows/release.yaml` packages the chart and pushes it to `oci://ghcr.io/origosoftwaresolutions/universal-chart` using `GITHUB_TOKEN` (`packages: write`). To release a new version, bump `version:` in `universal-chart/Chart.yaml` and push to `main` — no manual tagging or index file management needed. There is no `gh-pages` branch or HTTP index; all distribution is OCI-native.
 
 ### Core pattern
 
