@@ -5,25 +5,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Validate the chart
-helm lint . --strict
+# Validate the chart (chart source lives in universal-chart/)
+helm lint universal-chart/ --strict
 
 # Render all resources using CI test values (smoke test)
-helm template test . -f ci/test-values.yaml
+helm template test universal-chart/ -f universal-chart/ci/test-values.yaml
 
 # Render against a live cluster (resolves Capabilities.APIVersions)
-helm template test . -f ci/test-values.yaml --api-versions networking.istio.io/v1beta1
+helm template test universal-chart/ -f universal-chart/ci/test-values.yaml --api-versions networking.istio.io/v1beta1
 
 # Check what kinds are rendered
-helm template test . -f ci/test-values.yaml | grep "^kind:" | sort | uniq
+helm template test universal-chart/ -f universal-chart/ci/test-values.yaml | grep "^kind:" | sort | uniq
 
-# Release: tag and push (triggers GitHub Actions → gh-pages publish)
-git tag v0.X.Y && git push origin main --tags
+# Release: bump version in universal-chart/Chart.yaml then push to main
+# chart-releaser-action detects the version bump and creates a GitHub Release automatically
 ```
 
 ## Architecture
 
-This is a fork of [nixys/nxs-universal-chart](https://github.com/nixys/nxs-universal-chart) adapted for Origo. The chart lives at the repo root (no subdirectory). It is published to GitHub Pages (`gh-pages` branch) via `.github/workflows/release.yaml` on `v*.*.*` tags.
+This is a fork of [nixys/nxs-universal-chart](https://github.com/nixys/nxs-universal-chart) adapted for Origo. The chart source lives in the `universal-chart/` subdirectory (required by `helm/chart-releaser-action`). On every push to `main`, `.github/workflows/release.yaml` runs `chart-releaser-action`, which detects a new `version:` in `universal-chart/Chart.yaml`, creates a GitHub Release with the `.tgz` as an asset, and updates `index.yaml` on the `gh-pages` branch. To release a new version, bump `version:` in `universal-chart/Chart.yaml` and push to `main` — no manual tagging needed.
 
 ### Core pattern
 

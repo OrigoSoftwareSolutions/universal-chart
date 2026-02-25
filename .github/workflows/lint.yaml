@@ -18,7 +18,7 @@ jobs:
           version: v3.14.0
 
       - name: Lint
-        run: helm lint . --strict
+        run: helm lint universal-chart/ --strict
 
       - name: Template smoke test
-        run: helm template test . -f ci/test-values.yaml > /dev/null
+        run: helm template test universal-chart/ -f universal-chart/ci/test-values.yaml > /dev/null

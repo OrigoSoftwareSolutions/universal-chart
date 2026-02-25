@@ -2,8 +2,8 @@ name: Release Chart
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main
 
 jobs:
   release:
@@ -13,46 +13,23 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
           version: v3.14.0
 
-      - name: Package chart
-        run: helm package . --destination /tmp/chart-packages
-
-      - name: Publish to GitHub Pages
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.6.0
+        with:
+          charts_dir: .
+          charts_repo_url: https://origosoftwaresolutions.github.io/universal-chart
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          PAGES_URL="https://origosoftwaresolutions.github.io/universal-chart"
-
-          mkdir /tmp/gh-pages
-          cd /tmp/gh-pages
-          git init
-          git config user.name "${GITHUB_ACTOR}"
-          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-          git remote add origin "${REPO_URL}"
-
-          # Check out existing gh-pages, or start a fresh orphan branch
-          if git ls-remote --exit-code --heads origin gh-pages; then
-            git fetch origin gh-pages
-            git checkout -b gh-pages origin/gh-pages
-          else
-            git checkout --orphan gh-pages
-          fi
-
-          # Copy new chart package and update the Helm repo index
-          cp /tmp/chart-packages/*.tgz .
-          if [ -f index.yaml ]; then
-            helm repo index . --url "${PAGES_URL}" --merge index.yaml
-          else
-            helm repo index . --url "${PAGES_URL}"
-          fi
-
-          git add .
-          git commit -m "Release ${{ github.ref_name }}"
-          git push origin gh-pages
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
