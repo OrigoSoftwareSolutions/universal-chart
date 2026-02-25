@@ -1,0 +1,16 @@
+{{- range $name, $hr := .Values.httpRoutes }}
+{{- if not ($hr.disabled | default false) }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
+  {{- with $hr.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- toYaml $hr.spec | nindent 2 }}
+{{- end }}
+{{- end }}
