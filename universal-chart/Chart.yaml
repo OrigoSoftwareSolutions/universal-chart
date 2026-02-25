@@ -7,8 +7,8 @@ appVersion: "1.0.0"
 keywords:
   - universal
   - origo
-home: https://github.com/origo-is/universal-chart
+home: https://github.com/OrigoSoftwareSolutions/universal-chart
 sources:
-  - https://github.com/origo-is/universal-chart
+  - https://github.com/OrigoSoftwareSolutions/universal-chart
 maintainers:
   - name: Origo DevOps
