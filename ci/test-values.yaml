@@ -252,8 +252,3 @@ secrets:
     data:
       API_KEY: c2VjcmV0
 
-# --- SealedSecret ---
-sealedSecrets:
-  sealed-demo:
-    encryptedData:
-      password: AgBnFakeEncryptedDataForTestingOnly==
