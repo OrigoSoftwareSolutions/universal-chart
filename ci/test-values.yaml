@@ -11,3 +11,65 @@ services:
     ports:
       - port: 80
         targetPort: 80
+
+externalSecrets:
+  my-db-secret:
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: aws-secrets
+        kind: SecretStore
+      target:
+        name: my-db-secret
+      data:
+        - secretKey: password
+          remoteRef:
+            key: prod/myapp/db
+            property: password
+
+secretStores:
+  aws-store:
+    spec:
+      provider:
+        aws:
+          service: SecretsManager
+          region: eu-west-1
+          auth:
+            secretRef:
+              accessKeyIDSecretRef:
+                name: aws-creds
+                key: access-key-id
+              secretAccessKeySecretRef:
+                name: aws-creds
+                key: secret-access-key
+
+clusterSecretStores:
+  cluster-store:
+    spec:
+      provider:
+        kubernetes:
+          remoteNamespace: default
+          server:
+            caProvider:
+              type: ConfigMap
+              name: kube-root-ca.crt
+              key: ca.crt
+          auth:
+            serviceAccount:
+              name: cluster-store-sa
+
+clusterExternalSecrets:
+  shared-config:
+    spec:
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: default
+      refreshTime: 1h
+      externalSecretSpec:
+        refreshInterval: 1h
+        secretStoreRef:
+          name: cluster-store
+          kind: ClusterSecretStore
+        target:
+          name: shared-config
+        data: []

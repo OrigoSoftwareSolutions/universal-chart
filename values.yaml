@@ -432,3 +432,35 @@ istiodestinationrules: {}
   #   exportTo:
   #     - "."
   #     - "another-namespace"
+# -- External Secrets Operator
+externalSecrets: {}
+# externalSecrets:
+#   my-secret:
+#     spec:
+#       refreshInterval: 1h
+#       secretStoreRef:
+#         name: my-store
+#         kind: SecretStore
+#       target:
+#         name: my-secret
+#       data: []
+
+secretStores: {}
+# secretStores:
+#   my-store:
+#     spec:
+#       provider:
+#         aws:
+#           service: SecretsManager
+#           region: eu-west-1
+
+clusterSecretStores: {}
+# clusterSecretStores:
+#   cluster-store:
+#     spec:
+#       provider: {}
+
+clusterExternalSecrets: {}
+# clusterExternalSecrets:
+#   cluster-secret:
+#     spec: {}
