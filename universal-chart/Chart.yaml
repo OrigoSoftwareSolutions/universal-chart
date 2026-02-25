@@ -1,14 +1,15 @@
 apiVersion: v2
+type: application
 name: universal-chart
 description: Origo universal Helm chart for all standard Kubernetes and CRD resources
-type: application
-version: 0.1.0
-appVersion: "1.0.0"
-keywords:
-  - universal
-  - origo
 home: https://github.com/OrigoSoftwareSolutions/universal-chart
+version: 1.0.0
+appVersion: "1.0.0"
 sources:
   - https://github.com/OrigoSoftwareSolutions/universal-chart
 maintainers:
-  - name: Origo DevOps
+  - name: Origo SoftwareSolutions DevOps
+keywords:
+  - universal
+  - helm
+  - chart
