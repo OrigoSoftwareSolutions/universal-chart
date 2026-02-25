@@ -1,3 +1,0 @@
-# Helm chart-releaser configuration
-# Update charts-repo-url with your GitHub Pages URL before first release
-charts-repo-url: https://origo-is.github.io/universal-chart

@@ -122,22 +122,6 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "helpers.capabilities.traefik.apiVersion" -}}
-{{- if .Values.global }}
-{{- if .Values.global.apiVersions.traefik }}
-{{- .Values.global.apiVersions.traefik -}}
-{{- else if .Capabilities.APIVersions.Has "traefik.io/v1alpha1" -}}
-{{- print "traefik.io/v1alpha1" -}}
-{{- else if .Capabilities.APIVersions.Has "traefik.containo.us/v1alpha1" -}}
-{{- print "traefik.containo.us/v1alpha1" -}}
-{{- end -}}
-{{- else if .Capabilities.APIVersions.Has "traefik.io/v1alpha1" -}}
-{{- print "traefik.io/v1alpha1" -}}
-{{- else if .Capabilities.APIVersions.Has "traefik.containo.us/v1alpha1" -}}
-{{- print "traefik.containo.us/v1alpha1" -}}
-{{- end -}}
-{{- end -}}
-
 {{- define "helpers.capabilities.istiogateway.apiVersion" -}}
 {{- if .Values.global }}
 {{- if .Values.global.apiVersions.istioGateway }}

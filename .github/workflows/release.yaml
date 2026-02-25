@@ -16,20 +16,39 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure Git
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
           version: v3.14.0
 
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.6.0
-        with:
-          charts_dir: .
-          config: cr.yaml
-        env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Package chart
+        run: helm package . --destination /tmp/chart-packages
+
+      - name: Publish to GitHub Pages
+        run: |
+          # Check out gh-pages branch (create it if it doesn't exist)
+          git fetch origin gh-pages || true
+          git worktree add /tmp/gh-pages gh-pages 2>/dev/null || \
+            (git worktree add --orphan /tmp/gh-pages gh-pages && \
+             git -C /tmp/gh-pages checkout --orphan gh-pages && \
+             git -C /tmp/gh-pages rm -rf . 2>/dev/null || true)
+
+          # Copy packaged chart to gh-pages worktree
+          cp /tmp/chart-packages/*.tgz /tmp/gh-pages/
+
+          # Update or create the Helm repo index
+          if [ -f /tmp/gh-pages/index.yaml ]; then
+            helm repo index /tmp/gh-pages --url https://origo-is.github.io/universal-chart --merge /tmp/gh-pages/index.yaml
+          else
+            helm repo index /tmp/gh-pages --url https://origo-is.github.io/universal-chart
+          fi
+
+          # Commit and push
+          git -C /tmp/gh-pages add .
+          git -C /tmp/gh-pages commit -m "Release ${{ github.ref_name }}"
+          git -C /tmp/gh-pages push origin gh-pages
