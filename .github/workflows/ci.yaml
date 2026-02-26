@@ -79,6 +79,23 @@ jobs:
           exit-code: "0"
           format: table
 
+  ct-lint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.19.1
+
+      - uses: helm/chart-testing-action@v2
+
+      - name: Run ct lint
+        run: ct lint --config ct.yaml
+
   docs-check:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
