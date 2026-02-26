@@ -1,0 +1,6 @@
+repos:
+  - repo: https://github.com/digitalstudium/helmfmt
+    rev: v0.4.3
+    hooks:
+      - id: helmfmt
+        files: universal-chart/.*\.(yaml|yml|tpl)$

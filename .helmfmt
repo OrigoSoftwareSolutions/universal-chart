@@ -1,0 +1,36 @@
+{
+  "indent_size": 2,
+  "extensions": [
+    ".yaml",
+    ".yml",
+    ".tpl"
+  ],
+  "rules": {
+    "indent": {
+      "tpl": {
+        "disabled": false,
+        "exclude": []
+      },
+      "toYaml": {
+        "disabled": false,
+        "exclude": []
+      },
+      "template": {
+        "disabled": false,
+        "exclude": []
+      },
+      "include": {
+        "disabled": false,
+        "exclude": []
+      },
+      "printf": {
+        "disabled": false,
+        "exclude": []
+      },
+      "fail": {
+        "disabled": false,
+        "exclude": []
+      }
+    }
+  }
+}
