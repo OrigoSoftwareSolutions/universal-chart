@@ -25,7 +25,7 @@ Origo universal Helm chart for all standard Kubernetes and CRD resources
 | clusterSecretStores | object | `{}` | External Secrets Operator ClusterSecretStore resources (cluster-scoped). Each key becomes the resource name. |
 | configMaps | object | `{}` | Kubernetes ConfigMap resources. Each key becomes the resource name. |
 | cronJobs | object | `{}` | Kubernetes CronJob resources. Each key becomes the resource name. |
-| cronJobsGeneral | object | `{}` | Shared defaults for all CronJobs |
+| cronJobsGeneral | object | `{"usePredefinedAffinity":false}` | Shared defaults for all CronJobs |
 | defaultImage | string | `"nginx"` |  |
 | defaultImagePullPolicy | string | `"IfNotPresent"` |  |
 | defaultImageTag | string | `"latest"` |  |
@@ -41,16 +41,16 @@ Origo universal Helm chart for all standard Kubernetes and CRD resources
 | generic | object | `{"annotations":{},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"usePredefinedAffinity":true}` | Global settings applied to all workload templates (labels, annotations, pod affinity overrides, etc.) |
 | hooks | object | `{}` | Helm lifecycle hook Jobs (pre/post-install/upgrade). Each key becomes the hook name. |
 | hooksGeneral | object | `{}` | Shared defaults for all hook Jobs |
+| hpas | object | `{}` | Kubernetes HorizontalPodAutoscaler resources (autoscaling/v2). Each key becomes the resource name. |
 | httpRoutes | object | `{}` | Gateway API HTTPRoute resources. Each key becomes the resource name. |
 | imagePullSecrets | object | `{}` |  |
-| ingresses | object | `{}` | Kubernetes Ingress resources. Each key becomes the resource name. |
 | istioAuthorizationPolicies | object | `{}` | Istio AuthorizationPolicy resources. Each key becomes the resource name. |
 | istioPeerAuthentications | object | `{}` | Istio PeerAuthentication resources (mTLS policy). Each key becomes the resource name. |
 | istiodestinationrules | object | `{}` | Istio DestinationRule resources. Each key becomes the resource name. |
 | istiogateways | object | `{}` | Istio Gateway resources. Each key becomes the resource name. |
 | istiovirtualservices | object | `{}` | Istio VirtualService resources. Each key becomes the resource name. |
 | jobs | object | `{}` | Kubernetes Job resources (non-hook). Each key becomes the resource name. |
-| jobsGeneral | object | `{}` |  |
+| jobsGeneral.usePredefinedAffinity | bool | `false` |  |
 | nodeAffinityPreset | object | `{"key":"","type":"","values":[]}` | Node affinity preset configuration |
 | podAffinityPreset | string | `"soft"` | Pod affinity preset. Allowed values: `soft`, `hard`, `nil` |
 | podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset. Allowed values: `soft`, `hard`, `nil` |

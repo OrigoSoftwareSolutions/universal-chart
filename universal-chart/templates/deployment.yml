@@ -11,12 +11,15 @@ metadata:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with $general.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- $annots := include "helpers.app.genericAnnotations" $ | trim }}
+  {{- if or $annots $general.annotations .annotations }}
   annotations:
-    {{- include "helpers.app.genericAnnotations" $ | indent 4 }}
+    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
     {{- with $general.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- end }}
 spec:
-  replicas:  {{ dig "replicas" (dig "replicas" 1 $general) $d | int }}
+  replicas: {{ dig "replicas" (dig "replicas" 1 $general) $d | int }}
   {{- with .strategy }}
   strategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
   {{- end }}
@@ -32,10 +35,12 @@ spec:
         {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
         {{- with $.Values.generic.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
         {{- with .podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+      {{- if or $.Values.generic.podAnnotations .podAnnotations }}
       annotations:
         {{- with $.Values.generic.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
         {{- with .podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+      {{- end }}
     spec:
-      {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "extraLabels" .extraSelectorLabels "context" $) | indent 6 }}
+      {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "extraLabels" .extraSelectorLabels "context" $) | trim | nindent 6 }}
 {{- end }}
 {{- end }}

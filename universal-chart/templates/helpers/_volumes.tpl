@@ -77,7 +77,5 @@
 {{ with $general.extraVolumeMounts }}{{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}{{ end }}
 {{ with $ctx.Values.generic.volumeMounts }}{{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}{{ end }}
 {{ with $ctx.Values.generic.extraVolumeMounts }}{{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}{{ end }}
-{{- else }}
-  []
-{{- end }}
-{{- end }}
+{{- else }}  []{{- end -}}
+{{- end -}}

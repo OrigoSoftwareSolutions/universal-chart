@@ -18,10 +18,13 @@ metadata:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with $general.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- $annots := include "helpers.app.genericAnnotations" $ | trim }}
+  {{- if or $annots $general.annotations .annotations }}
   annotations:
-    {{- include "helpers.app.genericAnnotations" $ | indent 4 }}
+    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
     {{- with $general.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- end }}
 spec:
   suspend: {{ default false .suspend }}
   schedule: {{ include "helpers.tplvalues.render" (dict "value" .schedule "context" $) | quote }}
@@ -71,15 +74,23 @@ spec:
       ttlSecondsAfterFinished: {{ $general.ttlSecondsAfterFinished }}
       {{- end }}
       template:
+        {{- if or $.Values.generic.podLabels .podLabels $.Values.generic.podAnnotations .podAnnotations }}
         metadata:
+          {{- if or $.Values.generic.podLabels .podLabels }}
           labels:
             {{- with $.Values.generic.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
             {{- with .podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
+          {{- end }}
+          {{- if or $.Values.generic.podAnnotations .podAnnotations }}
           annotations:
             {{- with $.Values.generic.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
             {{- with .podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
+          {{- end }}
+        {{- else }}
+        metadata: {}
+        {{- end }}
         spec:
-          {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | indent 10 }}
+          {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | trim | nindent 10 }}
           restartPolicy: {{ .restartPolicy | default "Never" }}
 {{- if .commandDurationAlert }}
 ---

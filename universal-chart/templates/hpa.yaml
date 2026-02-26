@@ -1,15 +1,17 @@
 {{- range $name, $hpa := .Values.hpas }}
 ---
 kind: HorizontalPodAutoscaler
-apiVersion: {{ .apiVersion | default "autoscaling/v2beta1" }}
+apiVersion: {{ .apiVersion | default "autoscaling/v2" }}
 metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- with .annotations }}
   annotations:
-    {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+  {{- end }}
 spec:
   {{- with .scaleTargetRef }}
   scaleTargetRef:
@@ -24,15 +26,23 @@ spec:
     - type: Resource
       resource:
         name: cpu
-        targetAverageUtilization: {{ .targetCPU }}
+        target:
+          type: Utilization
+          averageUtilization: {{ .targetCPU }}
     {{- end }}
     {{- if not (empty .targetMemory) }}
     - type: Resource
       resource:
         name: memory
-        targetAverageUtilization: {{ .targetMemory }}
+        target:
+          type: Utilization
+          averageUtilization: {{ .targetMemory }}
     {{- end }}
     {{- if .metrics }}
     {{- toYaml .metrics | nindent 4 }}
     {{- end }}
+  {{- with .behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end -}}

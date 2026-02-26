@@ -86,25 +86,6 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "helpers.capabilities.ingress.apiVersion" -}}
-{{- if .Values.global }}
-{{- if .Values.global.apiVersions.ingress }}
-{{- .Values.global.apiVersions.ingress -}}
-{{- else if semverCompare "<1.14-0" (include "helpers.capabilities.kubeVersion" $) -}}
-{{- print "extensions/v1beta1" -}}
-{{- else if semverCompare "<1.19-0" (include "helpers.capabilities.kubeVersion" $) -}}
-{{- print "networking.k8s.io/v1beta1" -}}
-{{- else -}}
-{{- print "networking.k8s.io/v1" -}}
-{{- end -}}
-{{- else if semverCompare "<1.14-0" (include "helpers.capabilities.kubeVersion" $) -}}
-{{- print "extensions/v1beta1" -}}
-{{- else if semverCompare "<1.19-0" (include "helpers.capabilities.kubeVersion" $) -}}
-{{- print "networking.k8s.io/v1beta1" -}}
-{{- else -}}
-{{- print "networking.k8s.io/v1" -}}
-{{- end -}}
-{{- end -}}
 
 {{- define "helpers.capabilities.pdb.apiVersion" -}}
 {{- if .Values.global }}
@@ -151,6 +132,22 @@
 {{- print "networking.istio.io/v1" -}}
 {{- else -}}
 {{- print "networking.istio.io/v1beta1" -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "helpers.capabilities.istiosecurity.apiVersion" -}}
+{{- if .Values.global }}
+{{- if .Values.global.apiVersions.istioSecurity }}
+{{- .Values.global.apiVersions.istioSecurity -}}
+{{- else if .Capabilities.APIVersions.Has "security.istio.io/v1" -}}
+{{- print "security.istio.io/v1" -}}
+{{- else -}}
+{{- print "security.istio.io/v1beta1" -}}
+{{- end -}}
+{{- else if .Capabilities.APIVersions.Has "security.istio.io/v1" -}}
+{{- print "security.istio.io/v1" -}}
+{{- else -}}
+{{- print "security.istio.io/v1beta1" -}}
 {{- end -}}
 {{- end -}}
 

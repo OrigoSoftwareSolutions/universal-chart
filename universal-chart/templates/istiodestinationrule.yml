@@ -8,9 +8,12 @@ metadata:
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with $destinationrule.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- $annots := include "helpers.app.genericAnnotations" $ | trim }}
+  {{- if or $annots $destinationrule.annotations }}
   annotations:
-    {{- include "helpers.app.genericAnnotations" $ | indent 4 }}
+    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
     {{- with $destinationrule.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- end }}
 spec:
   host: {{ $destinationrule.host | quote }}
   trafficPolicy:

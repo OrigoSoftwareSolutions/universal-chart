@@ -100,9 +100,6 @@ defaultImage: nginx
 defaultImageTag: latest
 defaultImagePullPolicy: "IfNotPresent"
 
-# -- Kubernetes Ingress resources. Each key becomes the resource name.
-ingresses: {}
-
 # -- Gateway API HTTPRoute resources. Each key becomes the resource name.
 httpRoutes: {}
 # httpRoutes:
@@ -114,33 +111,6 @@ httpRoutes: {}
 #       hostnames:
 #         - app.example.com
 #       rules: []
-#  nixys.io:
-#    annotations:
-#      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-#      nginx.ingress.kubernetes.io/proxy-body-size: "128m"
-#    certManager:
-#      issuerType: cluster-issuer
-#      issuerName: letsencrypt
-#    hosts:
-#    - paths:
-#      - serviceName: nginx
-#        servicePort: http
-#  nixys.org:
-#    annotations:
-#      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-#    hosts:
-#    - paths:
-#      - path: /api
-#        servicePort: api
-#    - hostname: nixys.com
-#      paths:
-#      - path: /api
-#        servicePort: api
-#    extraTls:
-#    - hosts:
-#      - nixys.com
-#      - nixys.org
-#      secretName: "nixys-tls"
 
 # -- Kubernetes Service resources. Each key becomes the resource name.
 services: {}
@@ -315,7 +285,8 @@ hooks: {}
 #          name: server-env
 
 # -- Shared defaults for all CronJobs
-cronJobsGeneral: {}
+cronJobsGeneral:
+  usePredefinedAffinity: false
 # -- Kubernetes CronJob resources. Each key becomes the resource name.
 cronJobs: {}
 #  generate-data:
@@ -339,7 +310,8 @@ cronJobs: {}
 #    schedule: "*/5 * * * *"
 #    command: "php yii crontab/auto-sender"
 
-jobsGeneral: {}
+jobsGeneral:
+  usePredefinedAffinity: false
 # -- Kubernetes Job resources (non-hook). Each key becomes the resource name.
 jobs: {}
 #  refresh-cache:
@@ -521,6 +493,31 @@ clusterExternalSecrets: {}
 # clusterExternalSecrets:
 #   cluster-secret:
 #     spec: {}
+
+# -- Kubernetes HorizontalPodAutoscaler resources (autoscaling/v2). Each key becomes the resource name.
+hpas: {}
+#  web:
+#    scaleTargetRef:
+#      name: web           # resource key (releasePrefix applied automatically)
+#      kind: Deployment    # optional, defaults to Deployment
+#    minReplicas: 2
+#    maxReplicas: 10
+#    targetCPU: 70         # shorthand: Utilization target for cpu resource metric
+#    targetMemory: 80      # shorthand: Utilization target for memory resource metric
+#    metrics: []           # raw autoscaling/v2 metrics list (merged after targetCPU/targetMemory)
+#    behavior:
+#      scaleDown:
+#        stabilizationWindowSeconds: 300
+#        policies:
+#          - type: Percent
+#            value: 10
+#            periodSeconds: 60
+#      scaleUp:
+#        stabilizationWindowSeconds: 0
+#        policies:
+#          - type: Percent
+#            value: 100
+#            periodSeconds: 15
 
 # -- cert-manager ClusterIssuer resources (cluster-scoped, no namespace). Each key becomes the resource name.
 clusterIssuers: {}

@@ -1,7 +1,7 @@
 {{- range $name, $ap := .Values.istioAuthorizationPolicies }}
 {{- if not ($ap.disabled | default false) }}
 ---
-apiVersion: security.istio.io/v1beta1
+apiVersion: {{ include "helpers.capabilities.istiosecurity.apiVersion" $ }}
 kind: AuthorizationPolicy
 metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}

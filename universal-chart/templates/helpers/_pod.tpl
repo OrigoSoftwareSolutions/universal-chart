@@ -22,7 +22,9 @@ affinity: {{- include "helpers.tplvalues.render" ( dict "value" .affinity "conte
 affinity: {{- include "helpers.tplvalues.render" ( dict "value" $general.affinity "context" $) | nindent 2 }}
 {{- else if $usePredefinedAffinity }}
 affinity:
+  {{- if $.Values.nodeAffinityPreset.type }}
   nodeAffinity: {{- include "helpers.affinities.nodes" (dict "type" $.Values.nodeAffinityPreset.type "key" $.Values.nodeAffinityPreset.key "values" $.Values.nodeAffinityPreset.values "context" $) | nindent 4 }}
+  {{- end }}
   podAffinity: {{- include "helpers.affinities.pods" (dict "type" $.Values.podAffinityPreset "extraLabels" $extraLabels "context" $) | nindent 4 }}
   podAntiAffinity: {{- include "helpers.affinities.pods" (dict "type" $.Values.podAntiAffinityPreset "extraLabels" $extraLabels "context" $) | nindent 4 }}
 {{- end }}
@@ -49,7 +51,7 @@ tolerations:
 {{- with .securityContext }}
 securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
 {{- end }}
-{{ if or $.Values.imagePullSecrets $.Values.generic.extraImagePullSecrets .extraImagePullSecrets .imagePullSecrets }}
+{{- if or $.Values.imagePullSecrets $.Values.generic.extraImagePullSecrets .extraImagePullSecrets .imagePullSecrets }}
 imagePullSecrets:
 {{- range $sName, $v := $.Values.imagePullSecrets }}
 - name: {{ $sName }}
@@ -90,8 +92,10 @@ initContainers:
   command: {{- include "helpers.tplvalues.render" ( dict "value" .command "context" $) | nindent 2 }}
   {{- end }}
   {{- end }}
-  {{- include "helpers.workloads.envs" (dict "value" . "general" $general "context" $) | indent 2 }}
-  {{- include "helpers.workloads.envsFrom" (dict "value" . "general" $general "context" $) | indent 2 }}
+  {{- $initEnvs := include "helpers.workloads.envs" (dict "value" . "general" $general "context" $) | trim -}}
+  {{- if $initEnvs }}{{ $initEnvs | nindent 2 }}{{- end }}
+  {{- $initEnvsFrom := include "helpers.workloads.envsFrom" (dict "value" . "general" $general "context" $) | trim -}}
+  {{- if $initEnvsFrom }}{{ $initEnvsFrom | nindent 2 }}{{- end }}
   {{- with .ports }}
   ports: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 2 }}
   {{- end }}
@@ -140,8 +144,10 @@ containers:
   command: {{- include "helpers.tplvalues.render" ( dict "value" .command "context" $) | nindent 2 }}
   {{- end }}
   {{- end }}
-  {{- include "helpers.workloads.envs" (dict "value" . "general" $general "context" $) | indent 2 }}
-  {{- include "helpers.workloads.envsFrom" (dict "value" . "general" $general "context" $) | indent 2 }}
+  {{- $envs := include "helpers.workloads.envs" (dict "value" . "general" $general "context" $) | trim -}}
+  {{- if $envs }}{{ $envs | nindent 2 }}{{- end }}
+  {{- $envsFrom := include "helpers.workloads.envsFrom" (dict "value" . "general" $general "context" $) | trim -}}
+  {{- if $envsFrom }}{{ $envsFrom | nindent 2 }}{{- end }}
   {{- with .ports }}
   ports: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 2 }}
   {{- end }}

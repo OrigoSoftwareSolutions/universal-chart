@@ -6,10 +6,15 @@ metadata:
   name: {{ include "helpers.app.fullname" (dict "name" "envs" "context" $) }}
   namespace: {{ .Release.Namespace | quote }}
   labels: {{- include "helpers.app.labels" $ | nindent 4 }}
-  annotations: {{- include "helpers.app.defaultHookAnnotations" $ | nindent 4 }}
+  {{- $hookAnnots := include "helpers.app.defaultHookAnnotations" $ | trim }}
+  {{- if $hookAnnots }}
+  annotations:{{ $hookAnnots | nindent 4 }}
+  {{- end }}
 data:
-  {{- include "helpers.configmaps.renderConfigMap" (dict "value" .Values.envs) | indent 2 }}
-  {{- include "helpers.configmaps.renderConfigMap" (dict "value" .Values.envsString) | indent 2 }}
+  {{- $d1 := include "helpers.configmaps.renderConfigMap" (dict "value" .Values.envs) | trim }}
+  {{- $d2 := include "helpers.configmaps.renderConfigMap" (dict "value" .Values.envsString) | trim }}
+  {{- if $d1 }}{{ $d1 | nindent 2 }}{{- end }}
+  {{- if $d2 }}{{ $d2 | nindent 2 }}{{- end }}
 {{- end }}
 
 {{- range $cName, $val := .Values.configMaps -}}
@@ -23,20 +28,23 @@ metadata:
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with $val.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{ end }}
+  {{- $hookAnnots := include "helpers.app.defaultHookAnnotations" $ | trim }}
+  {{- if or $val.annotations $hookAnnots }}
   annotations:
-    {{- if $val.annotations }}
+    {{- if $val.annotations -}}
       {{- $_ := include "helpers.tplvalues.render" (dict "value" $val.annotations "context" $) }}
-      {{- include "helpers.app.annotations" (dict "value" $_ "context" $) |  nindent 4  -}}
+      {{- include "helpers.app.annotations" (dict "value" $_ "context" $) | nindent 4 -}}
     {{- else }}
-      {{- include "helpers.app.defaultHookAnnotations" $ | nindent 4 }}
+      {{- $hookAnnots | nindent 4 }}
     {{- end }}
+  {{- end }}
 {{- if and $val.data $val.binaryData }}{{- fail "Cannot set both data and binaryData in single ConfigMap" }} {{- end }}
 {{- if $val.data }}
 data:
-  {{- include "helpers.configmaps.renderConfigMap" ( dict "value" $val.data "context" $ ) | nindent 2 }}
+  {{- include "helpers.configmaps.renderConfigMap" ( dict "value" $val.data "context" $ ) | trim | nindent 2 }}
 {{- else if $val.binaryData }}
 binaryData:
-  {{- include "helpers.configmaps.renderConfigMap" ( dict "value" $val.binaryData "context" $ ) | nindent 2 }}
+  {{- include "helpers.configmaps.renderConfigMap" ( dict "value" $val.binaryData "context" $ ) | trim | nindent 2 }}
 {{- end -}}
 {{- end -}}
 {{- end -}}

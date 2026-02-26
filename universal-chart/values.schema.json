@@ -88,11 +88,7 @@
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },
-    "ingresses": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "externalSecrets": {
+"externalSecrets": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },

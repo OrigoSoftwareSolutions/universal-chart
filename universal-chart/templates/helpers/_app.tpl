@@ -41,7 +41,7 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- define "helpers.app.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "helpers.app.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-{{ include "helpers.app.genericSelectorLabels" $ }}
+{{- include "helpers.app.genericSelectorLabels" $ }}
 {{- end }}
 
 {{- define "helpers.app.genericSelectorLabels" -}}

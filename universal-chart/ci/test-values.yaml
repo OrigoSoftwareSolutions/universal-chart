@@ -223,15 +223,6 @@ istiogateways:
           number: 443
           protocol: HTTPS
 
-# --- Ingress ---
-ingresses:
-  web:
-    hosts:
-      - hostname: app.origo.is
-        paths:
-          - path: /
-            serviceName: web
-            servicePort: 80
 
 # --- PodDisruptionBudget ---
 pdbs:
