@@ -20,6 +20,18 @@ helm template test universal-chart/ -f universal-chart/ci/test-values.yaml | gre
 # Release: bump version in universal-chart/Chart.yaml then push to main
 # GitHub Actions packages and pushes to oci://ghcr.io/origosoftwaresolutions/universal-chart
 # Install: helm install app oci://ghcr.io/origosoftwaresolutions/universal-chart --version <version>
+
+# Unit tests (requires helm-unittest plugin)
+helm plugin install https://github.com/helm-unittest/helm-unittest --version 0.4.4  # one-time
+helm unittest universal-chart/ --strict --file 'tests/*.yaml'
+
+# Schema validation (requires kubeconform)
+helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
+  | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.28.0
+
+# Regenerate docs (run after editing values.yaml; required before pushing)
+brew install helm-docs  # one-time
+helm-docs --chart-search-root universal-chart/
 ```
 
 ## Architecture
