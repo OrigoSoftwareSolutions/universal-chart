@@ -6,8 +6,7 @@ type: application
 
 home: https://github.com/OrigoSoftwareSolutions/universal-chart
 
-version: 1.1.1
-appVersion: "1.1.0"
+version: 1.1.2
 
 sources:
   - https://github.com/OrigoSoftwareSolutions/universal-chart
