@@ -1,4 +1,4 @@
-# generic - values that uses by all nxs-universal-chart templates
+# -- Global settings applied to all workload templates (labels, annotations, pod affinity overrides, etc.)
 generic:
   labels: {}
   #  general-label: general-label-value
@@ -34,16 +34,17 @@ generic:
 # Predefined Affinity block
 # Pod affinity preset
 # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
-# Allowed values: soft, hard, nil
+# -- Pod affinity preset. Allowed values: `soft`, `hard`, `nil`
 podAffinityPreset: soft
 
 # Pod anti-affinity preset
 # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
-# Allowed values: soft, hard, nil
+# -- Pod anti-affinity preset. Allowed values: `soft`, `hard`, `nil`
 podAntiAffinityPreset: soft
 
 # Node affinity preset
 # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
+# -- Node affinity preset configuration
 nodeAffinityPreset:
   # Node affinity type
   # Allowed values: soft, hard
@@ -59,25 +60,29 @@ nodeAffinityPreset:
   #   - e2e-az2
   values: []
 
-# Release name used by default. To make it empty use "-"
+# -- Prefix prepended to all resource names. Set to `"-"` to disable.
 releasePrefix: ""
 
-# --set "envs.FOO=bar,envs.TEST=true"
+# -- Non-secret environment variables injected via ConfigMap envFrom
 envs: {}
+# --set "envs.FOO=bar,envs.TEST=true"
 #  BAR: foo
 #  TEST: true
 
-# --set "envsString=$ENVS_STRING"
+# -- Non-secret environment variables as a raw YAML string (for multiline or special chars)
 envsString: ""
+# --set "envsString=$ENVS_STRING"
 #envsString: |
 #  BAR2: foo2
 
-# --set "secretEnvs.FOO=bar"
+# -- Secret environment variables injected via Secret envFrom
 secretEnvs: {}
+# --set "secretEnvs.FOO=bar"
 #  FOO: bar
 
-# --set "secretEnvsString=$SECRET_ENVS_STRING"
+# -- Secret environment variables as a raw YAML string
 secretEnvsString: ""
+# --set "secretEnvsString=$SECRET_ENVS_STRING"
 #secretEnvsString: |
 #  FOO: BAR
 
@@ -95,8 +100,10 @@ defaultImage: nginx
 defaultImageTag: latest
 defaultImagePullPolicy: "IfNotPresent"
 
+# -- Kubernetes Ingress resources. Each key becomes the resource name.
 ingresses: {}
 
+# -- Gateway API HTTPRoute resources. Each key becomes the resource name.
 httpRoutes: {}
 # httpRoutes:
 #   my-app:
@@ -135,6 +142,7 @@ httpRoutes: {}
 #      - nixys.org
 #      secretName: "nixys-tls"
 
+# -- Kubernetes Service resources. Each key becomes the resource name.
 services: {}
 #  nginx:
 #    clusterIP: None
@@ -145,7 +153,9 @@ services: {}
 #    extraSelectorLabels:
 #      app: my-nginx
 
+# -- Shared defaults for all Deployments (merged with per-instance values)
 deploymentsGeneral: {}
+# -- Kubernetes Deployment resources. Each key becomes the resource name.
 deployments: {}
 #  nginx:
 #    labels: {}
@@ -200,9 +210,12 @@ deployments: {}
 #    - name: app-data
 #      type: pvc
 
+# -- Shared defaults for all StatefulSets
 statefulSetsGeneral: {}
+# -- Kubernetes StatefulSet resources. Each key becomes the resource name.
 statefulSets: {}
 
+# -- Kubernetes ServiceAccount resources. Each key becomes the resource name.
 serviceAccount: {}
 #  firstaccount:
 #    role:
@@ -234,6 +247,7 @@ serviceAccount: {}
 #        resources: ["crontabs"]
 #        verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
+# -- Kubernetes Secret resources. Each key becomes the resource name.
 secrets: {}
   # --set "secrets.secret-file.data.api\.key=$SOME_ENV"
   #secret-file:
@@ -265,6 +279,7 @@ secrets: {}
   #    file.json: {
   #      "arg": "value"
   #    }
+# -- Kubernetes ConfigMap resources. Each key becomes the resource name.
 configMaps: {}
   #some-cm:
   #  labels:
@@ -277,6 +292,7 @@ configMaps: {}
   #     "arg": "value"
 #   }
 
+# -- Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name.
 # All PVSs will be added to `volumes` block in each workload excluding hooks
 pvcs: {}
 #  app-data:
@@ -285,7 +301,9 @@ pvcs: {}
 #    - ReadWriteMany
 #    size: 8Gi
 
+# -- Shared defaults for all hook Jobs
 hooksGeneral: {}
+# -- Helm lifecycle hook Jobs (pre/post-install/upgrade). Each key becomes the hook name.
 hooks: {}
 #  migration-up:
 #    containers:
@@ -296,7 +314,9 @@ hooks: {}
 #      - secretRef:
 #          name: server-env
 
+# -- Shared defaults for all CronJobs
 cronJobsGeneral: {}
+# -- Kubernetes CronJob resources. Each key becomes the resource name.
 cronJobs: {}
 #  generate-data:
 #    schedule: "*/5 * * * *"
@@ -320,6 +340,7 @@ cronJobs: {}
 #    command: "php yii crontab/auto-sender"
 
 jobsGeneral: {}
+# -- Kubernetes Job resources (non-hook). Each key becomes the resource name.
 jobs: {}
 #  refresh-cache:
 #    command: "php yii crontab/refresh-cache"
@@ -330,6 +351,7 @@ serviceAccountGeneral: {}
 #  annotations:
 #    test: test2
 
+# -- Prometheus ServiceMonitor resources. Each key becomes the resource name.
 serviceMonitors: {}
 #  app-sm:
 #    endpoints:
@@ -340,6 +362,7 @@ serviceMonitors: {}
 #      app: nginx
 #    labels:
 #      foo: foo
+# -- Raw Kubernetes manifests to deploy alongside chart resources. Supports template expressions.
 extraDeploy: {}
 #  net-pol: |-
 #    apiVersion: networking.k8s.io/v1
@@ -376,6 +399,7 @@ extraDeploy: {}
 #        ports:
 #        - protocol: TCP
 #          port: 5978
+# -- Istio Gateway resources. Each key becomes the resource name.
 istiogateways: {}
   # nginx:
   #   name: nginx-gateway
@@ -389,6 +413,7 @@ istiogateways: {}
   #       hosts:
   #         - "nginx.example.com"
 
+# -- Istio VirtualService resources. Each key becomes the resource name.
 istiovirtualservices: {}
   # nginx:
   #   name: nginx-virtualservice
@@ -406,6 +431,7 @@ istiovirtualservices: {}
   #             port:
   #               number: 80
 
+# -- Istio DestinationRule resources. Each key becomes the resource name.
 istiodestinationrules: {}
   # nginx:
   #   name: nginx-destinationrule
@@ -443,6 +469,7 @@ istiodestinationrules: {}
   #   exportTo:
   #     - "."
   #     - "another-namespace"
+# -- Istio PeerAuthentication resources (mTLS policy). Each key becomes the resource name.
 istioPeerAuthentications: {}
 # istioPeerAuthentications:
 #   default:
@@ -450,6 +477,7 @@ istioPeerAuthentications: {}
 #       mtls:
 #         mode: STRICT
 
+# -- Istio AuthorizationPolicy resources. Each key becomes the resource name.
 istioAuthorizationPolicies: {}
 # istioAuthorizationPolicies:
 #   deny-all:
@@ -458,7 +486,7 @@ istioAuthorizationPolicies: {}
 #       rules:
 #         - {}
 
-# -- External Secrets Operator
+# -- External Secrets Operator ExternalSecret resources. Each key becomes the resource name.
 externalSecrets: {}
 # externalSecrets:
 #   my-secret:
@@ -471,6 +499,7 @@ externalSecrets: {}
 #         name: my-secret
 #       data: []
 
+# -- External Secrets Operator SecretStore resources (namespace-scoped). Each key becomes the resource name.
 secretStores: {}
 # secretStores:
 #   my-store:
@@ -480,17 +509,20 @@ secretStores: {}
 #           service: SecretsManager
 #           region: eu-west-1
 
+# -- External Secrets Operator ClusterSecretStore resources (cluster-scoped). Each key becomes the resource name.
 clusterSecretStores: {}
 # clusterSecretStores:
 #   cluster-store:
 #     spec:
 #       provider: {}
 
+# -- External Secrets Operator ClusterExternalSecret resources (cluster-scoped). Each key becomes the resource name.
 clusterExternalSecrets: {}
 # clusterExternalSecrets:
 #   cluster-secret:
 #     spec: {}
 
+# -- cert-manager ClusterIssuer resources (cluster-scoped, no namespace). Each key becomes the resource name.
 clusterIssuers: {}
 # clusterIssuers:
 #   letsencrypt-prod:

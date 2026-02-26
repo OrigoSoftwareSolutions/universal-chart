@@ -1,0 +1,42 @@
+name: Update Docs
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  helm-docs:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install helm-docs
+        run: |
+          curl -sLO https://github.com/norwoodj/helm-docs/releases/download/v1.13.1/helm-docs_1.13.1_Linux_x86_64.tar.gz
+          tar -xzf helm-docs_1.13.1_Linux_x86_64.tar.gz helm-docs
+          sudo mv helm-docs /usr/local/bin/
+
+      - name: Run helm-docs
+        run: helm-docs --chart-search-root universal-chart/
+
+      - name: Commit updated README if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --exit-code universal-chart/README.md; then
+            echo "README.md is up to date, nothing to commit"
+          else
+            git add universal-chart/README.md
+            git commit -m "docs: update helm-docs README [skip ci]"
+            git push
+          fi
