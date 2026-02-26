@@ -49,7 +49,13 @@
       "mcp__filesystem__read_multiple_files",
       "mcp__git__git_diff",
       "mcp__git__git_log",
-      "mcp__git__git_status"
+      "mcp__git__git_status",
+      "Bash(gh run:*)",
+      "Bash(gh release:*)",
+      "Bash(head:*)",
+      "Bash(gh api:*)",
+      "Bash(git:*)",
+      "Bash(helm-docs:*)"
     ]
   }
 }
