@@ -15,7 +15,3 @@ updates:
     schedule:
       interval: "weekly"
 
-  - package-ecosystem: "docker"
-    directory: "/universal-chart"
-    schedule:
-      interval: "weekly"
