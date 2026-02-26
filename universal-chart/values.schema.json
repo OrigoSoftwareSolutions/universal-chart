@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "universal-chart values",
+  "description": "Schema for Origo universal-chart values validation",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "releasePrefix": {
+      "type": "string",
+      "description": "Prefix prepended to all resource names. Use \"-\" to disable."
+    },
+    "podAffinityPreset": {
+      "type": "string",
+      "enum": ["soft", "hard", ""],
+      "description": "Pod affinity preset"
+    },
+    "podAntiAffinityPreset": {
+      "type": "string",
+      "enum": ["soft", "hard", ""],
+      "description": "Pod anti-affinity preset"
+    },
+    "nodeAffinityPreset": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["soft", "hard", ""]
+        },
+        "key": { "type": "string" },
+        "values": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "envs": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number", "boolean"] }
+    },
+    "secretEnvs": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number", "boolean"] }
+    },
+    "envsString": { "type": "string" },
+    "secretEnvsString": { "type": "string" },
+    "deployments": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/workload" }
+    },
+    "statefulSets": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/workload" }
+    },
+    "cronJobs": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "jobs": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "configMaps": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "secrets": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "pvcs": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "hpa": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "pdbs": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "ingresses": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "externalSecrets": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "secretStores": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "clusterSecretStores": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "clusterExternalSecrets": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "certificates": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "issuers": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "clusterIssuers": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "httpRoutes": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "virtualServices": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "gateways": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "destinationRules": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "peerAuthentications": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "authorizationPolicies": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "serviceMonitors": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "extraDeploy": {
+      "type": "object",
+      "additionalProperties": {},
+      "description": "Raw Kubernetes manifests keyed by name. Values support Helm template expressions."
+    }
+  },
+  "$defs": {
+    "disableable": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "disabled": { "type": "boolean" }
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "disabled": { "type": "boolean" },
+        "replicas": { "type": "integer", "minimum": 0 },
+        "containers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "image"],
+            "additionalProperties": true,
+            "properties": {
+              "name": { "type": "string" },
+              "image": { "type": "string" },
+              "imageTag": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
