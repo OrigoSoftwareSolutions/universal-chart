@@ -1,13 +1,13 @@
 {{- if .Values.jobs -}}
-{{- $general := $.Values.jobsGeneral -}}
-{{- $jobs := list -}}
-{{- if kindIs "string" .Values.jobs -}}
+  {{- $general := $.Values.jobsGeneral -}}
+  {{- $jobs := list -}}
+  {{- if kindIs "string" .Values.jobs -}}
 {{- $jobs = fromYaml .Values.jobs -}}
-{{- else if kindIs "map" .Values.jobs -}}
+  {{- else if kindIs "map" .Values.jobs -}}
 {{- $jobs = .Values.jobs -}}
-{{- end -}}
-{{- range $name, $job := $jobs }}
-{{- $jobName := include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  {{- end -}}
+  {{- range $name, $job := $jobs }}
+    {{- $jobName := include "helpers.app.fullname" (dict "name" $name "context" $) }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -18,39 +18,39 @@ metadata:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with $general.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-  {{- $annots := include "helpers.app.genericAnnotations" $ | trim }}
-  {{- if or $annots $general.annotations .annotations }}
+    {{- $annots := include "helpers.app.genericAnnotations" $ | trim }}
+    {{- if or $annots $general.annotations .annotations }}
   annotations:
-    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
-    {{- with $general.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-  {{- end }}
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- with $general.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+      {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- end }}
 spec:
-  {{- if .parallelism }}
+    {{- if .parallelism }}
   parallelism: {{ .parallelism }}
-  {{- else if $general.parallelism }}
+    {{- else if $general.parallelism }}
   parallelism: {{ $general.parallelism }}
-  {{- end }}
-  {{- if .completions }}
+    {{- end }}
+    {{- if .completions }}
   completions: {{ .completions }}
-  {{- else if $general.completions }}
+    {{- else if $general.completions }}
   completions: {{ $general.completions }}
-  {{- end }}
-  {{- if .activeDeadlineSeconds }}
+    {{- end }}
+    {{- if .activeDeadlineSeconds }}
   activeDeadlineSeconds: {{ .activeDeadlineSeconds }}
-  {{- else if $general.activeDeadlineSeconds }}
+    {{- else if $general.activeDeadlineSeconds }}
   activeDeadlineSeconds: {{ $general.activeDeadlineSeconds }}
-  {{- end }}
-  {{- if .backoffLimit }}
+    {{- end }}
+    {{- if .backoffLimit }}
   backoffLimit: {{ .backoffLimit }}
-  {{- else if $general.backoffLimit }}
+    {{- else if $general.backoffLimit }}
   backoffLimit: {{ $general.backoffLimit }}
-  {{- end }}
-  {{- if .ttlSecondsAfterFinished }}
+    {{- end }}
+    {{- if .ttlSecondsAfterFinished }}
   ttlSecondsAfterFinished: {{ .ttlSecondsAfterFinished }}
-  {{- else if $general.ttlSecondsAfterFinished }}
+    {{- else if $general.ttlSecondsAfterFinished }}
   ttlSecondsAfterFinished: {{ $general.ttlSecondsAfterFinished }}
-  {{- end }}
+    {{- end }}
   template:
     {{- if or $.Values.generic.podLabels .podLabels $.Values.generic.podAnnotations .podAnnotations }}
     metadata:
@@ -68,9 +68,9 @@ spec:
     metadata: {}
     {{- end }}
     spec:
-      {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | trim | nindent 6 }}
+    {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | trim | nindent 6 }}
       restartPolicy: {{ .restartPolicy | default "Never" }}
-{{- if .commandDurationAlert }}
+    {{- if .commandDurationAlert }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -92,6 +92,6 @@ spec:
         severity: warning
       annotations:
         message: "Job {{ $.Release.Namespace }}/{{ $jobName }} is taking more than {{ .commandDurationAlert }} to complete"
-{{- end }}
-{{- end }}
+    {{- end }}
+  {{- end }}
 {{- end }}

@@ -6,8 +6,8 @@ metadata:
   name: {{ include "helpers.app.fullname" (dict "name" ($destinationrule.name | default $host) "context" $) }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
-    {{- include "helpers.app.labels" $ | nindent 4 }}
-    {{- with $destinationrule.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- include "helpers.app.labels" $ | nindent 4 }}
+  {{- with $destinationrule.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
   {{- $annots := include "helpers.app.genericAnnotations" $ | trim }}
   {{- if or $annots $destinationrule.annotations }}
   annotations:
@@ -17,21 +17,21 @@ metadata:
 spec:
   host: {{ $destinationrule.host | quote }}
   trafficPolicy:
-    {{- with $destinationrule.trafficPolicy }}
+  {{- with $destinationrule.trafficPolicy }}
     {{- toYaml . | nindent 4 }}
-    {{- end }}
+  {{- end }}
   {{- if $destinationrule.subsets }}
   subsets:
     {{- range $subset := $destinationrule.subsets }}
     - name: {{ $subset.name }}
       labels:
-        {{- range $key, $value := $subset.labels }}
+      {{- range $key, $value := $subset.labels }}
         {{ $key }}: {{ $value | quote }}
-        {{- end }}
+      {{- end }}
       trafficPolicy:
-        {{- with $subset.trafficPolicy }}
+      {{- with $subset.trafficPolicy }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
+      {{- end }}
     {{- end }}
   {{- end }}
   {{- if $destinationrule.exportTo }}
@@ -43,8 +43,8 @@ spec:
   {{- with $destinationrule.workloadSelector }}
   workloadSelector:
     matchLabels:
-      {{- range $key, $value := .matchLabels }}
+    {{- range $key, $value := .matchLabels }}
       {{ $key }}: {{ $value | quote }}
-      {{- end }}
+    {{- end }}
   {{- end }}
 {{- end }}

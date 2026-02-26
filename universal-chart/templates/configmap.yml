@@ -18,7 +18,7 @@ data:
 {{- end }}
 
 {{- range $cName, $val := .Values.configMaps -}}
-{{- if not (eq $cName "envs") }}
+  {{- if not (eq $cName "envs") }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -28,23 +28,23 @@ metadata:
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with $val.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{ end }}
-  {{- $hookAnnots := include "helpers.app.defaultHookAnnotations" $ | trim }}
-  {{- if or $val.annotations $hookAnnots }}
+    {{- $hookAnnots := include "helpers.app.defaultHookAnnotations" $ | trim }}
+    {{- if or $val.annotations $hookAnnots }}
   annotations:
-    {{- if $val.annotations -}}
-      {{- $_ := include "helpers.tplvalues.render" (dict "value" $val.annotations "context" $) }}
-      {{- include "helpers.app.annotations" (dict "value" $_ "context" $) | nindent 4 -}}
-    {{- else }}
+      {{- if $val.annotations -}}
+        {{- $_ := include "helpers.tplvalues.render" (dict "value" $val.annotations "context" $) }}
+        {{- include "helpers.app.annotations" (dict "value" $_ "context" $) | nindent 4 -}}
+      {{- else }}
       {{- $hookAnnots | nindent 4 }}
+      {{- end }}
     {{- end }}
-  {{- end }}
-{{- if and $val.data $val.binaryData }}{{- fail "Cannot set both data and binaryData in single ConfigMap" }} {{- end }}
-{{- if $val.data }}
+    {{- if and $val.data $val.binaryData }}{{- fail "Cannot set both data and binaryData in single ConfigMap" }} {{- end }}
+    {{- if $val.data }}
 data:
-  {{- include "helpers.configmaps.renderConfigMap" ( dict "value" $val.data "context" $ ) | trim | nindent 2 }}
-{{- else if $val.binaryData }}
+      {{- include "helpers.configmaps.renderConfigMap" ( dict "value" $val.data "context" $ ) | trim | nindent 2 }}
+    {{- else if $val.binaryData }}
 binaryData:
-  {{- include "helpers.configmaps.renderConfigMap" ( dict "value" $val.binaryData "context" $ ) | trim | nindent 2 }}
-{{- end -}}
-{{- end -}}
+      {{- include "helpers.configmaps.renderConfigMap" ( dict "value" $val.binaryData "context" $ ) | trim | nindent 2 }}
+    {{- end -}}
+  {{- end -}}
 {{- end -}}

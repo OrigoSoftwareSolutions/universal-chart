@@ -1,5 +1,5 @@
 {{- range $name, $ap := .Values.istioAuthorizationPolicies }}
-{{- if not ($ap.disabled | default false) }}
+  {{- if not ($ap.disabled | default false) }}
 ---
 apiVersion: {{ include "helpers.capabilities.istiosecurity.apiVersion" $ }}
 kind: AuthorizationPolicy
@@ -7,10 +7,10 @@ metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
   namespace: {{ $.Release.Namespace }}
   labels: {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
-  {{- with $ap.annotations }}
+    {{- with $ap.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
-  {{- toYaml $ap.spec | nindent 2 }}
-{{- end }}
+    {{- toYaml $ap.spec | nindent 2 }}
+  {{- end }}
 {{- end }}

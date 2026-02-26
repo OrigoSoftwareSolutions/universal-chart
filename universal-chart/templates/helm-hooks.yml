@@ -1,13 +1,13 @@
 {{- if .Values.hooks -}}
-{{- $general := $.Values.hooksGeneral -}}
-{{- $hooks := list -}}
-{{- if kindIs "string" .Values.hooks -}}
+  {{- $general := $.Values.hooksGeneral -}}
+  {{- $hooks := list -}}
+  {{- if kindIs "string" .Values.hooks -}}
 {{- $hooks = fromYaml .Values.hooks -}}
-{{- else if kindIs "map" .Values.hooks -}}
+  {{- else if kindIs "map" .Values.hooks -}}
 {{- $hooks = .Values.hooks -}}
-{{- end -}}
-{{- range $name, $hook := $hooks }}
-{{- $hookName := include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  {{- end -}}
+  {{- range $name, $hook := $hooks }}
+    {{- $hookName := include "helpers.app.fullname" (dict "name" $name "context" $) }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -25,42 +25,42 @@ metadata:
     {{- with $general.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
 spec:
-  {{- if .parallelism }}
+    {{- if .parallelism }}
   parallelism: {{ .parallelism }}
-  {{- else if $general.parallelism }}
+    {{- else if $general.parallelism }}
   parallelism: {{ $general.parallelism }}
-  {{- end }}
-  {{- if .completions }}
+    {{- end }}
+    {{- if .completions }}
   completions: {{ .completions }}
-  {{- else if $general.completions }}
+    {{- else if $general.completions }}
   completions: {{ $general.completions }}
-  {{- end }}
-  {{- if .activeDeadlineSeconds }}
+    {{- end }}
+    {{- if .activeDeadlineSeconds }}
   activeDeadlineSeconds: {{ .activeDeadlineSeconds }}
-  {{- else if $general.activeDeadlineSeconds }}
+    {{- else if $general.activeDeadlineSeconds }}
   activeDeadlineSeconds: {{ $general.activeDeadlineSeconds }}
-  {{- end }}
-  {{- if .backoffLimit }}
+    {{- end }}
+    {{- if .backoffLimit }}
   backoffLimit: {{ .backoffLimit }}
-  {{- else if $general.backoffLimit }}
+    {{- else if $general.backoffLimit }}
   backoffLimit: {{ $general.backoffLimit }}
-  {{- end }}
-  {{- if .ttlSecondsAfterFinished }}
+    {{- end }}
+    {{- if .ttlSecondsAfterFinished }}
   ttlSecondsAfterFinished: {{ .ttlSecondsAfterFinished }}
-  {{- else if $general.ttlSecondsAfterFinished }}
+    {{- else if $general.ttlSecondsAfterFinished }}
   ttlSecondsAfterFinished: {{ $general.ttlSecondsAfterFinished }}
-  {{- end }}
+    {{- end }}
   template:
     metadata:
       name: {{ $hookName }}
       labels:
-        {{- with $.Values.generic.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
-        {{- with .podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+    {{- with $.Values.generic.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+    {{- with .podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
       annotations:
-        {{- with $.Values.generic.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
-        {{- with .podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+    {{- with $.Values.generic.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+    {{- with .podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
     spec:
-      {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | indent 6 }}
+    {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | indent 6 }}
       restartPolicy: {{ .restartPolicy | default "Never" }}
-{{- end -}}
+  {{- end -}}
 {{- end -}}

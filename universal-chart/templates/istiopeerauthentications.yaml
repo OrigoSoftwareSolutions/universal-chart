@@ -1,5 +1,5 @@
 {{- range $name, $pa := .Values.istioPeerAuthentications }}
-{{- if not ($pa.disabled | default false) }}
+  {{- if not ($pa.disabled | default false) }}
 ---
 apiVersion: {{ include "helpers.capabilities.istiosecurity.apiVersion" $ }}
 kind: PeerAuthentication
@@ -7,10 +7,10 @@ metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
   namespace: {{ $.Release.Namespace }}
   labels: {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
-  {{- with $pa.annotations }}
+    {{- with $pa.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
-  {{- toYaml $pa.spec | nindent 2 }}
-{{- end }}
+    {{- toYaml $pa.spec | nindent 2 }}
+  {{- end }}
 {{- end }}
