@@ -1,4 +1,5 @@
 {{- range $name, $pdb := .Values.pdbs }}
+  {{- if not (.disabled | default false) }}
 ---
 kind: PodDisruptionBudget
 apiVersion: {{ include "helpers.capabilities.pdb.apiVersion" $ }}
@@ -6,19 +7,20 @@ metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
-  {{- include "helpers.app.labels" $ | nindent 4 }}
-  {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- include "helpers.app.labels" $ | nindent 4 }}
+    {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
 spec:
-  {{- if not (empty .minAvailable) }}
+    {{- if not (empty .minAvailable) }}
   minAvailable: {{ .minAvailable }}
-  {{- else }}
-    {{- if not (empty .maxUnavailable) }}
+    {{- else }}
+      {{- if not (empty .maxUnavailable) }}
   maxUnavailable: {{ .maxUnavailable }}
+      {{- end }}
     {{- end }}
-  {{- end }}
   selector:
     matchLabels:
-  {{- include "helpers.app.selectorLabels" $ | nindent 6 }}
-  {{- with $.Values.generic.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end -}}
-  {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end -}}
+    {{- include "helpers.app.selectorLabels" $ | nindent 6 }}
+    {{- with $.Values.defaults.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end -}}
+    {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end -}}
+  {{- end }}
 {{- end -}}

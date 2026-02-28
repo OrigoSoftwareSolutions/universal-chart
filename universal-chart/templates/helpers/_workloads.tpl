@@ -31,3 +31,44 @@ envFrom:
 {{- define "helpers.workload.checksum" -}}
 {{ . | toString | sha256sum }}
 {{- end -}}
+
+{{- /* Converts a ports map {name: port} to a containerPorts list */}}
+{{- define "helpers.workload.singleContainerPorts" -}}
+  {{- $ports := . -}}
+  {{- range $portName := keys $ports | sortAlpha }}
+    {{- $portNum := index $ports $portName }}
+- name: {{ $portName }}
+  containerPort: {{ $portNum | int }}
+  protocol: TCP
+  {{- end }}
+{{- end }}
+
+{{- /* Resolves resource presets (nano/small/medium/large/xlarge) or passes raw resources through */}}
+{{- define "helpers.workload.resolveResources" -}}
+  {{- if typeIs "string" . -}}
+    {{- $presets := dict
+    "nano"   (dict "requests" (dict "cpu" "50m"   "memory" "64Mi")  "limits" (dict "memory" "64Mi"))
+    "small"  (dict "requests" (dict "cpu" "100m"  "memory" "128Mi") "limits" (dict "memory" "128Mi"))
+    "medium" (dict "requests" (dict "cpu" "250m"  "memory" "512Mi") "limits" (dict "memory" "512Mi"))
+    "large"  (dict "requests" (dict "cpu" "500m"  "memory" "1Gi")   "limits" (dict "memory" "1Gi"))
+    "xlarge" (dict "requests" (dict "cpu" "1000m" "memory" "2Gi")   "limits" (dict "memory" "2Gi")) -}}
+    {{- if hasKey $presets . -}}
+    {{- get $presets . | toYaml -}}
+    {{- else -}}
+      {{- fail (printf "resources: unknown preset %q. Valid presets: nano, small, medium, large, xlarge" .) -}}
+    {{- end -}}
+  {{- else -}}
+  {{- . | toYaml -}}
+  {{- end -}}
+{{- end }}
+
+{{- /* Generates an HTTP probe from a healthCheck shorthand {path, port, ...} */}}
+{{- define "helpers.workload.healthCheckProbe" -}}
+httpGet:
+  path: {{ .path | default "/healthz" }}
+  port: {{ .port | default 8080 }}
+initialDelaySeconds: {{ .initialDelaySeconds | default 0 }}
+periodSeconds: {{ .periodSeconds | default 10 }}
+timeoutSeconds: {{ .timeoutSeconds | default 1 }}
+failureThreshold: {{ .failureThreshold | default 3 }}
+{{- end }}

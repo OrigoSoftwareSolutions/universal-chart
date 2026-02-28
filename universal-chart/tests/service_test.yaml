@@ -15,3 +15,11 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -web$
+
+  - it: respects the disabled flag
+    set:
+      services.web.disabled: true
+      services.web.ports[0].port: 80
+    asserts:
+      - hasDocuments:
+          count: 0

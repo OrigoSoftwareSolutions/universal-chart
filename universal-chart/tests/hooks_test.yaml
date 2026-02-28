@@ -1,0 +1,22 @@
+suite: hooks
+templates:
+  - helm-hooks.yml
+tests:
+  - it: renders a hook Job with correct kind and apiVersion
+    set:
+      hooks.migration.containers[0].name: migrate
+      hooks.migration.containers[0].image: myapp
+      hooks.migration.containers[0].imageTag: "1.0"
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: apiVersion
+          value: batch/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -migration$
+      - isNotEmpty:
+          path: metadata.namespace
+      - isNotEmpty:
+          path: metadata.annotations["helm.sh/hook"]

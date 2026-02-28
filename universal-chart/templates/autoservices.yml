@@ -1,0 +1,63 @@
+{{- /*
+Auto-generate a ClusterIP Service for any workload that uses the single-container
+shorthand and has a ports map defined. Skipped when:
+- service: false  (user opts out)
+- an explicit entry exists in .Values.services with the same name
+- the workload is disabled
+*/ -}}
+{{- define "helpers.autoservice" -}}
+{{- $ := .context -}}
+  {{- $name := .name -}}
+  {{- $val := .value -}}
+  {{- $skipService := and (kindIs "bool" $val.service) (not $val.service) -}}
+  {{- if and (kindIs "map" $val.ports) (not $skipService) (not ($val.disabled | default false)) (not (hasKey $.Values.services $name)) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+    {{- include "helpers.app.labels" $ | nindent 4 }}
+    {{- if kindIs "map" $val.service }}
+      {{- with (index $val.service "labels") }}
+        {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+      {{- end }}
+    {{- end }}
+    {{- if kindIs "map" $val.service }}
+      {{- with (index $val.service "annotations") }}
+  annotations:
+        {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+      {{- end }}
+    {{- end }}
+spec:
+    {{- if kindIs "map" $val.service }}
+  type: {{ index $val.service "type" | default "ClusterIP" }}
+    {{- else }}
+  type: ClusterIP
+    {{- end }}
+    {{- if kindIs "map" $val.service }}
+      {{- with (index $val.service "clusterIP") }}
+  clusterIP: {{ . }}
+      {{- end }}
+    {{- end }}
+  ports:
+    {{- range $portName := keys $val.ports | sortAlpha }}
+      {{- $portNum := index $val.ports $portName }}
+  - name: {{ $portName }}
+    port: {{ $portNum | int }}
+    targetPort: {{ $portName }}
+    protocol: TCP
+    {{- end }}
+  selector:
+    {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+{{- range $name, $val := .Values.deployments }}
+  {{- include "helpers.autoservice" (dict "name" $name "value" $val "context" $) }}
+{{- end }}
+
+{{- range $name, $val := .Values.statefulSets }}
+  {{- include "helpers.autoservice" (dict "name" $name "value" $val "context" $) }}
+{{- end }}

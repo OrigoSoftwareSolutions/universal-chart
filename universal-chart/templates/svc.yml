@@ -1,4 +1,5 @@
 {{- range $name, $s := $.Values.services }}
+  {{- if not (.disabled | default false) }}
 ---
 kind: Service
 apiVersion: v1
@@ -6,65 +7,66 @@ metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
-  {{- include "helpers.app.labels" $ | nindent 4 }}
-  {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-  {{- if or $.Values.generic.annotations .annotations }}
+    {{- include "helpers.app.labels" $ | nindent 4 }}
+    {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- if or $.Values.defaults.annotations .annotations }}
   annotations:
-    {{- with $.Values.generic.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-  {{- end }}
+      {{- with $.Values.defaults.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+      {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- end }}
 spec:
-  {{- if not (empty .clusterIP ) }}
+    {{- if not (empty .clusterIP ) }}
   clusterIP: {{ .clusterIP }}
-  {{- end }}
-  {{- if not (empty .type) }}
+    {{- end }}
+    {{- if not (empty .type) }}
   type: {{ .type }}
-    {{- if eq .type "LoadBalancer" }}
-      {{- if not (empty .loadBalancerIP) }}
+      {{- if eq .type "LoadBalancer" }}
+        {{- if not (empty .loadBalancerIP) }}
   loadBalancerIP: {{ .loadBalancerIP }}
-      {{- end }}
-      {{- if not (empty .loadBalancerClass) }}
+        {{- end }}
+        {{- if not (empty .loadBalancerClass) }}
   loadBalancerClass: {{ .loadBalancerClass }}
-      {{- end }}
-      {{- if not ( or (.allocateLoadBalancerNodePorts) (eq (.allocateLoadBalancerNodePorts | toString) "<nil>") ) }}
+        {{- end }}
+        {{- if not ( or (.allocateLoadBalancerNodePorts) (eq (.allocateLoadBalancerNodePorts | toString) "<nil>") ) }}
   allocateLoadBalancerNodePorts: false
-      {{- end }}
-      {{- if empty .externalTrafficPolicy }}
+        {{- end }}
+        {{- if empty .externalTrafficPolicy }}
   externalTrafficPolicy: "Cluster"
-      {{- else }}
+        {{- else }}
   externalTrafficPolicy: {{ .externalTrafficPolicy }}
-      {{- end }}
-      {{- if .loadBalancerSourceRanges }}
+        {{- end }}
+        {{- if .loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
-        {{- toYaml .loadBalancerSourceRanges | nindent 4 }}
-      {{- end }}
-    {{- else if (eq .type "NodePort") }}
-      {{- if empty .externalTrafficPolicy }}
+          {{- toYaml .loadBalancerSourceRanges | nindent 4 }}
+        {{- end }}
+      {{- else if (eq .type "NodePort") }}
+        {{- if empty .externalTrafficPolicy }}
   externalTrafficPolicy: "Cluster"
-      {{- else }}
+        {{- else }}
   externalTrafficPolicy: {{ .externalTrafficPolicy }}
-      {{- end }}
-      {{- if not (empty .healthCheckNodePort) }}
+        {{- end }}
+        {{- if not (empty .healthCheckNodePort) }}
   healthCheckNodePort: {{ .healthCheckNodePort }}
+        {{- end }}
+      {{- end }}
+      {{- if .externalIPs }}
+  externalIPs: {{- toYaml .externalIPs | nindent 4 }}
       {{- end }}
     {{- end }}
-    {{- if .externalIPs }}
-  externalIPs: {{- toYaml .externalIPs | nindent 4 }}
-    {{- end }}
-  {{- end }}
   ports:
-  {{- range .ports }}
+    {{- range .ports }}
   - name: {{ .name | default $name}}
     protocol: {{ .protocol | default "TCP"}}
     port: {{ .port }}
-    {{- if not (empty .targetPort) }}
+      {{- if not (empty .targetPort) }}
     targetPort: {{ .targetPort }}
-    {{- end }}
-    {{- if not (empty .nodePort) }}
+      {{- end }}
+      {{- if not (empty .nodePort) }}
     nodePort: {{ .nodePort }}
+      {{- end }}
     {{- end }}
-  {{- end }}
   selector:
-  {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
-  {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
+    {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- end }}
 {{- end }}

@@ -1,0 +1,91 @@
+suite: workload shorthand - deployment features
+templates:
+  - deployment.yml
+
+tests:
+  # ── Single-container shorthand ────────────────────────────────────────────
+  - it: single-container shorthand sets container name from map key
+    set:
+      deployments.api.image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: api
+
+  - it: single-container shorthand sets image directly
+    set:
+      deployments.api.image: myapp:2.3.1
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: myapp:2.3.1
+
+  - it: single-container shorthand sets containerPorts from ports map
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+      deployments.api.ports.metrics: 9090
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: http
+            containerPort: 8080
+            protocol: TCP
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: metrics
+            containerPort: 9090
+            protocol: TCP
+
+  # ── Resource presets ──────────────────────────────────────────────────────
+  - it: resources preset small expands to correct CPU and memory
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.resources: small
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 100m
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 128Mi
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: 128Mi
+
+  - it: resources preset medium expands correctly
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.resources: medium
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 250m
+
+  - it: raw resources map passes through unchanged
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.resources.requests.cpu: 333m
+      deployments.api.resources.limits.memory: 256Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 333m
+
+  # ── healthCheck shorthand ─────────────────────────────────────────────────
+  - it: healthCheck sets liveness readiness and startup probes
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.healthCheck.path: /health
+      deployments.api.healthCheck.port: 8080
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /health
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 8080
+      - isNotNull:
+          path: spec.template.spec.containers[0].startupProbe

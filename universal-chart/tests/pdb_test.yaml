@@ -1,0 +1,23 @@
+suite: pdb
+templates:
+  - pdb.yaml
+tests:
+  - it: renders a PDB with correct kind
+    set:
+      pdbs.web.minAvailable: 1
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - matchRegex:
+          path: metadata.name
+          pattern: -web$
+      - isNotEmpty:
+          path: metadata.namespace
+
+  - it: respects the disabled flag
+    set:
+      pdbs.web.disabled: true
+      pdbs.web.minAvailable: 1
+    asserts:
+      - hasDocuments:
+          count: 0

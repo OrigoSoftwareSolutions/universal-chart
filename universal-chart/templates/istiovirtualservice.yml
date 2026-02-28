@@ -8,7 +8,7 @@ metadata:
   labels:
   {{- include "helpers.app.labels" $ | nindent 4 }}
   {{- with $virtualservice.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-  {{- $annots := include "helpers.app.genericAnnotations" $ | trim }}
+  {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
   {{- if or $annots $virtualservice.annotations }}
   annotations:
     {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}

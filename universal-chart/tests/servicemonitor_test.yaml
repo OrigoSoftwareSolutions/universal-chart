@@ -1,0 +1,27 @@
+suite: servicemonitor
+templates:
+  - servicemonitor.yml
+tests:
+  - it: renders a ServiceMonitor with correct kind and apiVersion
+    set:
+      serviceMonitors.app.endpoints[0].port: http
+      serviceMonitors.app.endpoints[0].interval: 30s
+    asserts:
+      - isKind:
+          of: ServiceMonitor
+      - equal:
+          path: apiVersion
+          value: monitoring.coreos.com/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -app$
+      - isNotEmpty:
+          path: metadata.namespace
+
+  - it: renders only one document per entry
+    set:
+      serviceMonitors.app.endpoints[0].port: http
+      serviceMonitors.app.endpoints[0].interval: 30s
+    asserts:
+      - hasDocuments:
+          count: 1
