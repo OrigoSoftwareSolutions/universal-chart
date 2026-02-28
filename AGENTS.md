@@ -1,3 +1,56 @@
+# Global Development Standards
+
+### 1. Plan Mode Default
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
+- If something goes sideways, STOP and re-plan immediately – don't keep pushing
+- Use plan mode for verification steps, not just building
+- Write detailed specs upfront to reduce ambiguity
+
+### 2. Subagent Strategy
+- Use subagents liberally to keep main context window clean
+- Offload research, exploration, and parallel analysis to subagents
+- For complex problems, throw more compute at it via subagents
+- One tack per subagent for focused execution
+
+### 3. Self-Improvement Loop
+- After ANY correction from the user: update `tasks/lessons.md` with the pattern
+- Write rules for yourself that prevent the same mistake
+- Ruthlessly iterate on these lessons until mistake rate drops
+- Review lessons at session start for relevant project
+
+### 4. Verification Before Done
+- Never mark a task complete without proving it works
+- Diff behavior between main and your changes when relevant
+- Ask yourself: "Would a staff engineer approve this?"
+- Run tests, check logs, demonstrate correctness
+
+### 5. Demand Elegance (Balanced)
+- For non-trivial changes: pause and ask "is there a more elegant way?"
+- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
+- Skip this for simple, obvious fixes – don't over-engineer
+- Challenge your own work before presenting it
+
+### 6. Autonomous Bug Fixing
+- When given a bug report: just fix it. Don't ask for hand-holding
+- Point at logs, errors, failing tests – then resolve them
+- Zero context switching required from the user
+- Go fix failing CI tests without being told how
+
+## Task Management
+1. **Plan First**: Write plan to `tasks/todo.md` with checkable items
+2. **Verify Plan**: Check in before starting implementation
+3. **Track Progress**: Mark items complete as you go
+4. **Explain Changes**: High-level summary at each step
+5. **Document Results**: Add review section to `tasks/todo.md`
+6. **Capture Lessons**: Update `tasks/lessons.md` after corrections
+
+## Core Principles
+
+- **Simplicity First**: Make every change as simple as possible. Impact minimal code.
+- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
+- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
+
+
 # AGENTS.md — Origo Universal Helm Chart
 
 Guidance for agentic coding assistants working in this repository.
@@ -114,14 +167,14 @@ Wrap user-provided values through `helpers.tplvalues.render` so users can write 
 
 ### Named template conventions
 
-| Pattern | Example |
-|---|---|
-| `helpers.app.*` | `helpers.app.fullname`, `helpers.app.labels` |
-| `helpers.capabilities.*` | `helpers.capabilities.cronJob.apiVersion` |
-| `helpers.pod` | Shared pod spec — used by all workload types |
-| `helpers.volumes.*` | `helpers.volumes.typed`, `helpers.volumes.renderVolume` |
-| `helpers.workload.*` | `helpers.workload.resolveResources`, `helpers.workload.healthCheckProbe` |
-| `helpers.tplvalues.render` | Evaluate template expressions inside values |
+| Pattern                    | Example                                                                  |
+| -------------------------- | ------------------------------------------------------------------------ |
+| `helpers.app.*`            | `helpers.app.fullname`, `helpers.app.labels`                             |
+| `helpers.capabilities.*`   | `helpers.capabilities.cronJob.apiVersion`                                |
+| `helpers.pod`              | Shared pod spec — used by all workload types                             |
+| `helpers.volumes.*`        | `helpers.volumes.typed`, `helpers.volumes.renderVolume`                  |
+| `helpers.workload.*`       | `helpers.workload.resolveResources`, `helpers.workload.healthCheckProbe` |
+| `helpers.tplvalues.render` | Evaluate template expressions inside values                              |
 
 Always use `{{- define "helpers.x.y" -}}...{{- end -}}` (strip-whitespace delimiters) for helper templates.
 
@@ -159,18 +212,18 @@ Newer Origo Istio templates (`istiopeerauthentications.yaml`, `istioauthorizatio
 
 All files are `_*.tpl`. Every define uses strip-whitespace: `{{- define "helpers.x.y" -}}...{{- end -}}`.
 
-| File | Defines | Used by |
-|---|---|---|
-| `_app.tpl` | `fullname`, `labels`, `selectorLabels`, `defaultAnnotations`, `chart` | Every template |
-| `_pod.tpl` (230 lines) | `helpers.pod` — full pod spec | Workload templates only |
-| `_capabilities.tpl` (168 lines) | `helpers.capabilities.<kind>.apiVersion` | Templates needing semver apiVersion |
-| `_volumes.tpl` | `helpers.volumes.typed`, `renderVolume`, `renderVolumeMount` | `_pod.tpl` |
-| `_workloads.tpl` | `envs`, `envsFrom`, `checksum`, `singleContainerPorts`, `resolveResources`, `healthCheckProbe` | `_pod.tpl`, workload templates |
-| `_tplvalues.tpl` | `helpers.tplvalues.render` | Everywhere user values are rendered |
-| `_configmaps.tpl` | `includeEnv`, `includeEnvConfigmap`, `embedConfigmapData` | `_workloads.tpl`, `configmap.yml` |
-| `_secrets.tpl` | `includeEnv`, `includeEnvSecret`, `embedSecretData` | `_workloads.tpl`, `secret.yml` |
-| `_affinities.tpl` | `helpers.affinities.nodes`, `helpers.affinities.pods` | `_pod.tpl` |
-| `_deprecations.tpl` | Deprecation warnings | Chart-level |
+| File                            | Defines                                                                                        | Used by                             |
+| ------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `_app.tpl`                      | `fullname`, `labels`, `selectorLabels`, `defaultAnnotations`, `chart`                          | Every template                      |
+| `_pod.tpl` (230 lines)          | `helpers.pod` — full pod spec                                                                  | Workload templates only             |
+| `_capabilities.tpl` (168 lines) | `helpers.capabilities.<kind>.apiVersion`                                                       | Templates needing semver apiVersion |
+| `_volumes.tpl`                  | `helpers.volumes.typed`, `renderVolume`, `renderVolumeMount`                                   | `_pod.tpl`                          |
+| `_workloads.tpl`                | `envs`, `envsFrom`, `checksum`, `singleContainerPorts`, `resolveResources`, `healthCheckProbe` | `_pod.tpl`, workload templates      |
+| `_tplvalues.tpl`                | `helpers.tplvalues.render`                                                                     | Everywhere user values are rendered |
+| `_configmaps.tpl`               | `includeEnv`, `includeEnvConfigmap`, `embedConfigmapData`                                      | `_workloads.tpl`, `configmap.yml`   |
+| `_secrets.tpl`                  | `includeEnv`, `includeEnvSecret`, `embedSecretData`                                            | `_workloads.tpl`, `secret.yml`      |
+| `_affinities.tpl`               | `helpers.affinities.nodes`, `helpers.affinities.pods`                                          | `_pod.tpl`                          |
+| `_deprecations.tpl`             | Deprecation warnings                                                                           | Chart-level                         |
 
 ### `_pod.tpl` — central pod spec
 
