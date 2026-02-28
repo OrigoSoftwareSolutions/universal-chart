@@ -13,6 +13,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ $hookName }}
+  namespace: {{ $.Release.Namespace | quote }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with $general.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
@@ -21,7 +22,7 @@ metadata:
     "helm.sh/hook": {{ .kind | default "pre-install,pre-upgrade" | quote }}
     "helm.sh/hook-weight": {{ .weight | default "5" | quote }}
     "helm.sh/hook-delete-policy": {{ .deletePolicy | default "before-hook-creation" | quote }}
-    {{- include "helpers.app.genericAnnotations" $ | indent 4 }}
+    {{- include "helpers.app.defaultAnnotations" $ | indent 4 }}
     {{- with $general.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
 spec:
@@ -54,10 +55,10 @@ spec:
     metadata:
       name: {{ $hookName }}
       labels:
-    {{- with $.Values.generic.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+    {{- with $.Values.defaults.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
     {{- with .podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
       annotations:
-    {{- with $.Values.generic.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+    {{- with $.Values.defaults.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
     {{- with .podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
     spec:
     {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | indent 6 }}

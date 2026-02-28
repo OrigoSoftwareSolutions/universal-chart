@@ -20,7 +20,7 @@ Please use `serviceMonitors` instead.
 
 ** WARNING **
 
-Option `generic.usePredefinedAffinity` will change default value to `false` in the version 3.0.
+Option `defaults.usePredefinedAffinity` will change default value to `false` in the version 3.0.
 Please set this option in your values file or use `usePredefinedAffinity` in workloads generals.
 {{- end }}
 
@@ -62,11 +62,11 @@ You use deprecated option `servicemonitors`. Please use `serviceMonitors` instea
 {{ end }}
 
 {{- define "helpers.deprecation.extraVolumeMounts" -}}
-  {{- if .Values.generic.extraVolumeMounts }}
+  {{- if .Values.defaults.extraVolumeMounts }}
 
 ** WARNING **
 
-You use deprecated option `generic.extraVolumeMounts`. Please use `generic.volumeMounts` instead.
+You use deprecated option `defaults.extraVolumeMounts`. Please use `defaults.volumeMounts` instead.
   {{- end }}
   {{- if .Values.deploymentsGeneral.extraVolumeMounts }}
 

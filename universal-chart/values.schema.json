@@ -7,7 +7,7 @@
   "properties": {
     "releasePrefix": {
       "type": "string",
-      "description": "Prefix prepended to all resource names. Use \"-\" to disable."
+      "description": "Prefix prepended to all resource names. Leave empty to disable."
     },
     "podAffinityPreset": {
       "type": "string",
@@ -80,7 +80,7 @@
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },
-    "hpa": {
+    "hpas": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },
@@ -88,7 +88,7 @@
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },
-"externalSecrets": {
+    "externalSecrets": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },
@@ -120,23 +120,23 @@
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },
-    "virtualServices": {
+    "istiovirtualservices": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },
-    "gateways": {
+    "istiogateways": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },
-    "destinationRules": {
+    "istiodestinationrules": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },
-    "peerAuthentications": {
+    "istioPeerAuthentications": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },
-    "authorizationPolicies": {
+    "istioAuthorizationPolicies": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },

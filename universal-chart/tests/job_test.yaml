@@ -1,0 +1,46 @@
+suite: job
+templates:
+  - job.yml
+tests:
+  - it: renders a Job with correct kind and apiVersion
+    set:
+      jobs.refresh.containers[0].name: refresh
+      jobs.refresh.containers[0].image: myapp
+      jobs.refresh.containers[0].imageTag: "1.0"
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: apiVersion
+          value: batch/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -refresh$
+      - isNotEmpty:
+          path: metadata.namespace
+
+  - it: respects the disabled flag
+    set:
+      jobs.refresh.disabled: true
+      jobs.refresh.containers[0].name: refresh
+      jobs.refresh.containers[0].image: myapp
+      jobs.refresh.containers[0].imageTag: "1.0"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders PrometheusRule with release namespace
+    set:
+      jobs.refresh.commandDurationAlert: 30
+      jobs.refresh.containers[0].name: refresh
+      jobs.refresh.containers[0].image: myapp
+      jobs.refresh.containers[0].imageTag: "1.0"
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: PrometheusRule
+        documentIndex: 1
+      - isNotEmpty:
+          path: metadata.namespace
+        documentIndex: 1

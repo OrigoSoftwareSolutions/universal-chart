@@ -1,0 +1,32 @@
+suite: hpa
+templates:
+  - hpa.yaml
+tests:
+  - it: renders an HPA with correct kind and apiVersion
+    set:
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.minReplicas: 2
+      hpas.web.maxReplicas: 5
+      hpas.web.targetCPU: 70
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: apiVersion
+          value: autoscaling/v2
+      - matchRegex:
+          path: metadata.name
+          pattern: -web$
+      - isNotEmpty:
+          path: metadata.namespace
+
+  - it: respects the disabled flag
+    set:
+      hpas.web.disabled: true
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.minReplicas: 2
+      hpas.web.maxReplicas: 5
+      hpas.web.targetCPU: 70
+    asserts:
+      - hasDocuments:
+          count: 0

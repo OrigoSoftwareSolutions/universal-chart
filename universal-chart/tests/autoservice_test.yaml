@@ -1,0 +1,63 @@
+suite: auto-service generation
+templates:
+  - autoservices.yml
+
+tests:
+  - it: ports map auto-generates a ClusterIP Service
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - contains:
+          path: spec.ports
+          content:
+            name: http
+            port: 8080
+            targetPort: http
+            protocol: TCP
+
+  - it: service false suppresses auto-generated Service
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+      deployments.api.service: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: service type override applies to auto-generated Service
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+      deployments.api.service.type: LoadBalancer
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+
+  - it: no ports at workload level produces no auto-service
+    set:
+      deployments.api.image: myapp:1.0
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: statefulset with ports auto-generates a Service
+    set:
+      statefulSets.db.image: postgres:15
+      statefulSets.db.ports.postgres: 5432
+    asserts:
+      - isKind:
+          of: Service
+      - contains:
+          path: spec.ports
+          content:
+            name: postgres
+            port: 5432
+            targetPort: postgres
+            protocol: TCP

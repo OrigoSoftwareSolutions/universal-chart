@@ -1,11 +1,11 @@
-# -- Global settings applied to all workload templates (labels, annotations, pod affinity overrides, etc.)
-generic:
+# -- Default settings applied to all workload templates (labels, annotations, pod affinity overrides, etc.)
+defaults:
   labels: {}
   #  general-label: general-label-value
   annotations: {}
   #  general-annotation: general-annotation-value
   hookAnnotations: {}
-    #helm.sh/hook: "pre-install,pre-upgrade"
+    # helm.sh/hook: "pre-install,pre-upgrade"
     # helm.sh/hook-weight: "-999"
     # helm.sh/hook-delete-policy: before-hook-creation
     # helm.sh/resource-policy: keep
@@ -25,10 +25,10 @@ generic:
   #  checksum/secret-envs: '{{ include "helpers.workload.checksum" (printf "%s%s" $.Values.secretEnvs $.Values.secretEnvsString) }}'
   #  pod-annotation: true
   extraVolumes: []
-  #- name: cache
-  #  emptyDir: {}
+  # - name: cache
+  #   emptyDir: {}
   extraImagePullSecrets: []
-  #- name: regcred
+  # - name: regcred
   usePredefinedAffinity: true
 
 # Predefined Affinity block
@@ -60,7 +60,7 @@ nodeAffinityPreset:
   #   - e2e-az2
   values: []
 
-# -- Prefix prepended to all resource names. Set to `"-"` to disable.
+# -- Prefix prepended to all resource names. Leave empty to disable.
 releasePrefix: ""
 
 # -- Non-secret environment variables injected via ConfigMap envFrom
@@ -72,8 +72,8 @@ envs: {}
 # -- Non-secret environment variables as a raw YAML string (for multiline or special chars)
 envsString: ""
 # --set "envsString=$ENVS_STRING"
-#envsString: |
-#  BAR2: foo2
+# envsString: |
+#   BAR2: foo2
 
 # -- Secret environment variables injected via Secret envFrom
 secretEnvs: {}
@@ -83,8 +83,8 @@ secretEnvs: {}
 # -- Secret environment variables as a raw YAML string
 secretEnvsString: ""
 # --set "secretEnvsString=$SECRET_ENVS_STRING"
-#secretEnvsString: |
-#  FOO: BAR
+# secretEnvsString: |
+#   FOO: BAR
 
 imagePullSecrets: {}
 #  registry.org: |
@@ -126,7 +126,34 @@ services: {}
 # -- Shared defaults for all Deployments (merged with per-instance values)
 deploymentsGeneral: {}
 # -- Kubernetes Deployment resources. Each key becomes the resource name.
+# Single-container shorthand: set `image:` at workload level instead of a `containers:` list.
+# `ports:` (map form {name: port}) auto-creates containerPorts AND a matching ClusterIP Service.
+# `resources:` accepts a preset string (nano/small/medium/large/xlarge) or raw requests/limits.
+# `healthCheck:` sets identical liveness, readiness, and startup probes.
+# Override service behaviour with `service: false` (suppress) or `service: {type: NodePort}`.
+# The full `containers:` list still works unchanged for multi-container workloads.
 deployments: {}
+#  # ── Single-container shorthand ──────────────────────────────────────────
+#  api:
+#    image: myapp:1.2.3              # full image string; name taken from map key ("api")
+#    replicas: 2
+#    ports:
+#      http: 8080                   # auto-creates containerPort AND ClusterIP Service port
+#      metrics: 9090
+#    resources: small               # preset: nano/small/medium/large/xlarge
+#    healthCheck:
+#      path: /healthz
+#      port: 8080
+#    env:                           # per-workload env (list form, same as container-level)
+#      - name: LOG_LEVEL
+#        value: info
+#    service:                       # optional: override auto-generated Service
+#      type: LoadBalancer
+#      annotations:
+#        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+#    # service: false               # set to false to suppress auto-Service entirely
+#
+#  # ── Multi-container / advanced (original API, unchanged) ────────────────
 #  nginx:
 #    labels: {}
 #    podLabels: {}
@@ -220,18 +247,19 @@ serviceAccount: {}
 # -- Kubernetes Secret resources. Each key becomes the resource name.
 secrets: {}
   # --set "secrets.secret-file.data.api\.key=$SOME_ENV"
-  #secret-file:
+  # secret-file:
   #  data:
   #    api.key: |-
   #      JFczZwReBkJFczZwReBkJFczZwReBkJFczZwReBk
   ## --set "secrets.test1.labels.blah=blah,secrets.test1.data.BAR=foo"
-  #test1:
+  # test1:
   #  labels:
   #    blah: blah
   #  data:
   #    BAR: foo
-  ## --set-file "secrets.domain-tls.type=kubernetes.io\/tls,secrets.domain-tls.data.tls\.crt=path/to/tls.crt,secrets.domain-tls.data.tls\.key=path/to/tls.key"
-  #nixys-tls:
+  ## --set-file secrets.domain-tls.type=kubernetes.io\/tls,
+  ##   secrets.domain-tls.data.tls\.crt=path/to/tls.crt,secrets.domain-tls.data.tls\.key=path/to/tls.key
+  # nixys-tls:
   #  type: kubernetes.io/tls
   #  data:
   #    tls.crt: |-
@@ -244,19 +272,19 @@ secrets: {}
   #      -----END RSA PRIVATE KEY-----
   ## --set "secrets.json-file.data.file\.json=$(printf %q $(cat file.json))"
   ## --set-file "secrets.json-file.data.file\.json=path/to/file.json"
-  #json-file:
+  # json-file:
   #  data:
   #    file.json: {
   #      "arg": "value"
   #    }
 # -- Kubernetes ConfigMap resources. Each key becomes the resource name.
 configMaps: {}
-  #some-cm:
+  # some-cm:
   #  labels:
   #    kek: lol
   #  data:
   #    LOL: kek
-  #json-file:
+  # json-file:
   # data:
   #   file.json: {
   #     "arg": "value"
@@ -294,7 +322,6 @@ cronJobs: {}
 #    command: "php yii crontab/generate-data"
 #    singleOnly: true
 #    commandDurationAlert: 600
-#    commandMaxDuration: 800
 #    volumeMounts:
 #    - name: secret-file
 #      mountPath: /etc/app
@@ -317,7 +344,6 @@ jobs: {}
 #  refresh-cache:
 #    command: "php yii crontab/refresh-cache"
 #    commandDurationAlert: 30
-#    commandMaxDuration: 60
 
 serviceAccountGeneral: {}
 #  annotations:

@@ -56,7 +56,7 @@ spec:
   secretName: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
       {{- end }}
   secretTemplate:
-      {{- if or (.secretTemplate).annotations ($.Values.generic).annotations }}
+      {{- if or (.secretTemplate).annotations ($.Values.defaults).annotations }}
     annotations:
         {{- $_ := include "helpers.tplvalues.render" (dict "value" (default dict (.secretTemplate).annotations) "context" $) }}
         {{- include "helpers.app.annotations" (dict "value" $_ "context" $) |  nindent 6  -}}

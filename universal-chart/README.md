@@ -1,6 +1,6 @@
 # universal-chart
 
-![Version: 1.1.2](https://img.shields.io/badge/Version-1.1.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.1.3](https://img.shields.io/badge/Version-1.1.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 Origo universal Helm chart for all standard Kubernetes and CRD resources
 
@@ -29,7 +29,8 @@ Origo universal Helm chart for all standard Kubernetes and CRD resources
 | defaultImage | string | `"nginx"` |  |
 | defaultImagePullPolicy | string | `"IfNotPresent"` |  |
 | defaultImageTag | string | `"latest"` |  |
-| deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. |
+| defaults | object | `{"annotations":{},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"usePredefinedAffinity":true}` | Default settings applied to all workload templates (labels, annotations, pod affinity overrides, etc.) |
+| deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form {name: port}) auto-creates containerPorts AND a matching ClusterIP Service. `resources:` accepts a preset string (nano/small/medium/large/xlarge) or raw requests/limits. `healthCheck:` sets identical liveness, readiness, and startup probes. Override service behaviour with `service: false` (suppress) or `service: {type: NodePort}`. The full `containers:` list still works unchanged for multi-container workloads. |
 | deploymentsGeneral | object | `{}` | Shared defaults for all Deployments (merged with per-instance values) |
 | diagnosticMode.args[0] | string | `"infinity"` |  |
 | diagnosticMode.command[0] | string | `"sleep"` |  |
@@ -38,7 +39,6 @@ Origo universal Helm chart for all standard Kubernetes and CRD resources
 | envsString | string | `""` | Non-secret environment variables as a raw YAML string (for multiline or special chars) |
 | externalSecrets | object | `{}` | External Secrets Operator ExternalSecret resources. Each key becomes the resource name. |
 | extraDeploy | object | `{}` | Raw Kubernetes manifests to deploy alongside chart resources. Supports template expressions. |
-| generic | object | `{"annotations":{},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"usePredefinedAffinity":true}` | Global settings applied to all workload templates (labels, annotations, pod affinity overrides, etc.) |
 | hooks | object | `{}` | Helm lifecycle hook Jobs (pre/post-install/upgrade). Each key becomes the hook name. |
 | hooksGeneral | object | `{}` | Shared defaults for all hook Jobs |
 | hpas | object | `{}` | Kubernetes HorizontalPodAutoscaler resources (autoscaling/v2). Each key becomes the resource name. |
@@ -55,7 +55,7 @@ Origo universal Helm chart for all standard Kubernetes and CRD resources
 | podAffinityPreset | string | `"soft"` | Pod affinity preset. Allowed values: `soft`, `hard`, `nil` |
 | podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset. Allowed values: `soft`, `hard`, `nil` |
 | pvcs | object | `{}` | Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name. All PVSs will be added to `volumes` block in each workload excluding hooks |
-| releasePrefix | string | `""` | Prefix prepended to all resource names. Set to `"-"` to disable. |
+| releasePrefix | string | `""` | Prefix prepended to all resource names. Leave empty to disable. |
 | secretEnvs | object | `{}` | Secret environment variables injected via Secret envFrom |
 | secretEnvsString | string | `""` | Secret environment variables as a raw YAML string |
 | secretStores | object | `{}` | External Secrets Operator SecretStore resources (namespace-scoped). Each key becomes the resource name. |

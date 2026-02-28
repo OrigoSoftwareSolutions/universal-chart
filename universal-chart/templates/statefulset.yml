@@ -6,12 +6,12 @@ apiVersion: {{ include "helpers.capabilities.statefulSet.apiVersion" $ }}
 kind: StatefulSet
 metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
-  namespace: {{ $.Release.Namespace }}
+  namespace: {{ $.Release.Namespace | quote }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with $general.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- $annots := include "helpers.app.genericAnnotations" $ | trim }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
     {{- if or $annots .annotations }}
   annotations:
       {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
@@ -34,11 +34,11 @@ spec:
       labels:
     {{- include "helpers.app.selectorLabels" $ | nindent 8 }}
     {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
-    {{- with $.Values.generic.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+    {{- with $.Values.defaults.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
     {{- with .podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
-    {{- if or $.Values.generic.podAnnotations .podAnnotations }}
+    {{- if or $.Values.defaults.podAnnotations .podAnnotations }}
       annotations:
-      {{- with $.Values.generic.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+      {{- with $.Values.defaults.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
       {{- with .podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
     {{- end }}
     spec:

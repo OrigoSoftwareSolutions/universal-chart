@@ -1,0 +1,30 @@
+suite: statefulset
+templates:
+  - statefulset.yml
+tests:
+  - it: renders a StatefulSet with correct kind and apiVersion
+    set:
+      statefulSets.db.containers[0].name: db
+      statefulSets.db.containers[0].image: postgres
+      statefulSets.db.containers[0].imageTag: "16"
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: apiVersion
+          value: apps/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -db$
+      - isNotEmpty:
+          path: metadata.namespace
+
+  - it: respects the disabled flag
+    set:
+      statefulSets.db.disabled: true
+      statefulSets.db.containers[0].name: db
+      statefulSets.db.containers[0].image: postgres
+      statefulSets.db.containers[0].imageTag: "16"
+    asserts:
+      - hasDocuments:
+          count: 0

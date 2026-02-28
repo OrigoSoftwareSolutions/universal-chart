@@ -1,0 +1,46 @@
+suite: cronjob
+templates:
+  - cronjob.yml
+tests:
+  - it: renders a CronJob with correct kind and apiVersion
+    set:
+      cronJobs.cleanup.schedule: "*/5 * * * *"
+      cronJobs.cleanup.containers[0].name: cleanup
+      cronJobs.cleanup.containers[0].image: myapp
+      cronJobs.cleanup.containers[0].imageTag: "1.0"
+    asserts:
+      - isKind:
+          of: CronJob
+      - matchRegex:
+          path: metadata.name
+          pattern: -cleanup$
+      - isNotEmpty:
+          path: metadata.namespace
+
+  - it: respects the disabled flag
+    set:
+      cronJobs.cleanup.disabled: true
+      cronJobs.cleanup.schedule: "*/5 * * * *"
+      cronJobs.cleanup.containers[0].name: cleanup
+      cronJobs.cleanup.containers[0].image: myapp
+      cronJobs.cleanup.containers[0].imageTag: "1.0"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders PrometheusRule with release namespace
+    set:
+      cronJobs.cleanup.schedule: "*/5 * * * *"
+      cronJobs.cleanup.commandDurationAlert: 600
+      cronJobs.cleanup.containers[0].name: cleanup
+      cronJobs.cleanup.containers[0].image: myapp
+      cronJobs.cleanup.containers[0].imageTag: "1.0"
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: PrometheusRule
+        documentIndex: 1
+      - isNotEmpty:
+          path: metadata.namespace
+        documentIndex: 1

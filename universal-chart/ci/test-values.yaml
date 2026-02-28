@@ -242,4 +242,3 @@ secrets:
   app-secret:
     data:
       API_KEY: c2VjcmV0
-
