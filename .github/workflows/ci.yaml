@@ -105,6 +105,6 @@ jobs:
 
       - name: Check docs are up to date
         run: |
-          helm-docs --chart-search-root universal-chart/
-          git diff --exit-code universal-chart/README.md \
-            || (echo "ERROR: README.md is out of date. Run 'helm-docs --chart-search-root universal-chart/' locally and commit." && exit 1)
+          helm-docs --chart-search-root universal-chart/ -o ../README.md
+          git diff --exit-code README.md \
+            || (echo "ERROR: README.md is out of date. Run 'helm-docs --chart-search-root universal-chart/ -o ../README.md' locally and commit." && exit 1)
