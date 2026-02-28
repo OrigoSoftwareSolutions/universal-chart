@@ -11,4 +11,5 @@ repos:
       - id: helm-docs
         args:
           - --chart-search-root=universal-chart/
+          - --output-file=../README.md
 

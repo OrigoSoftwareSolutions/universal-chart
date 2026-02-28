@@ -1,0 +1,131 @@
+# Origo Universal Helm Chart
+
+{{ template "chart.badgesSection" . }}
+
+A single, opinionated Helm chart that can deploy **any** standard Kubernetes workload and popular CRD resources. Instead of maintaining dozens of per-service charts, define all your resources declaratively under one release.
+
+## Supported Resources
+
+| Core Workloads | Networking | Storage & Config | CRDs |
+|---|---|---|---|
+| Deployment | Service | ConfigMap | ExternalSecret / ClusterExternalSecret |
+| StatefulSet | HTTPRoute (Gateway API) | Secret | SecretStore / ClusterSecretStore |
+| DaemonSet | Istio VirtualService | PersistentVolumeClaim | Certificate / Issuer / ClusterIssuer |
+| CronJob / Job | Istio Gateway | ServiceAccount | Istio PeerAuthentication |
+| Helm Hooks | Istio DestinationRule | | Istio AuthorizationPolicy |
+| HPA / PDB | ServiceMonitor | | |
+
+## Quick Start
+
+### Install from OCI registry
+
+```bash
+helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
+  --version {{ template "chart.version" . }} \
+  -f my-values.yaml
+```
+
+### Minimal values example
+
+```yaml
+deployments:
+  api:
+    image: myapp
+    imageTag: "1.0.0"
+    ports:
+      http: 8080
+    healthCheck:
+      path: /healthz
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+envs:
+  LOG_LEVEL: info
+```
+
+This creates a Deployment, a matching ClusterIP Service, liveness/readiness probes, a ConfigMap with environment variables — all from one values file.
+
+## Features Worth Knowing About
+
+### Auto-generated Services
+
+When a workload uses the single-container shorthand with a `ports:` map, a matching ClusterIP Service is created automatically — no separate `services:` block needed. Suppress it with `service: false` or customize with `service: { type: NodePort }`.
+
+### Single-Container Shorthand
+
+Instead of a full `containers:` list, set `image:`, `ports:`, `resources:`, `healthCheck:` directly on the workload. The chart synthesizes the container spec for you.
+
+### Health Check Shorthand
+
+A single `healthCheck: { path: /healthz }` generates startup, liveness, **and** readiness probes simultaneously (HTTP GET, port 8080, 10s period by default).
+
+### Resource Presets
+
+Set `resources: small` (or `nano`, `medium`, `large`, `xlarge`) instead of writing full requests/limits blocks. The chart expands presets into concrete CPU/memory values.
+
+### Typed Volumes
+
+Volumes use a simplified format — `{ type: configMap, name: my-cm }` — instead of raw Kubernetes volume specs. Supports `configMap`, `secret`, `pvc`, `emptyDir`, and more.
+
+### PVCs Auto-Mounted
+
+PVCs defined in `pvcs:` are automatically added to workload volume lists — no manual `volumes:` wiring required.
+
+### Template Expressions in Values
+
+Go template expressions work anywhere in values. Write `"{{"{{"}} .Release.Name {{"}}"}}-suffix"` and it renders at deploy time.
+
+### Environment Variable Shorthand
+
+Top-level `envs:` and `secretEnvs:` maps auto-create ConfigMaps/Secrets and inject them via `envFrom`. Use `envsFromConfigmap` / `envsFromSecret` to cherry-pick individual keys from existing resources.
+
+### Base64 Auto-Decode
+
+ConfigMap values prefixed with `b64:` are automatically decoded from base64 before rendering.
+
+### 3-Tier Defaults Cascade
+
+`defaults` (global) → `deploymentsGeneral` (kind-level) → per-instance values. Set shared config once, override where needed.
+
+### Diagnostic Mode
+
+Set `diagnosticMode.enabled: true` to override all containers with `sleep infinity` — useful for debugging pods that crash-loop.
+
+### Disable Without Deleting
+
+Any resource instance accepts `disabled: true` to suppress rendering without removing its configuration.
+
+### Escape Hatch
+
+`extraDeploy:` accepts raw Kubernetes manifests (with template support) for anything the chart doesn't natively cover.
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "chart.maintainersSection" . }}
+
+## Development
+
+```bash
+# Lint
+helm lint universal-chart/ --strict
+
+# Render templates
+helm template test universal-chart/ -f universal-chart/ci/test-values.yaml
+
+# Run unit tests (requires helm-unittest plugin)
+helm unittest universal-chart/ --strict --file 'tests/*.yaml'
+
+# Regenerate docs (required before commit)
+helm-docs --chart-search-root universal-chart/ -o ../README.md
+
+# Format
+helmfmt universal-chart/
+```
+
+{{ template "chart.sourcesSection" . }}
+
+## License
+
+Maintained by [Origo Software Solutions](https://github.com/OrigoSoftwareSolutions).

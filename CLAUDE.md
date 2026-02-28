@@ -31,7 +31,7 @@ helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
 
 # Regenerate docs (run after editing values.yaml; required before pushing)
 brew install helm-docs  # one-time
-helm-docs --chart-search-root universal-chart/
+helm-docs --chart-search-root universal-chart/ -o ../README.md
 ```
 
 ## Architecture

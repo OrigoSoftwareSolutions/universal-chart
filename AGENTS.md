@@ -102,7 +102,7 @@ helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
     -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
 
 # Docs — regenerate after any values.yaml change (CI enforces via git diff)
-helm-docs --chart-search-root universal-chart/
+helm-docs --chart-search-root universal-chart/ -o ../README.md
 
 # Formatting
 helmfmt universal-chart/
@@ -302,7 +302,7 @@ Shorthand fields resolve inside `_pod.tpl` — the test still targets the parent
 ## Release Process
 
 1. Bump `version:` in `universal-chart/Chart.yaml`.
-2. Run `helm-docs --chart-search-root universal-chart/` and commit the updated `README.md`.
+2. Run `helm-docs --chart-search-root universal-chart/ -o ../README.md` and commit the updated `README.md`.
 3. Push to `main` — GitHub Actions automatically packages and pushes to `oci://ghcr.io/origosoftwaresolutions/universal-chart`.
 
 **Do not** manually tag, maintain a `gh-pages` branch, or manage a `Chart.yaml` index — distribution is OCI-native only.
