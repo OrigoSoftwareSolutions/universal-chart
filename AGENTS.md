@@ -27,78 +27,33 @@ ct.yaml                   ← chart-testing config
 
 ## Commands
 
-### Lint
-
 ```bash
-# Strict Helm lint (runs in CI on every push)
+# Lint (runs in CI on every push)
 helm lint universal-chart/ --strict
+ct lint --config ct.yaml          # PR only, requires ct CLI
 
-# chart-testing lint (PR only, requires ct CLI)
-ct lint --config ct.yaml
-```
-
-### Render / Smoke Test
-
-```bash
 # Render all resources with CI test values
 helm template test universal-chart/ -f universal-chart/ci/test-values.yaml
-
-# Render with live Istio API resolution
+# With Istio API resolution:
 helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
   --api-versions networking.istio.io/v1beta1
 
-# Inspect rendered kinds
-helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
-  | grep "^kind:" | sort | uniq
-```
-
-### Unit Tests (helm-unittest)
-
-```bash
-# Install plugin once
-helm plugin install https://github.com/helm-unittest/helm-unittest --version 1.0.3
-
-# Run ALL tests
+# Unit tests (helm-unittest plugin)
 helm unittest universal-chart/ --strict --file 'tests/*.yaml'
+helm unittest universal-chart/ --strict --file 'tests/deployment_test.yaml'  # single suite
 
-# Run a SINGLE test suite (e.g. deployment tests only)
-helm unittest universal-chart/ --strict --file 'tests/deployment_test.yaml'
-
-# Run a specific suite by name pattern
-helm unittest universal-chart/ --strict --file 'tests/workload_shorthand_test.yaml'
-```
-
-### Schema Validation
-
-```bash
-# Install kubeconform once: brew install kubeconform
+# Schema validation (kubeconform)
 helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
-  | kubeconform \
-    -strict \
-    -ignore-missing-schemas \
-    -kubernetes-version 1.33.6 \
+  | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.33.6 \
     -schema-location default \
     -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
-```
 
-### Docs (helm-docs)
-
-```bash
-# Install once: brew install helm-docs
+# Docs — regenerate after any values.yaml change (CI enforces via git diff)
 helm-docs --chart-search-root universal-chart/
 
-# Docs MUST be regenerated after any values.yaml change before pushing.
-# CI enforces this on PRs via git diff --exit-code universal-chart/README.md.
-```
-
-### Formatting (helmfmt)
-
-```bash
-# Install once: pip install helmfmt  OR use the pre-commit hook
+# Formatting
 helmfmt universal-chart/
-
-# Pre-commit hooks run helmfmt + helm-docs automatically on staged files
-pre-commit run --all-files
+pre-commit run --all-files         # runs helmfmt + helm-docs hooks
 ```
 
 ---
@@ -132,6 +87,7 @@ Key rules:
 - Resource names always use `helpers.app.fullname` — never construct names manually.
 - Cluster-scoped resources (`ClusterSecretStore`, `ClusterExternalSecret`, `ClusterIssuer`) **omit** `namespace:`.
 - CRD spec blocks use **thin passthrough** — `{{- toYaml $val.spec | nindent 2 }}` — no abstraction.
+- **Legacy nixys templates** (3 Istio files: `istiogateway.yml`, `istiodestinationrule.yml`, `istiovirtualservice.yml`) deviate from core pattern — no disabled guard, `---` outside conditional, inline spec logic. See *Template Categories* below.
 
 ### Three-level value merging
 
@@ -169,7 +125,73 @@ Wrap user-provided values through `helpers.tplvalues.render` so users can write 
 
 Always use `{{- define "helpers.x.y" -}}...{{- end -}}` (strip-whitespace delimiters) for helper templates.
 
+### Template categories
+
+**Workload templates** (Deployment, StatefulSet, CronJob, Job, Hook) — full core pattern with `$general`, `range`, disabled guard, `helpers.pod` for shared pod spec, three-level merge via `dig`, labels/annotations merge via `tplvalues.render`, `defaultAnnotations` for checksum annotations.
+
+**CRD / simple templates** (ExternalSecret, SecretStore, ClusterIssuer, HTTPRoute, etc.) — thin passthrough, no `$general`, no merge logic: `{{- toYaml $val.spec | nindent 2 }}`.
+
+**Legacy nixys templates** (3 files): `istiogateway.yml`, `istiodestinationrule.yml`, `istiovirtualservice.yml` — inherited from upstream. Deviations:
+- No `disabled` guard — cannot be individually suppressed
+- `---` placed outside conditional (directly after `range`)
+- `istiovirtualservice.yml` has inline spec logic instead of `toYaml` passthrough
+- When modifying: follow their existing style. Do NOT refactor to passthrough without explicit request
+
+Newer Origo Istio templates (`istiopeerauthentications.yaml`, `istioauthorizationpolicies.yaml`) DO follow core pattern.
+
+**Templates without disabled guard** (besides legacy Istio): `configmap.yml`, `secret.yml`, `pvc.yml`, `servicemonitor.yml`, `serviceaccount.yml`, `extra.yml`, `helm-hooks.yml`. These use other conditionals or always render. New templates MUST include the disabled guard.
+
+**File naming**: `.yml` = original nixys, `.yaml` = Origo-added. No functional difference.
+
+### Checklist for new templates
+
+1. Plural values key: `foos` (map of instances), optional `foosGeneral` (shared defaults)
+2. Disabled guard inside `range`, `---` after guard
+3. `helpers.app.fullname` for name — never manual
+4. `namespace: {{ $.Release.Namespace }}` — unless cluster-scoped
+5. `helpers.app.labels` or `helpers.app.selectorLabels` for labels
+6. `tplvalues.render` on all user-provided string/map values
+7. Matching test suite in `tests/<resource>_test.yaml`
+
 ---
+
+## Helper Templates (`templates/helpers/`)
+
+All files are `_*.tpl`. Every define uses strip-whitespace: `{{- define "helpers.x.y" -}}...{{- end -}}`.
+
+| File | Defines | Used by |
+|---|---|---|
+| `_app.tpl` | `fullname`, `labels`, `selectorLabels`, `defaultAnnotations`, `chart` | Every template |
+| `_pod.tpl` (230 lines) | `helpers.pod` — full pod spec | Workload templates only |
+| `_capabilities.tpl` (168 lines) | `helpers.capabilities.<kind>.apiVersion` | Templates needing semver apiVersion |
+| `_volumes.tpl` | `helpers.volumes.typed`, `renderVolume`, `renderVolumeMount` | `_pod.tpl` |
+| `_workloads.tpl` | `envs`, `envsFrom`, `checksum`, `singleContainerPorts`, `resolveResources`, `healthCheckProbe` | `_pod.tpl`, workload templates |
+| `_tplvalues.tpl` | `helpers.tplvalues.render` | Everywhere user values are rendered |
+| `_configmaps.tpl` | `includeEnv`, `includeEnvConfigmap`, `embedConfigmapData` | `_workloads.tpl`, `configmap.yml` |
+| `_secrets.tpl` | `includeEnv`, `includeEnvSecret`, `embedSecretData` | `_workloads.tpl`, `secret.yml` |
+| `_affinities.tpl` | `helpers.affinities.nodes`, `helpers.affinities.pods` | `_pod.tpl` |
+| `_deprecations.tpl` | Deprecation warnings | Chart-level |
+
+### `_pod.tpl` — central pod spec
+
+Largest helper (230 lines). Generates the entire `pod.spec` block consumed by all workloads.
+
+**Call signature**: `(dict "value" . "general" $general "name" $name "extraLabels" .extraSelectorLabels "context" $)`
+
+**Merge priority** (instance wins): instance field → `$general` field → `$.Values.defaults.*` → hardcoded fallback.
+
+**Single-container shorthand** (handled inside `_pod.tpl`):
+- If `.image` is set (no `.containers` list), synthesizes a single container from workload-level fields
+- `.ports` map → `helpers.workload.singleContainerPorts` → containerPorts list
+- `.resources` string → `helpers.workload.resolveResources` → preset expansion (nano/small/medium/large/xlarge)
+- `.healthCheck` → `helpers.workload.healthCheckProbe` → liveness + readiness + startup (default: HTTP GET `/healthz:8080`, period `10s`)
+
+### Helper editing rules
+
+- `_pod.tpl` changes affect ALL workloads — test with deployment, statefulset, cronjob, and hook values.
+- Dict parameters MUST match existing call signatures — callers pass specific keys.
+- `tplvalues.render` must wrap any field that could contain `{{ }}` expressions.
+- New helpers: follow `helpers.<domain>.<function>` naming. Never define at top-level namespace.
 
 ## YAML / Formatting Style
 
@@ -188,33 +210,39 @@ Rules enforced by `.yamllint` and `.helmfmt`:
 
 ## Testing Guidelines
 
-### Writing a new test suite
-
-Create `universal-chart/tests/<resource>_test.yaml`. Follow this structure:
-
-```yaml
-suite: <resource name>
-templates:
-  - <template-file>.yaml   # or .yml
-tests:
-  - it: renders correct kind and apiVersion
-    set:
-      <values path>: <value>
-    asserts:
-      - isKind:
-          of: <Kind>
-      - equal:
-          path: apiVersion
-          value: <expected>
-```
+Test files: `universal-chart/tests/*_test.yaml`. Run: `helm unittest universal-chart/ --strict --file 'tests/*.yaml'`.
 
 ### Assert conventions
 
-- Always test `isKind` and `apiVersion` in the first test of a suite.
-- For namespaced resources, assert `isNotEmpty: path: metadata.namespace`.
-- For cluster-scoped resources, assert `notExists: path: metadata.namespace`.
-- Test the `disabled: true` flag with `hasDocuments: count: 0`.
-- Use `set:` for minimal targeted values — don't load full values files unless needed.
+- First test: assert `isKind` + `apiVersion`.
+- Namespaced → `isNotEmpty: path: metadata.namespace`; cluster-scoped → `notExists: path: metadata.namespace`.
+- Test disabled flag: `hasDocuments: count: 0`.
+- Use `set:` with minimal targeted values — don't load full values files.
+
+### Test structure
+
+```yaml
+suite: <descriptive name>
+templates:
+  - <template-file>.yml   # must match exact filename including extension
+tests:
+  - it: <lowercase sentence describing expectation>
+    set:
+      <pluralKind>.<instanceName>.<field>: <value>
+    asserts:
+      - <assertion>
+```
+
+### Workload shorthand tests
+
+Shorthand fields resolve inside `_pod.tpl` — the test still targets the parent template (e.g. `deployment.yml`). Resource preset tests: set `deployments.<name>.resources: small` and assert expanded CPU/memory values.
+
+### Common test mistakes
+
+- Wrong template extension (`deployment.yaml` vs `deployment.yml`) → suite silently finds 0 documents.
+- Missing required fields → template fails to render. Provide at minimum: container image.
+- Cluster-scoped CRDs: assert `notExists: path: metadata.namespace`, not `equal: ... ""`.
+- Multi-document templates: use `documentIndex` to target specific instance when setting multiple values keys.
 
 ---
 
