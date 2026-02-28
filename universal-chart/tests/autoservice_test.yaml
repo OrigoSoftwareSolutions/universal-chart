@@ -61,3 +61,18 @@ tests:
             port: 5432
             targetPort: postgres
             protocol: TCP
+
+  - it: daemonset with ports auto-generates a Service
+    set:
+      daemonSets.agent.image: datadog/agent:7
+      daemonSets.agent.ports.metrics: 8125
+    asserts:
+      - isKind:
+          of: Service
+      - contains:
+          path: spec.ports
+          content:
+            name: metrics
+            port: 8125
+            targetPort: metrics
+            protocol: TCP

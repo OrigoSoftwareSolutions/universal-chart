@@ -1,6 +1,6 @@
 # universal-chart
 
-![Version: 1.1.3](https://img.shields.io/badge/Version-1.1.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.1.4](https://img.shields.io/badge/Version-1.1.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 Origo universal Helm chart for all standard Kubernetes and CRD resources
 
@@ -26,11 +26,13 @@ Origo universal Helm chart for all standard Kubernetes and CRD resources
 | configMaps | object | `{}` | Kubernetes ConfigMap resources. Each key becomes the resource name. |
 | cronJobs | object | `{}` | Kubernetes CronJob resources. Each key becomes the resource name. |
 | cronJobsGeneral | object | `{"usePredefinedAffinity":false}` | Shared defaults for all CronJobs |
+| daemonSets | object | `{}` | Kubernetes DaemonSet resources. Each key becomes the resource name. DaemonSets run one pod per node (no `replicas`). Uses `updateStrategy` instead of `strategy`. Supports all single-container shorthand fields: `image:`, `ports:`, `healthCheck:`, etc. |
+| daemonSetsGeneral | object | `{}` | Shared defaults for all DaemonSets |
 | defaultImage | string | `"nginx"` |  |
 | defaultImagePullPolicy | string | `"IfNotPresent"` |  |
 | defaultImageTag | string | `"latest"` |  |
 | defaults | object | `{"annotations":{},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"usePredefinedAffinity":true}` | Default settings applied to all workload templates (labels, annotations, pod affinity overrides, etc.) |
-| deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form {name: port}) auto-creates containerPorts AND a matching ClusterIP Service. `resources:` accepts a preset string (nano/small/medium/large/xlarge) or raw requests/limits. `healthCheck:` sets identical liveness, readiness, and startup probes. Override service behaviour with `service: false` (suppress) or `service: {type: NodePort}`. The full `containers:` list still works unchanged for multi-container workloads. |
+| deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form {name: port}) auto-creates containerPorts AND a matching ClusterIP Service. `resources:` raw requests/limits map (presets removed — define your own). `healthCheck:` sets identical liveness, readiness, and startup probes. Override service behaviour with `service: false` (suppress) or `service: {type: NodePort}`. The full `containers:` list still works unchanged for multi-container workloads. |
 | deploymentsGeneral | object | `{}` | Shared defaults for all Deployments (merged with per-instance values) |
 | diagnosticMode.args[0] | string | `"infinity"` |  |
 | diagnosticMode.command[0] | string | `"sleep"` |  |

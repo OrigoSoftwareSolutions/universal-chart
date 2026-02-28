@@ -52,6 +52,14 @@
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/workload" }
     },
+    "daemonSets": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/workload" }
+    },
+    "daemonSetsGeneral": {
+      "type": "object",
+      "additionalProperties": true
+    },
     "cronJobs": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }

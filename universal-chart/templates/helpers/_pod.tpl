@@ -165,7 +165,7 @@ containers:
           {{- end }}
         {{- end }}
         {{- if .resources }}
-  resources: {{- include "helpers.workload.resolveResources" .resources | nindent 4 }}
+  resources: {{- include "helpers.tplvalues.render" (dict "value" .resources "context" $) | nindent 4 }}
         {{- end }}
         {{- $scVmounts := include "helpers.volumes.renderVolumeMounts" (dict "value" . "general" $general "context" $) }}
   volumeMounts:{{- if eq (trim $scVmounts) "[]" }} []{{- else }}{{ $scVmounts | nindent 2 }}{{- end }}

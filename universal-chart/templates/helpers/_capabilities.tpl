@@ -86,6 +86,22 @@
   {{- end -}}
 {{- end -}}
 
+{{- define "helpers.capabilities.daemonSet.apiVersion" -}}
+  {{- if .Values.global }}
+    {{- if .Values.global.apiVersions.daemonSet }}
+{{- .Values.global.apiVersions.daemonSet -}}
+    {{- else if semverCompare "<1.14-0" (include "helpers.capabilities.kubeVersion" $) -}}
+{{- print "extensions/v1beta1" -}}
+    {{- else -}}
+{{- print "apps/v1" -}}
+    {{- end -}}
+  {{- else if semverCompare "<1.14-0" (include "helpers.capabilities.kubeVersion" $) -}}
+{{- print "extensions/v1beta1" -}}
+  {{- else -}}
+{{- print "apps/v1" -}}
+  {{- end -}}
+{{- end -}}
+
 
 {{- define "helpers.capabilities.pdb.apiVersion" -}}
   {{- if .Values.global }}

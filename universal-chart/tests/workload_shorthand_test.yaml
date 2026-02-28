@@ -39,31 +39,6 @@ tests:
             containerPort: 9090
             protocol: TCP
 
-  # ── Resource presets ──────────────────────────────────────────────────────
-  - it: resources preset small expands to correct CPU and memory
-    set:
-      deployments.api.image: myapp:1.0
-      deployments.api.resources: small
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].resources.requests.cpu
-          value: 100m
-      - equal:
-          path: spec.template.spec.containers[0].resources.requests.memory
-          value: 128Mi
-      - equal:
-          path: spec.template.spec.containers[0].resources.limits.memory
-          value: 128Mi
-
-  - it: resources preset medium expands correctly
-    set:
-      deployments.api.image: myapp:1.0
-      deployments.api.resources: medium
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].resources.requests.cpu
-          value: 250m
-
   - it: raw resources map passes through unchanged
     set:
       deployments.api.image: myapp:1.0
