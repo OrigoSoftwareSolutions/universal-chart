@@ -53,8 +53,8 @@ securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context
     {{- end }}
     {{- if or $.Values.imagePullSecrets $.Values.defaults.extraImagePullSecrets .extraImagePullSecrets .imagePullSecrets }}
 imagePullSecrets:
-      {{- range $sName, $v := $.Values.imagePullSecrets }}
-- name: {{ $sName }}
+      {{- range $.Values.imagePullSecrets }}
+- name: {{ . }}
       {{- end }}
       {{- with .imagePullSecrets }}{{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 0 }}{{- end }}
       {{- with .extraImagePullSecrets }}{{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 0 }}{{- end }}

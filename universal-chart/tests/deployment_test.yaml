@@ -28,3 +28,25 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: sets imagePullSecrets from top-level array
+    set:
+      imagePullSecrets:
+        - my-registry-secret
+        - other-registry-secret
+      deployments.web.image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.imagePullSecrets[0].name
+          value: my-registry-secret
+      - equal:
+          path: spec.template.spec.imagePullSecrets[1].name
+          value: other-registry-secret
+
+  - it: omits imagePullSecrets when array is empty
+    set:
+      imagePullSecrets: []
+      deployments.web.image: nginx
+    asserts:
+      - notExists:
+          path: spec.template.spec.imagePullSecrets
