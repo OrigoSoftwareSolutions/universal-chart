@@ -61,3 +61,7 @@ spec:
 {{- range $name, $val := .Values.statefulSets }}
   {{- include "helpers.autoservice" (dict "name" $name "value" $val "context" $) }}
 {{- end }}
+
+{{- range $name, $val := .Values.daemonSets }}
+  {{- include "helpers.autoservice" (dict "name" $name "value" $val "context" $) }}
+{{- end }}

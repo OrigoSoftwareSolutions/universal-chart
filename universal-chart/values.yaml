@@ -128,7 +128,7 @@ deploymentsGeneral: {}
 # -- Kubernetes Deployment resources. Each key becomes the resource name.
 # Single-container shorthand: set `image:` at workload level instead of a `containers:` list.
 # `ports:` (map form {name: port}) auto-creates containerPorts AND a matching ClusterIP Service.
-# `resources:` accepts a preset string (nano/small/medium/large/xlarge) or raw requests/limits.
+# `resources:` raw requests/limits map (presets removed — define your own).
 # `healthCheck:` sets identical liveness, readiness, and startup probes.
 # Override service behaviour with `service: false` (suppress) or `service: {type: NodePort}`.
 # The full `containers:` list still works unchanged for multi-container workloads.
@@ -140,7 +140,12 @@ deployments: {}
 #    ports:
 #      http: 8080                   # auto-creates containerPort AND ClusterIP Service port
 #      metrics: 9090
-#    resources: small               # preset: nano/small/medium/large/xlarge
+#    resources:                      # raw requests/limits (no presets — define your own)
+#      requests:
+#        cpu: 100m
+#        memory: 128Mi
+#      limits:
+#        memory: 256Mi
 #    healthCheck:
 #      path: /healthz
 #      port: 8080
@@ -211,6 +216,26 @@ deployments: {}
 statefulSetsGeneral: {}
 # -- Kubernetes StatefulSet resources. Each key becomes the resource name.
 statefulSets: {}
+
+# -- Shared defaults for all DaemonSets
+daemonSetsGeneral: {}
+# -- Kubernetes DaemonSet resources. Each key becomes the resource name.
+# DaemonSets run one pod per node (no `replicas`). Uses `updateStrategy` instead of `strategy`.
+# Supports all single-container shorthand fields: `image:`, `ports:`, `healthCheck:`, etc.
+daemonSets: {}
+#  log-collector:
+#    image: fluent/fluentd:latest
+#    resources:
+#      requests:
+#        cpu: 100m
+#        memory: 128Mi
+#      limits:
+#        cpu: 500m
+#        memory: 256Mi
+#    updateStrategy:
+#      type: RollingUpdate
+#    ports:
+#      fluent: 24224
 
 # -- Kubernetes ServiceAccount resources. Each key becomes the resource name.
 serviceAccount: {}

@@ -1,0 +1,44 @@
+suite: DaemonSet template
+templates:
+  - daemonset.yml
+tests:
+  - it: renders a DaemonSet with correct apiVersion and kind
+    set:
+      daemonSets.agent.image: datadog/agent:7
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - isAPIVersion:
+          of: apps/v1
+
+  - it: does not render when disabled
+    set:
+      daemonSets.agent.image: datadog/agent:7
+      daemonSets.agent.disabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: sets updateStrategy when provided
+    set:
+      daemonSets.agent.image: datadog/agent:7
+      daemonSets.agent.updateStrategy.type: RollingUpdate
+      daemonSets.agent.updateStrategy.rollingUpdate.maxUnavailable: 1
+    asserts:
+      - equal:
+          path: spec.updateStrategy.type
+          value: RollingUpdate
+
+  - it: has no replicas field
+    set:
+      daemonSets.agent.image: datadog/agent:7
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: has no progressDeadlineSeconds field
+    set:
+      daemonSets.agent.image: datadog/agent:7
+    asserts:
+      - notExists:
+          path: spec.progressDeadlineSeconds

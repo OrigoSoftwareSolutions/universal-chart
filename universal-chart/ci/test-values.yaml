@@ -128,6 +128,14 @@ statefulSets:
         image: redis
         imageTag: "7"
 
+
+# --- DaemonSet ---
+daemonSets:
+  log-collector:
+    containers:
+      - name: fluent
+        image: fluent/fluentd
+        imageTag: "latest"
 # --- CronJob ---
 cronJobs:
   cleanup:
