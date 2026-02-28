@@ -1,6 +1,6 @@
 # universal-chart
 
-![Version: 1.1.5](https://img.shields.io/badge/Version-1.1.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.1.6](https://img.shields.io/badge/Version-1.1.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 Origo universal Helm chart for all standard Kubernetes and CRD resources
 
@@ -31,7 +31,7 @@ Origo universal Helm chart for all standard Kubernetes and CRD resources
 | daemonSetsGeneral | object | `{}` | Shared defaults for all DaemonSets. |
 | defaultImage | string | `"nginx"` | Fallback container image used when a workload omits `image`. |
 | defaultImagePullPolicy | string | `"IfNotPresent"` | Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`. |
-| defaultImageTag | string | `"latest"` | Fallback container image tag. |
+| defaultImageTag | string | `"v0.0.1"` | Fallback container image tag. |
 | defaults | object | `{"annotations":{},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"usePredefinedAffinity":true}` | Default settings applied to all workload templates (labels, annotations, pod metadata, volumes, etc.) |
 | defaults.annotations | object | `{}` | Annotations added to every resource's `metadata.annotations`. |
 | defaults.extraImagePullSecrets | list | `[]` | Additional image pull secrets appended to every pod spec. |

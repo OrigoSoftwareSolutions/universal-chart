@@ -22,7 +22,7 @@ releasePrefix: ""
 # -- Fallback container image used when a workload omits `image`.
 defaultImage: nginx
 # -- Fallback container image tag.
-defaultImageTag: latest
+defaultImageTag: v0.0.1
 # -- Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`.
 defaultImagePullPolicy: "IfNotPresent"
 
@@ -30,10 +30,9 @@ defaultImagePullPolicy: "IfNotPresent"
 # @ignored
 # nameOverride: ""
 
-# -- Docker registry credentials. Each key becomes a Secret of type `kubernetes.io/dockerconfigjson`.
-imagePullSecrets: {}
-#   registry.org: |
-#     {"auths":{"registry.org":{"auth":"dXNlcjpwYXNz"}}}
+# -- Image pull secret names referenced in every pod spec. Secrets must be pre-created in the namespace.
+imagePullSecrets: []
+#   - my-registry-secret
 
 # -- Diagnostic mode — overrides command/args on ALL containers (useful for debugging).
 diagnosticMode:
