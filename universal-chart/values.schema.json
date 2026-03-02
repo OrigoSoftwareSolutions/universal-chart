@@ -9,6 +9,61 @@
       "type": "string",
       "description": "Prefix prepended to all resource names. Leave empty to disable."
     },
+    "defaultImage": {
+      "type": "string",
+      "description": "Fallback container image used when a workload omits image."
+    },
+    "defaultImageTag": {
+      "type": ["string", "number"],
+      "description": "Fallback container image tag. Always quote numeric tags."
+    },
+    "defaultImagePullPolicy": {
+      "$ref": "#/$defs/imagePullPolicy"
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Image pull secret names referenced in every pod spec."
+    },
+    "diagnosticMode": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "command": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Default settings applied to all workload templates.",
+      "properties": {
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "hookAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "extraSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "extraVolumes": { "type": "array" },
+        "extraVolumeMounts": { "type": "array" },
+        "extraImagePullSecrets": { "type": "array", "items": { "type": "string" } },
+        "usePredefinedAffinity": { "type": "boolean" },
+        "resources": { "$ref": "#/$defs/resources" },
+        "podSecurityContext": { "$ref": "#/$defs/podSecurityContext" },
+        "containerSecurityContext": { "$ref": "#/$defs/containerSecurityContext" },
+        "topologySpreadConstraints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/topologySpreadConstraint" }
+        }
+      }
+    },
     "podAffinityPreset": {
       "type": "string",
       "enum": ["soft", "hard", ""],
@@ -48,30 +103,32 @@
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/workload" }
     },
+    "deploymentsGeneral": { "$ref": "#/$defs/workloadGeneral" },
     "statefulSets": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/workload" }
     },
+    "statefulSetsGeneral": { "$ref": "#/$defs/workloadGeneral" },
     "daemonSets": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/workload" }
     },
-    "daemonSetsGeneral": {
-      "type": "object",
-      "additionalProperties": true
-    },
+    "daemonSetsGeneral": { "$ref": "#/$defs/workloadGeneral" },
     "cronJobs": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
+      "additionalProperties": { "$ref": "#/$defs/workload" }
     },
+    "cronJobsGeneral": { "$ref": "#/$defs/workloadGeneral" },
     "jobs": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
+      "additionalProperties": { "$ref": "#/$defs/workload" }
     },
+    "jobsGeneral": { "$ref": "#/$defs/workloadGeneral" },
     "hooks": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
+      "additionalProperties": { "$ref": "#/$defs/workload" }
     },
+    "hooksGeneral": { "$ref": "#/$defs/workloadGeneral" },
     "services": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
@@ -86,7 +143,7 @@
     },
     "pvcs": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
+      "additionalProperties": { "$ref": "#/$defs/pvc" }
     },
     "hpas": {
       "type": "object",
@@ -95,6 +152,14 @@
     "pdbs": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "serviceAccountGeneral": {
+      "type": "object",
+      "additionalProperties": true
     },
     "externalSecrets": {
       "type": "object",
@@ -166,12 +231,293 @@
         "disabled": { "type": "boolean" }
       }
     },
+    "imagePullPolicy": {
+      "type": "string",
+      "enum": ["Always", "IfNotPresent", "Never"],
+      "description": "Image pull policy."
+    },
+    "resources": {
+      "description": "Container resource requests/limits. Can be a preset string (nano/small/medium/large/xlarge) or an object.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["nano", "small", "medium", "large", "xlarge"],
+          "description": "Resource preset name."
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "requests": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "cpu": { "type": ["string", "number"] },
+                "memory": { "type": "string" }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "cpu": { "type": ["string", "number"] },
+                "memory": { "type": "string" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "podSecurityContext": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Pod-level security context.",
+      "properties": {
+        "runAsNonRoot": { "type": "boolean" },
+        "runAsUser": { "type": "integer" },
+        "runAsGroup": { "type": "integer" },
+        "fsGroup": { "type": "integer" },
+        "fsGroupChangePolicy": {
+          "type": "string",
+          "enum": ["Always", "OnRootMismatch"]
+        },
+        "seccompProfile": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["RuntimeDefault", "Localhost", "Unconfined"]
+            }
+          }
+        },
+        "supplementalGroups": {
+          "type": "array",
+          "items": { "type": "integer" }
+        },
+        "sysctls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "value": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "containerSecurityContext": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Container-level security context.",
+      "properties": {
+        "allowPrivilegeEscalation": { "type": "boolean" },
+        "readOnlyRootFilesystem": { "type": "boolean" },
+        "runAsNonRoot": { "type": "boolean" },
+        "runAsUser": { "type": "integer" },
+        "runAsGroup": { "type": "integer" },
+        "privileged": { "type": "boolean" },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "add": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "drop": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "seccompProfile": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["RuntimeDefault", "Localhost", "Unconfined"]
+            }
+          }
+        }
+      }
+    },
+    "topologySpreadConstraint": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Topology spread constraint for pod scheduling.",
+      "properties": {
+        "maxSkew": { "type": "integer", "minimum": 1 },
+        "topologyKey": { "type": "string" },
+        "whenUnsatisfiable": {
+          "type": "string",
+          "enum": ["DoNotSchedule", "ScheduleAnyway"]
+        },
+        "labelSelector": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "healthCheck": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Health check shorthand — generates liveness, readiness, and startup probes.",
+      "properties": {
+        "path": { "type": "string" },
+        "port": { "type": ["integer", "string"] },
+        "scheme": {
+          "type": "string",
+          "enum": ["HTTP", "HTTPS"]
+        },
+        "initialDelaySeconds": { "type": "integer", "minimum": 0 },
+        "periodSeconds": { "type": "integer", "minimum": 1 },
+        "timeoutSeconds": { "type": "integer", "minimum": 1 },
+        "successThreshold": { "type": "integer", "minimum": 1 },
+        "failureThreshold": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "container": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Container definition used in the containers list.",
+      "properties": {
+        "name": { "type": "string" },
+        "image": { "type": "string" },
+        "imageTag": { "type": ["string", "number"] },
+        "imagePullPolicy": { "$ref": "#/$defs/imagePullPolicy" },
+        "command": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "args": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "name": { "type": "string" },
+              "containerPort": { "type": "integer" },
+              "protocol": { "type": "string", "enum": ["TCP", "UDP", "SCTP"] }
+            }
+          }
+        },
+        "resources": { "$ref": "#/$defs/resources" },
+        "securityContext": { "$ref": "#/$defs/containerSecurityContext" },
+        "envs": { "type": "object" },
+        "envsFrom": { "type": "object" },
+        "volumeMounts": { "type": "array" },
+        "livenessProbe": { "type": "object", "additionalProperties": true },
+        "readinessProbe": { "type": "object", "additionalProperties": true },
+        "startupProbe": { "type": "object", "additionalProperties": true },
+        "lifecycle": { "type": "object", "additionalProperties": true }
+      }
+    },
     "workload": {
       "type": "object",
       "additionalProperties": true,
+      "description": "Workload instance (Deployment, StatefulSet, DaemonSet, CronJob, Job, Hook).",
       "properties": {
         "disabled": { "type": "boolean" },
-        "replicas": { "type": "integer", "minimum": 0 }
+        "replicas": { "type": "integer", "minimum": 0 },
+        "image": { "type": "string" },
+        "imageTag": { "type": ["string", "number"] },
+        "imagePullPolicy": { "$ref": "#/$defs/imagePullPolicy" },
+        "ports": {
+          "description": "Single-container shorthand: map of name→port. Creates containerPorts and a Service.",
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        },
+        "resources": { "$ref": "#/$defs/resources" },
+        "healthCheck": { "$ref": "#/$defs/healthCheck" },
+        "securityContext": { "$ref": "#/$defs/podSecurityContext" },
+        "containerSecurityContext": { "$ref": "#/$defs/containerSecurityContext" },
+        "topologySpreadConstraints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/topologySpreadConstraint" }
+        },
+        "containers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/container" }
+        },
+        "initContainers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/container" }
+        },
+        "command": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "args": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "serviceAccountName": { "type": "string" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "service": {
+          "description": "Service override. Set false to suppress auto-service, or an object to customize.",
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "object", "additionalProperties": true }
+          ]
+        }
+      }
+    },
+    "workloadGeneral": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Shared defaults for a workload kind (*General). Merged with per-instance values.",
+      "properties": {
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "resources": { "$ref": "#/$defs/resources" },
+        "securityContext": { "$ref": "#/$defs/podSecurityContext" },
+        "topologySpreadConstraints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/topologySpreadConstraint" }
+        },
+        "usePredefinedAffinity": { "type": "boolean" }
+      }
+    },
+    "pvc": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "PersistentVolumeClaim instance.",
+      "properties": {
+        "disabled": { "type": "boolean" },
+        "accessModes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany", "ReadWriteOncePod"]
+          }
+        },
+        "size": { "type": "string", "description": "Storage size (default: 1Gi)." },
+        "storageClassName": { "type": "string" },
+        "volumeMode": {
+          "type": "string",
+          "enum": ["Filesystem", "Block"]
+        },
+        "volumeName": { "type": "string" }
       }
     }
   }

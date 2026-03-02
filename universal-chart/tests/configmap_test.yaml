@@ -1,0 +1,117 @@
+suite: configmap
+templates:
+  - configmap.yml
+tests:
+  # ── Auto-generated envs ConfigMap ──────────────────────────────────────────
+  - it: renders envs ConfigMap when envs is set
+    set:
+      envs:
+        LOG_LEVEL: info
+        APP_NAME: myapp
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: apiVersion
+          value: v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -envs$
+      - isNotEmpty:
+          path: metadata.namespace
+      - isNotEmpty:
+          path: metadata.labels
+
+  - it: renders envs ConfigMap when envsString is set
+    set:
+      envsString: |
+        FOO: bar
+        BAZ: qux
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - matchRegex:
+          path: metadata.name
+          pattern: -envs$
+
+  - it: does not render envs ConfigMap when envs and envsString are empty
+    set:
+      envs: {}
+      envsString: ""
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # ── Custom configMaps ──────────────────────────────────────────────────────
+  - it: renders custom ConfigMap with data
+    set:
+      configMaps:
+        app-config:
+          data:
+            config.yaml: |
+              key: value
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - matchRegex:
+          path: metadata.name
+          pattern: -app-config$
+      - isNotEmpty:
+          path: metadata.namespace
+      - isSubset:
+          path: data
+          content:
+            config.yaml: |
+              key: value
+
+  - it: renders custom ConfigMap with binaryData
+    set:
+      configMaps:
+        binary-cm:
+          binaryData:
+            file.bin: dGVzdA==
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - isSubset:
+          path: binaryData
+          content:
+            file.bin: dGVzdA==
+
+  - it: renders custom ConfigMap with labels and annotations
+    set:
+      configMaps:
+        labeled:
+          data:
+            key: val
+          labels:
+            team: platform
+          annotations:
+            note: important
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            team: platform
+
+  - it: skips configMap with reserved name envs
+    set:
+      configMaps:
+        envs:
+          data:
+            SHOULD: not-render
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders both envs and custom configMap
+    set:
+      envs:
+        LOG_LEVEL: info
+      configMaps:
+        extra:
+          data:
+            foo: bar
+    asserts:
+      - hasDocuments:
+          count: 2
