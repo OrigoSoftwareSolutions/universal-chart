@@ -1,0 +1,134 @@
+suite: pvc
+templates:
+  - pvc.yml
+tests:
+  - it: renders a PVC with correct kind and apiVersion
+    set:
+      pvcs:
+        data:
+          accessModes:
+            - ReadWriteOnce
+    asserts:
+      - isKind:
+          of: PersistentVolumeClaim
+      - equal:
+          path: apiVersion
+          value: v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -data$
+      - isNotEmpty:
+          path: metadata.namespace
+      - isNotEmpty:
+          path: metadata.labels
+
+  - it: defaults size to 1Gi
+    set:
+      pvcs:
+        data:
+          accessModes:
+            - ReadWriteOnce
+    asserts:
+      - equal:
+          path: spec.resources.requests.storage
+          value: 1Gi
+
+  - it: uses custom size
+    set:
+      pvcs:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          size: 50Gi
+    asserts:
+      - equal:
+          path: spec.resources.requests.storage
+          value: 50Gi
+
+  - it: sets accessModes
+    set:
+      pvcs:
+        data:
+          accessModes:
+            - ReadWriteMany
+    asserts:
+      - equal:
+          path: spec.accessModes[0]
+          value: ReadWriteMany
+
+  - it: sets storageClassName
+    set:
+      pvcs:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: gp3
+    asserts:
+      - equal:
+          path: spec.storageClassName
+          value: gp3
+
+  - it: sets volumeMode
+    set:
+      pvcs:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          volumeMode: Block
+    asserts:
+      - equal:
+          path: spec.volumeMode
+          value: Block
+
+  - it: sets volumeName for pre-provisioned PV
+    set:
+      pvcs:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          volumeName: pv-existing
+    asserts:
+      - equal:
+          path: spec.volumeName
+          value: pv-existing
+
+  - it: renders labels and annotations
+    set:
+      pvcs:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          labels:
+            team: platform
+          annotations:
+            note: important
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            team: platform
+      - isSubset:
+          path: metadata.annotations
+          content:
+            note: important
+
+  - it: renders multiple PVCs
+    set:
+      pvcs:
+        data:
+          accessModes:
+            - ReadWriteOnce
+        logs:
+          accessModes:
+            - ReadWriteOnce
+          size: 10Gi
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: renders no documents when pvcs is empty
+    set:
+      pvcs: {}
+    asserts:
+      - hasDocuments:
+          count: 0

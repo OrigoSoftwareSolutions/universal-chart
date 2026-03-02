@@ -1,0 +1,310 @@
+suite: defaults and general merge cascade
+templates:
+  - deployment.yml
+tests:
+  # ── Pod securityContext: 3-tier cascade ────────────────────────────────────
+  - it: applies defaults.podSecurityContext when nothing else is set
+    set:
+      defaults:
+        podSecurityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 1000
+
+  - it: deploymentsGeneral.securityContext overrides defaults.podSecurityContext
+    set:
+      defaults:
+        podSecurityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+      deploymentsGeneral:
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 2000
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 2000
+
+  - it: instance securityContext overrides deploymentsGeneral
+    set:
+      defaults:
+        podSecurityContext:
+          runAsUser: 1000
+      deploymentsGeneral:
+        securityContext:
+          runAsUser: 2000
+      deployments:
+        web:
+          image: myapp:1.0
+          securityContext:
+            runAsUser: 3000
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 3000
+
+  - it: no pod securityContext when all tiers are empty
+    values:
+      - values/empty_defaults.yaml
+    set:
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - notExists:
+          path: spec.template.spec.securityContext
+
+  # ── Container securityContext: 2-tier cascade ──────────────────────────────
+  - it: applies defaults.containerSecurityContext to container
+    set:
+      defaults:
+        containerSecurityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+
+  - it: instance container securityContext overrides defaults.containerSecurityContext
+    set:
+      defaults:
+        containerSecurityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+      deployments:
+        web:
+          image: myapp:1.0
+          securityContext:
+            readOnlyRootFilesystem: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: false
+
+  - it: no container securityContext when defaults is empty
+    values:
+      - values/empty_defaults.yaml
+    set:
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].securityContext
+
+  # ── Resources: 2-tier cascade ──────────────────────────────────────────────
+  - it: applies defaults.resources when instance has none
+    set:
+      defaults:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 100m
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 128Mi
+
+  - it: instance resources override defaults.resources
+    set:
+      defaults:
+        resources:
+          requests:
+            cpu: 100m
+      deployments:
+        web:
+          image: myapp:1.0
+          resources:
+            requests:
+              cpu: 500m
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 500m
+
+  - it: no container resources when defaults is empty
+    values:
+      - values/empty_defaults.yaml
+    set:
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].resources
+
+  # ── TopologySpreadConstraints: 3-tier cascade ──────────────────────────────
+  - it: applies defaults.topologySpreadConstraints when nothing else is set
+    set:
+      defaults:
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].maxSkew
+          value: 1
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].topologyKey
+          value: topology.kubernetes.io/zone
+
+  - it: deploymentsGeneral.topologySpreadConstraints overrides defaults
+    set:
+      defaults:
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
+      deploymentsGeneral:
+        topologySpreadConstraints:
+          - maxSkew: 2
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].maxSkew
+          value: 2
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].topologyKey
+          value: kubernetes.io/hostname
+
+  - it: instance topologySpreadConstraints overrides deploymentsGeneral
+    set:
+      defaults:
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
+      deploymentsGeneral:
+        topologySpreadConstraints:
+          - maxSkew: 2
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+      deployments:
+        web:
+          image: myapp:1.0
+          topologySpreadConstraints:
+            - maxSkew: 3
+              topologyKey: custom/rack
+              whenUnsatisfiable: DoNotSchedule
+    asserts:
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].maxSkew
+          value: 3
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].topologyKey
+          value: custom/rack
+
+  - it: no topologySpreadConstraints when all tiers are empty
+    set:
+      defaults:
+        topologySpreadConstraints: []
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints
+
+  # ── Multi-container: defaults apply to all containers ──────────────────────
+  - it: defaults.containerSecurityContext applies to multi-container pods
+    set:
+      defaults:
+        containerSecurityContext:
+          allowPrivilegeEscalation: false
+      deployments:
+        web:
+          containers:
+            - name: app
+              image: myapp
+              imageTag: "1.0"
+            - name: sidecar
+              image: envoy
+              imageTag: "1.25"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[1].securityContext.allowPrivilegeEscalation
+          value: false
+
+  - it: defaults.resources applies to multi-container pods
+    set:
+      defaults:
+        resources:
+          requests:
+            cpu: 100m
+      deployments:
+        web:
+          containers:
+            - name: app
+              image: myapp
+              imageTag: "1.0"
+            - name: sidecar
+              image: envoy
+              imageTag: "1.25"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 100m
+      - equal:
+          path: spec.template.spec.containers[1].resources.requests.cpu
+          value: 100m
+
+  - it: per-container securityContext overrides defaults in multi-container
+    set:
+      defaults:
+        containerSecurityContext:
+          readOnlyRootFilesystem: true
+      deployments:
+        web:
+          containers:
+            - name: app
+              image: myapp
+              imageTag: "1.0"
+              securityContext:
+                readOnlyRootFilesystem: false
+            - name: sidecar
+              image: envoy
+              imageTag: "1.25"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: false
+      - equal:
+          path: spec.template.spec.containers[1].securityContext.readOnlyRootFilesystem
+          value: true
