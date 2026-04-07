@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.2.0](https://img.shields.io/badge/Version-1.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.2.1](https://img.shields.io/badge/Version-1.2.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -19,7 +19,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.2.0 \
+  --version 1.2.1 \
   -f my-values.yaml
 ```
 
@@ -39,8 +39,11 @@ deployments:
     healthCheck:
       path: /healthz
     resources:
-      requests: { cpu: 250m, memory: 256Mi }
-      limits: { memory: 512Mi }
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
 
 # ── Autoscaling ──
 hpas:
@@ -69,17 +72,24 @@ secretStores:
   aws:
     spec:
       provider:
-        aws: { service: SecretsManager, region: eu-west-1 }
+        aws:
+          service: SecretsManager
+          region: eu-west-1
 
 externalSecrets:
   api-secrets:
     spec:
       refreshInterval: 1h
-      secretStoreRef: { name: aws, kind: SecretStore }
-      target: { name: api-secrets }
+      secretStoreRef:
+        name: aws
+        kind: SecretStore
+      target:
+        name: api-secrets
       data:
         - secretKey: DB_PASSWORD
-          remoteRef: { key: prod/api, property: db_password }
+          remoteRef:
+            key: prod/api
+            property: db_password
 
 # ── Environment variables ──
 envs:
@@ -112,8 +122,11 @@ deployments:
       http: 8080
       metrics: 9090
     resources:
-      requests: { cpu: 100m, memory: 128Mi }
-      limits: { memory: 256Mi }
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
     healthCheck:
       path: /healthz
       port: 8080            # default: 8080
@@ -163,7 +176,9 @@ deployments:
           - name: http
             containerPort: 8080
         resources:
-          requests: { cpu: 100m, memory: 128Mi }
+          requests:
+            cpu: 100m
+            memory: 128Mi
       - name: sidecar
         image: envoyproxy/envoy
         imageTag: "v1.28"
@@ -171,7 +186,9 @@ deployments:
           - name: admin
             containerPort: 9901
         resources:
-          requests: { cpu: 50m, memory: 64Mi }
+          requests:
+            cpu: 50m
+            memory: 64Mi
 ```
 
 #### Health check shorthand
@@ -206,12 +223,18 @@ statefulSets:
     ports:
       pg: 5432
     resources:
-      requests: { cpu: 500m, memory: 1Gi }
+      requests:
+        cpu: 500m
+        memory: 1Gi
     volumeClaimTemplates:
-      - metadata: { name: data }
+      - metadata:
+          name: data
         spec:
-          accessModes: [ReadWriteOnce]
-          resources: { requests: { storage: 50Gi } }
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 50Gi
     volumeMounts:
       - name: data
         mountPath: /var/lib/postgresql/data
@@ -227,8 +250,11 @@ daemonSets:
     image: fluent/fluent-bit
     imageTag: "3.0"
     resources:
-      requests: { cpu: 50m, memory: 64Mi }
-      limits: { memory: 128Mi }
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
     volumes:
       - name: varlog
         type: hostPath
@@ -249,7 +275,9 @@ cronJobs:
     imageTag: "1.0.0"
     command: "python generate_report.py"
     resources:
-      requests: { cpu: 100m, memory: 256Mi }
+      requests:
+        cpu: 100m
+        memory: 256Mi
 
   db-backup:
     schedule: "0 */6 * * *"
@@ -281,7 +309,10 @@ hooks:
     containers:
       - image: registry.example.com/my-api
         imageTag: "1.0.0"
-        command: ["python", "manage.py", "migrate"]
+        command:
+          - python
+          - manage.py
+          - migrate
     hookAnnotations:
       helm.sh/hook: pre-upgrade
       helm.sh/hook-weight: "-5"
@@ -317,10 +348,13 @@ httpRoutes:
       parentRefs:
         - name: main-gateway
           namespace: istio-ingress
-      hostnames: [api.example.com]
+      hostnames:
+        - api.example.com
       rules:
         - matches:
-            - path: { type: PathPrefix, value: / }
+            - path:
+                type: PathPrefix
+                value: /
           backendRefs:
             - name: api
               port: 8080
@@ -331,15 +365,19 @@ httpRoutes:
 ```yaml
 istiovirtualservices:
   api:
-    gateways: [main-gateway]
-    hosts: [api.example.com]
+    gateways:
+      - main-gateway
+    hosts:
+      - api.example.com
     http:
       - match:
-          - uri: { prefix: /v1 }
+          - uri:
+              prefix: /v1
         route:
           - destination:
               host: api
-              port: { number: 8080 }
+              port:
+                number: 8080
 ```
 
 ### Istio Gateway
@@ -347,11 +385,18 @@ istiovirtualservices:
 ```yaml
 istiogateways:
   main:
-    selector: { istio: ingressgateway }
+    selector:
+      istio: ingressgateway
     servers:
-      - port: { number: 443, name: https, protocol: HTTPS }
-        tls: { mode: SIMPLE, credentialName: tls-cert }
-        hosts: ["*.example.com"]
+      - port:
+          number: 443
+          name: https
+          protocol: HTTPS
+        tls:
+          mode: SIMPLE
+          credentialName: tls-cert
+        hosts:
+          - "*.example.com"
 ```
 
 ### Istio DestinationRule
@@ -362,8 +407,10 @@ istiodestinationrules:
     host: api.default.svc.cluster.local
     trafficPolicy:
       connectionPool:
-        tcp: { maxConnections: 100 }
-        http: { h2UpgradePolicy: DEFAULT }
+        tcp:
+          maxConnections: 100
+        http:
+          h2UpgradePolicy: DEFAULT
 ```
 
 ### Istio PeerAuthentication
@@ -372,7 +419,8 @@ istiodestinationrules:
 istioPeerAuthentications:
   strict-mtls:
     spec:
-      mtls: { mode: STRICT }
+      mtls:
+        mode: STRICT
 ```
 
 ### Istio AuthorizationPolicy
@@ -384,7 +432,9 @@ istioAuthorizationPolicies:
       action: ALLOW
       rules:
         - from:
-            - source: { principals: ["cluster.local/ns/frontend/sa/frontend"] }
+            - source:
+                principals:
+                  - "cluster.local/ns/frontend/sa/frontend"
 ```
 
 ---
@@ -422,7 +472,8 @@ PVCs are **auto-mounted** as volumes into every Deployment, StatefulSet, and Dae
 ```yaml
 pvcs:
   app-data:
-    accessModes: [ReadWriteOnce]
+    accessModes:
+      - ReadWriteOnce
     size: 10Gi
     storageClassName: gp3
     mountPath: /data          # auto-mount into every container
@@ -430,13 +481,15 @@ pvcs:
     readOnly: false           # optional: default false
 
   shared-cache:
-    accessModes: [ReadWriteMany]
+    accessModes:
+      - ReadWriteMany
     size: 5Gi
     # no mountPath = volume is added but not mounted (manual volumeMount needed)
 
   old-pvc:
     disabled: true            # skipped entirely — no volume, no mount
-    accessModes: [ReadWriteOnce]
+    accessModes:
+      - ReadWriteOnce
     size: 1Gi
 ```
 
@@ -513,14 +566,21 @@ deployments:
     imageTag: "1.0.0"
 
     # Inject entire ConfigMap/Secret via envFrom
-    envConfigmaps: [app-config, feature-flags]
-    envSecrets: [api-credentials]
+    envConfigmaps:
+      - app-config
+      - feature-flags
+    envSecrets:
+      - api-credentials
 
     # Cherry-pick individual keys
     envsFromConfigmap:
-      DATABASE_URL: { name: db-config, key: url }
+      DATABASE_URL:
+        name: db-config
+        key: url
     envsFromSecret:
-      DB_PASSWORD: { name: db-secret, key: password }
+      DB_PASSWORD:
+        name: db-secret
+        key: password
 
     # Inline env entries
     env:
@@ -590,12 +650,22 @@ serviceAccount:
     role:
       name: app-role
       rules:
-        - apiGroups: [""]
-          resources: [pods, services]
-          verbs: [get, list, watch]
-        - apiGroups: [apps]
-          resources: [deployments]
-          verbs: [get, list]
+        - apiGroups:
+            - ""
+          resources:
+            - pods
+            - services
+          verbs:
+            - get
+            - list
+            - watch
+        - apiGroups:
+            - apps
+          resources:
+            - deployments
+          verbs:
+            - get
+            - list
 
     # Bind to an existing ClusterRole (no rules = binding only)
     clusterRole:
@@ -652,33 +722,46 @@ secretStores:
           region: eu-west-1
           auth:
             jwt:
-              serviceAccountRef: { name: eso-sa }
+              serviceAccountRef:
+                name: eso-sa
 
 externalSecrets:
   db-credentials:
     spec:
       refreshInterval: 1h
-      secretStoreRef: { name: aws, kind: SecretStore }
-      target: { name: db-credentials }
+      secretStoreRef:
+        name: aws
+        kind: SecretStore
+      target:
+        name: db-credentials
       data:
         - secretKey: password
-          remoteRef: { key: prod/database, property: password }
+          remoteRef:
+            key: prod/database
+            property: password
         - secretKey: username
-          remoteRef: { key: prod/database, property: username }
+          remoteRef:
+            key: prod/database
+            property: username
 
 # Cluster-scoped variants
 clusterSecretStores:
   global-aws:
     spec:
       provider:
-        aws: { service: SecretsManager, region: eu-west-1 }
+        aws:
+          service: SecretsManager
+          region: eu-west-1
 
 clusterExternalSecrets:
   shared-config:
     spec:
       refreshInterval: 24h
-      secretStoreRef: { name: global-aws, kind: ClusterSecretStore }
-      target: { name: shared-config }
+      secretStoreRef:
+        name: global-aws
+        kind: ClusterSecretStore
+      target:
+        name: shared-config
       data: []
 ```
 
@@ -691,16 +774,20 @@ clusterIssuers:
       acme:
         server: https://acme-v02.api.letsencrypt.org/directory
         email: devops@example.com
-        privateKeySecretRef: { name: letsencrypt-prod }
+        privateKeySecretRef:
+          name: letsencrypt-prod
         solvers:
           - http01:
-              ingress: { class: istio }
+              ingress:
+                class: istio
 
 certificates:
   api-tls:
     spec:
       secretName: api-tls
-      issuerRef: { name: letsencrypt-prod, kind: ClusterIssuer }
+      issuerRef:
+        name: letsencrypt-prod
+        kind: ClusterIssuer
       dnsNames:
         - api.example.com
         - "*.api.example.com"
@@ -723,7 +810,9 @@ imageUpdaters:
       - alias: worker
         imageName: registry.example.com/my-worker
         updateStrategy: latest
-        ignoreTags: [dev, latest]
+        ignoreTags:
+          - dev
+          - latest
     writeBackConfig:
       method: argocd    # or git
       # git:
@@ -741,7 +830,9 @@ Settings merge in order: `defaults` (global) → `deploymentsGeneral` (kind-leve
 ```yaml
 defaults:
   resources:
-    requests: { cpu: 100m, memory: 128Mi }
+    requests:
+      cpu: 100m
+      memory: 128Mi
   podAnnotations:
     sidecar.istio.io/inject: "true"
 
@@ -759,7 +850,9 @@ deployments:
     imageTag: "1.0.0"
     replicas: 1               # overrides deploymentsGeneral
     resources:
-      requests: { cpu: 1, memory: 2Gi }  # overrides defaults
+      requests:
+        cpu: 1
+        memory: 2Gi  # overrides defaults
 ```
 
 Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountGeneral`.
@@ -773,11 +866,14 @@ Every pod gets hardened security contexts out of the box:
 defaults:
   podSecurityContext:
     runAsNonRoot: true
-    seccompProfile: { type: RuntimeDefault }
+    seccompProfile:
+      type: RuntimeDefault
   containerSecurityContext:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
-    capabilities: { drop: [ALL] }
+    capabilities:
+      drop:
+        - ALL
 ```
 
 Override per-workload:
@@ -803,7 +899,9 @@ podAntiAffinityPreset: soft
 nodeAffinityPreset:
   type: hard                  # soft | hard | ""
   key: topology.kubernetes.io/zone
-  values: [eu-west-1a, eu-west-1b]
+  values:
+    - eu-west-1a
+    - eu-west-1b
 ```
 
 Disable per-workload with `usePredefinedAffinity: false`, or supply a custom `affinity:` block.
@@ -815,8 +913,10 @@ Override **all** containers with `sleep infinity` and suppress all health probes
 ```yaml
 diagnosticMode:
   enabled: true
-  # command: ["sleep"]     # default
-  # args: ["infinity"]     # default
+  # command:
+  #   - sleep     # default
+  # args:
+  #   - infinity     # default
 ```
 
 ### Graceful Shutdown
@@ -872,7 +972,9 @@ extraDeploy:
       namespace: {{ .Release.Namespace | quote }}
     spec:
       podSelector: {}
-      policyTypes: [Ingress, Egress]
+      policyTypes:
+        - Ingress
+        - Egress
 ```
 
 ---
