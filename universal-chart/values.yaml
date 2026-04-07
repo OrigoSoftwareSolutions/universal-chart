@@ -72,6 +72,13 @@ defaults:
   extraImagePullSecrets: []
   # -- Use the chart's built-in pod affinity/anti-affinity rules.
   usePredefinedAffinity: true
+  # -- Automatically inject `checksum/...` pod annotations for chart-managed ConfigMaps
+  # and Secrets referenced by the workload via `envConfigmaps` / `envSecrets`.
+  # When the underlying data changes the annotation hash changes, triggering a
+  # rolling restart. Set to `false` to disable globally; override per-kind via
+  # `*General.autoChecksum` or per-instance via `<workload>.autoChecksum`.
+  # @default -- `true`
+  # autoChecksum: true
   # -- Default ServiceAccount name assigned to pods when not overridden per-workload.
   # serviceAccountName: ""
   # -- Default hostAliases injected into every pod spec.
