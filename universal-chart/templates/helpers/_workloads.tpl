@@ -56,6 +56,95 @@ envFrom:
 {{ . | toString | sha256sum }}
 {{- end -}}
 
+
+{{- /*
+helpers.workload.autoChecksums — Automatically generates checksum/... pod
+annotations for every chart-managed ConfigMap and Secret that the workload
+references via envConfigmaps / envSecrets.  When the underlying data changes
+the annotation hash changes, triggering a rolling restart.
+
+Expects a dict:
+value   — the workload instance (e.g. $d inside range)
+general — the *General block (e.g. $general)
+context — the root context ($)
+
+Controlled by:
+defaults.autoChecksum  (bool, default true)  — global opt-out
+<instance>.autoChecksum (bool)                — per-workload override
+<general>.autoChecksum  (bool)                — per-kind override
+*/}}
+{{- define "helpers.workload.autoChecksums" -}}
+  {{- $ctx := .context -}}
+  {{- $general := .general -}}
+  {{- $v := .value -}}
+
+  {{- /* Three-level merge for the autoChecksum flag: instance > general > defaults (true) */}}
+  {{- $enabled := true -}}
+  {{- if hasKey $ctx.Values.defaults "autoChecksum" -}}
+    {{- $enabled = $ctx.Values.defaults.autoChecksum -}}
+  {{- end -}}
+  {{- if hasKey $general "autoChecksum" -}}
+    {{- $enabled = $general.autoChecksum -}}
+  {{- end -}}
+  {{- if hasKey $v "autoChecksum" -}}
+    {{- $enabled = $v.autoChecksum -}}
+  {{- end -}}
+
+  {{- if $enabled -}}
+    {{- /* Collect envConfigmaps references (general + instance) */}}
+    {{- $cmRefs := list -}}
+    {{- with $general.envConfigmaps -}}
+      {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
+    {{- end -}}
+    {{- with $v.envConfigmaps -}}
+      {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
+    {{- end -}}
+
+    {{- /* Collect envSecrets references (general + instance) */}}
+    {{- $secRefs := list -}}
+    {{- with $general.envSecrets -}}
+      {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
+    {{- end -}}
+    {{- with $v.envSecrets -}}
+      {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
+    {{- end -}}
+
+    {{- /* Hash referenced ConfigMaps */}}
+    {{- range $cmRefs -}}
+      {{- $refName := . -}}
+      {{- if eq $refName "envs" -}}
+        {{- /* Global envs ConfigMap — hash envs + envsString */}}
+        {{- if or (not (empty $ctx.Values.envs)) (not (empty $ctx.Values.envsString)) }}
+checksum/configmap-envs: {{ printf "%v%v" $ctx.Values.envs $ctx.Values.envsString | sha256sum }}
+        {{- end -}}
+      {{- else -}}
+        {{- /* Named configMap — look up in $.Values.configMaps */}}
+        {{- $cm := index $ctx.Values.configMaps $refName | default dict -}}
+        {{- with $cm.data }}
+checksum/configmap-{{ $refName }}: {{ . | toJson | sha256sum }}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{- /* Hash referenced Secrets */}}
+    {{- range $secRefs -}}
+      {{- $refName := . -}}
+      {{- if eq $refName "secret-envs" -}}
+        {{- /* Global secretEnvs Secret — hash secretEnvs + secretEnvsString */}}
+        {{- if or (not (empty $ctx.Values.secretEnvs)) (not (empty $ctx.Values.secretEnvsString)) }}
+checksum/secret-secret-envs: {{ printf "%v%v" $ctx.Values.secretEnvs $ctx.Values.secretEnvsString | sha256sum }}
+        {{- end -}}
+      {{- else -}}
+        {{- /* Named secret — look up in $.Values.secrets */}}
+        {{- $sec := index $ctx.Values.secrets $refName | default dict -}}
+        {{- with $sec.data }}
+checksum/secret-{{ $refName }}: {{ . | toJson | sha256sum }}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
 {{- /* Converts a ports map {name: port} to a containerPorts list */}}
 {{- define "helpers.workload.singleContainerPorts" -}}
   {{- $ports := . -}}

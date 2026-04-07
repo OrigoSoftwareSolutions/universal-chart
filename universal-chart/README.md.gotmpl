@@ -1116,7 +1116,8 @@ deployments:
     image: my-api
     imageTag: "1.0.0"
     podAnnotations:
-      config-hash: '{{"{{"}} include "helpers.workload.checksum" (printf "%s" $.Values.envs) {{"}}"}}'
+      # Manual checksum (auto-checksums handle envConfigmaps/envSecrets automatically)
+      custom-hash: '{{"{{"}} include "helpers.workload.checksum" (printf "%s" $.Values.envs) {{"}}"}}'
 
 envs:
   RELEASE: '{{"{{"}} .Release.Name {{"}}"}}'
@@ -1639,7 +1640,40 @@ deployments:
 
 ### Config hash for automatic rollouts
 
-Restart pods when a ConfigMap or Secret changes:
+The chart **automatically injects** `checksum/configmap-<name>` and `checksum/secret-<name>` pod annotations for every chart-managed ConfigMap or Secret that a workload references via `envConfigmaps` / `envSecrets`. When the underlying data changes, the annotation hash changes, and Kubernetes triggers a rolling restart — no manual configuration needed.
+
+```yaml
+envs:
+  LOG_LEVEL: info
+
+deployments:
+  api:
+    image: my-api
+    imageTag: "1.0.0"
+    envConfigmaps:
+      - envs          # ← auto-injects checksum/configmap-envs annotation
+    envSecrets:
+      - secret-envs   # ← auto-injects checksum/secret-secret-envs annotation
+```
+
+Auto-checksums are enabled by default. Disable globally, per-kind, or per-instance:
+
+```yaml
+# Global opt-out
+defaults:
+  autoChecksum: false
+
+# Per-kind opt-out
+deploymentsGeneral:
+  autoChecksum: false
+
+# Per-instance opt-out (overrides global and per-kind)
+deployments:
+  api:
+    autoChecksum: false
+```
+
+For ConfigMaps or Secrets **not** managed by `envConfigmaps`/`envSecrets`, you can still use the manual helper:
 
 ```yaml
 deployments:
@@ -1649,8 +1683,6 @@ deployments:
     podAnnotations:
       config-hash: '{{"{{"}} include "helpers.workload.checksum" (printf "%s%s" $.Values.envs $.Values.envsString) {{"}}"}}'
 ```
-
-When `envs` changes, the annotation hash changes, triggering a rolling restart.
 
 ### Priority classes
 

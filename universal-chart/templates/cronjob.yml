@@ -67,7 +67,8 @@ spec:
       ttlSecondsAfterFinished: {{ $ttl }}
       {{- end }}
       template:
-      {{- if or $.Values.defaults.podLabels $general.podLabels .podLabels $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations }}
+      {{- $autoChecksums := include "helpers.workload.autoChecksums" (dict "value" $job "general" $general "context" $) | trim }}
+      {{- if or $.Values.defaults.podLabels $general.podLabels .podLabels $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations $autoChecksums }}
         metadata:
         {{- if or $.Values.defaults.podLabels $general.podLabels .podLabels }}
           labels:
@@ -75,11 +76,12 @@ spec:
           {{- with $general.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
           {{- with .podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
         {{- end }}
-        {{- if or $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations }}
+        {{- if or $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations $autoChecksums }}
           annotations:
           {{- with $.Values.defaults.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
           {{- with $general.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
           {{- with .podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
+          {{- if $autoChecksums }}{{ $autoChecksums | nindent 12 }}{{- end }}
         {{- end }}
       {{- else }}
         metadata: {}

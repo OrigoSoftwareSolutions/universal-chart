@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.3.1](https://img.shields.io/badge/Version-1.3.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.3.2](https://img.shields.io/badge/Version-1.3.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -21,7 +21,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.3.1 \
+  --version 1.3.2 \
   -f my-values.yaml
 ```
 
@@ -1116,7 +1116,8 @@ deployments:
     image: my-api
     imageTag: "1.0.0"
     podAnnotations:
-      config-hash: '{{ include "helpers.workload.checksum" (printf "%s" $.Values.envs) }}'
+      # Manual checksum (auto-checksums handle envConfigmaps/envSecrets automatically)
+      custom-hash: '{{ include "helpers.workload.checksum" (printf "%s" $.Values.envs) }}'
 
 envs:
   RELEASE: '{{ .Release.Name }}'
@@ -1639,7 +1640,40 @@ deployments:
 
 ### Config hash for automatic rollouts
 
-Restart pods when a ConfigMap or Secret changes:
+The chart **automatically injects** `checksum/configmap-<name>` and `checksum/secret-<name>` pod annotations for every chart-managed ConfigMap or Secret that a workload references via `envConfigmaps` / `envSecrets`. When the underlying data changes, the annotation hash changes, and Kubernetes triggers a rolling restart — no manual configuration needed.
+
+```yaml
+envs:
+  LOG_LEVEL: info
+
+deployments:
+  api:
+    image: my-api
+    imageTag: "1.0.0"
+    envConfigmaps:
+      - envs          # ← auto-injects checksum/configmap-envs annotation
+    envSecrets:
+      - secret-envs   # ← auto-injects checksum/secret-secret-envs annotation
+```
+
+Auto-checksums are enabled by default. Disable globally, per-kind, or per-instance:
+
+```yaml
+# Global opt-out
+defaults:
+  autoChecksum: false
+
+# Per-kind opt-out
+deploymentsGeneral:
+  autoChecksum: false
+
+# Per-instance opt-out (overrides global and per-kind)
+deployments:
+  api:
+    autoChecksum: false
+```
+
+For ConfigMaps or Secrets **not** managed by `envConfigmaps`/`envSecrets`, you can still use the manual helper:
 
 ```yaml
 deployments:
@@ -1649,8 +1683,6 @@ deployments:
     podAnnotations:
       config-hash: '{{ include "helpers.workload.checksum" (printf "%s%s" $.Values.envs $.Values.envsString) }}'
 ```
-
-When `envs` changes, the annotation hash changes, triggering a rolling restart.
 
 ### Priority classes
 
@@ -1949,6 +1981,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | nodeAffinityPreset.type | string | `""` | Affinity type. Allowed values: `soft`, `hard`, or empty string to disable. |
 | nodeAffinityPreset.values | list | `[]` | Node label values to match. |
 | pdbs | object | `{}` | Kubernetes PodDisruptionBudget resources. Each key becomes the resource name. |
+| persistentVolumes | object | `{}` | Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name. Thin passthrough — `spec:` goes directly to the Kubernetes resource unchanged. |
 | podAffinityPreset | string | `"soft"` | Pod affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | pvcs | object | `{}` | Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name. PVCs are automatically added to the `volumes` block in each workload (excluding hooks). Set `mountPath` on a PVC to also auto-mount it into every container. |
