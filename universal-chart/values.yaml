@@ -30,8 +30,7 @@ defaultImagePullPolicy: "IfNotPresent"
 # @default -- `[]`
 imagePullSecrets: []
 
-# -- Override the chart name used in resource name generation.
-# @ignored
+# Override the chart name used in resource name generation (uncomment to use).
 # nameOverride: ""
 
 # -- Diagnostic mode — overrides command/args on ALL containers (useful for debugging).

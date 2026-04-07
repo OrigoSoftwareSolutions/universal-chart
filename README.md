@@ -1922,6 +1922,10 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | defaults.usePredefinedAffinity | bool | `true` | Use the chart's built-in pod affinity/anti-affinity rules. |
 | deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form `{name: port}`) auto-creates containerPorts AND a matching ClusterIP Service. `resources:` raw requests/limits map. `healthCheck:` sets liveness, readiness, and startup probes. Override service behaviour with `service: false` (suppress) or `service: {type: NodePort}`. The full `containers:` list still works for multi-container workloads. |
 | deploymentsGeneral | object | `{}` | Shared defaults for all Deployments (merged with per-instance values). |
+| diagnosticMode | object | `{"args":["infinity"],"command":["sleep"],"enabled":false}` | Diagnostic mode — overrides command/args on ALL containers (useful for debugging). |
+| diagnosticMode.args | list | `["infinity"]` | Args override applied to every container. |
+| diagnosticMode.command | list | `["sleep"]` | Command override applied to every container. |
+| diagnosticMode.enabled | bool | `false` | Enable diagnostic mode globally. |
 | envs | object | `{}` | Non-secret environment variables injected via ConfigMap envFrom. |
 | envsString | string | `""` | Non-secret environment variables as a raw YAML string (for multiline or special chars). |
 | externalSecrets | object | `{}` | External Secrets Operator ExternalSecret resources. Each key becomes the resource name. |
@@ -1984,6 +1988,71 @@ helm-docs --chart-search-root universal-chart/ -o ../README.md
 # Format
 helmfmt universal-chart/
 ```
+
+## Contributing & Release
+
+### Making changes
+
+1. Create a branch from `main`
+2. Make your changes in `universal-chart/`
+3. Run locally before pushing:
+   ```bash
+   helm lint universal-chart/ --strict
+   helm unittest universal-chart/ --strict --file 'tests/*.yaml'
+   ```
+4. If you changed `values.yaml`, regenerate docs:
+   ```bash
+   helm-docs --chart-search-root universal-chart/ -o ../README.md
+   ```
+5. Open a PR against `main`
+
+### CI checks (automated on every PR)
+
+Five parallel jobs run on every pull request:
+
+| Job | What it does |
+|---|---|
+| `lint` | `helm lint --strict` + kubeconform schema validation |
+| `unittest` | All helm-unittest suites |
+| `security` | Trivy scan on rendered manifests |
+| `ct-lint` | chart-testing `ct lint` |
+| `docs-check` | Verifies `README.md` matches `helm-docs` output |
+
+All five must pass before merge.
+
+### Pre-commit hooks
+
+The repo uses pre-commit hooks (configured in `.pre-commit-config.yaml`) that run automatically on each commit:
+
+- **helmfmt** — auto-formats all `.yaml`/`.yml`/`.tpl` files in `universal-chart/`
+- **helm-docs** — regenerates `README.md` from the gotmpl + values.yaml comments
+
+Install once: `pre-commit install`. After that, formatting and docs regeneration happen automatically on `git commit`.
+
+### Versioning & release
+
+This chart follows [SemVer](https://semver.org/):
+
+- **Patch** (`1.3.0` → `1.3.1`): Bug fixes, doc updates, test additions
+- **Minor** (`1.3.0` → `1.4.0`): New features, new resource types, new values keys
+- **Major** (`1.3.0` → `2.0.0`): Breaking changes — renamed/removed values keys, changed default behavior
+
+**To release a new version:**
+
+1. Bump `version:` in `universal-chart/Chart.yaml`
+2. Merge to `main`
+3. GitHub Actions automatically packages and pushes to `oci://ghcr.io/origosoftwaresolutions/universal-chart`
+
+No manual tagging required. The `Chart.yaml` version is the single source of truth.
+
+### Adding a new resource type
+
+1. Create the template in `universal-chart/templates/` — use `.yaml` extension for new files (`.yml` is reserved for legacy nixys templates)
+2. Add a plural values key in `values.yaml` (e.g. `myResources: {}`) with a `# --` helm-docs comment
+3. Add schema validation in `values.schema.json` if the resource has structured fields
+4. Write a test suite in `universal-chart/tests/<resource>_test.yaml`
+5. Regenerate docs: `helm-docs --chart-search-root universal-chart/ -o ../README.md`
+6. Run all checks: `helm lint --strict && helm unittest --strict --file 'tests/*.yaml'`
 
 ## Source Code
 
