@@ -12,7 +12,7 @@ metadata:
   annotations: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}
 spec:
-  namespace: {{ $val.namespace | default "argocd" }}
+  namespace: {{ include "helpers.tplvalues.render" (dict "value" ($val.namespace | default "argocd") "context" $) | quote }}
   applicationRefs:
     - namePattern: {{ include "helpers.tplvalues.render" (dict "value" $val.applicationName "context" $) | quote }}
       images:

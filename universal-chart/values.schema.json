@@ -520,7 +520,7 @@
         "disabled": { "type": "boolean" },
         "scaleTargetRef": {
           "type": "object",
-          "required": ["name", "kind"],
+          "required": ["name"],
           "properties": {
             "name": { "type": "string" },
             "kind": { "type": "string", "enum": ["Deployment", "StatefulSet", "DaemonSet"] }
@@ -531,7 +531,12 @@
         "targetCPU": { "type": "integer", "minimum": 1, "maximum": 100 },
         "targetMemory": { "type": "integer", "minimum": 1, "maximum": 100 }
       },
-      "required": ["scaleTargetRef", "minReplicas", "maxReplicas"]
+      "if": {
+        "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
+      },
+      "then": {
+        "required": ["scaleTargetRef", "minReplicas", "maxReplicas"]
+      }
     },
     "pdb": {
       "type": "object",
@@ -688,7 +693,12 @@
           }
         }
       },
-      "required": ["applicationName", "images"]
+      "if": {
+        "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
+      },
+      "then": {
+        "required": ["applicationName", "images"]
+      }
     }
   }
 }
