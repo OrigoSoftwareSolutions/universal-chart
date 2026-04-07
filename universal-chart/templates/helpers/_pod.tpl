@@ -21,8 +21,10 @@ serviceAccountName: {{- include "helpers.tplvalues.render" (dict "value" . "cont
       {{- with $general.serviceAccountName }}
 serviceAccountName: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
-    {{- else if $.Values.defaults.serviceAccountName }}
-serviceAccountName: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.serviceAccountName "context" $) | nindent 2 }}
+    {{- else if (ne $.Values.defaults.serviceAccountName nil) }}
+      {{- with $.Values.defaults.serviceAccountName }}
+serviceAccountName: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+      {{- end }}
     {{- end }}
     {{- if (ne .hostAliases nil) }}
       {{- with .hostAliases }}
@@ -32,8 +34,10 @@ hostAliases: {{- include "helpers.tplvalues.render" (dict "value" . "context" $)
       {{- with $general.hostAliases }}
 hostAliases: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
-    {{- else if $.Values.defaults.hostAliases }}
-hostAliases: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.hostAliases "context" $) | nindent 2 }}
+    {{- else if (ne $.Values.defaults.hostAliases nil) }}
+      {{- with $.Values.defaults.hostAliases }}
+hostAliases: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+      {{- end }}
     {{- end }}
     {{- if (ne .affinity nil) }}
       {{- with .affinity }}
@@ -59,8 +63,10 @@ priorityClassName: {{- include "helpers.tplvalues.render" (dict "value" . "conte
       {{- with $general.priorityClassName }}
 priorityClassName: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
-    {{- else if $.Values.defaults.priorityClassName }}
-priorityClassName: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.priorityClassName "context" $) | nindent 2 }}
+    {{- else if (ne $.Values.defaults.priorityClassName nil) }}
+      {{- with $.Values.defaults.priorityClassName }}
+priorityClassName: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+      {{- end }}
     {{- end }}
     {{- if (ne .dnsPolicy nil) }}
       {{- with .dnsPolicy }}
@@ -70,8 +76,10 @@ dnsPolicy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) |
       {{- with $general.dnsPolicy }}
 dnsPolicy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
-    {{- else if $.Values.defaults.dnsPolicy }}
-dnsPolicy: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.dnsPolicy "context" $) | nindent 2 }}
+    {{- else if (ne $.Values.defaults.dnsPolicy nil) }}
+      {{- with $.Values.defaults.dnsPolicy }}
+dnsPolicy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+      {{- end }}
     {{- end }}
     {{- if (ne .nodeSelector nil) }}
       {{- with .nodeSelector }}
@@ -81,8 +89,10 @@ nodeSelector: {{- include "helpers.tplvalues.render" (dict "value" . "context" $
       {{- with $general.nodeSelector }}
 nodeSelector: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
-    {{- else if $.Values.defaults.nodeSelector }}
-nodeSelector: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.nodeSelector "context" $) | nindent 2 }}
+    {{- else if (ne $.Values.defaults.nodeSelector nil) }}
+      {{- with $.Values.defaults.nodeSelector }}
+nodeSelector: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+      {{- end }}
     {{- end }}
 
     {{- if (ne .tolerations nil) }}
@@ -95,9 +105,11 @@ tolerations:
 tolerations:
         {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
-    {{- else if $.Values.defaults.tolerations }}
+    {{- else if (ne $.Values.defaults.tolerations nil) }}
+      {{- with $.Values.defaults.tolerations }}
 tolerations:
-      {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.tolerations "context" $) | nindent 2 }}
+        {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+      {{- end }}
     {{- end }}
 
     {{- if (ne .topologySpreadConstraints nil) }}
@@ -108,8 +120,10 @@ topologySpreadConstraints: {{- include "helpers.tplvalues.render" (dict "value" 
       {{- with $general.topologySpreadConstraints }}
 topologySpreadConstraints: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
-    {{- else if $.Values.defaults.topologySpreadConstraints }}
-topologySpreadConstraints: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.topologySpreadConstraints "context" $) | nindent 2 }}
+    {{- else if (ne $.Values.defaults.topologySpreadConstraints nil) }}
+      {{- with $.Values.defaults.topologySpreadConstraints }}
+topologySpreadConstraints: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+      {{- end }}
     {{- end }}
 
     {{- if (ne $podSecurityContext nil) }}
@@ -120,8 +134,10 @@ securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context
       {{- with $generalPodSecurityContext }}
 securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
-    {{- else if $.Values.defaults.podSecurityContext }}
-securityContext: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.podSecurityContext "context" $) | nindent 2 }}
+    {{- else if (ne $.Values.defaults.podSecurityContext nil) }}
+      {{- with $.Values.defaults.podSecurityContext }}
+securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+      {{- end }}
     {{- end }}
     {{- if or $.Values.imagePullSecrets $.Values.defaults.extraImagePullSecrets .extraImagePullSecrets .imagePullSecrets }}
 imagePullSecrets:

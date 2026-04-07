@@ -12,7 +12,7 @@
   {{- end -}}
   {{- range $key, $value := $v -}}
     {{- if eq (typeOf $value) "float64" -}}
-      {{- printf "\n%s: %s" $key (include "helpers.configmaps.decode" (dict "value" $value)) -}}
+      {{- printf "\n%s: %s" $key ($value | toString | quote) -}}
     {{- else if empty $value -}}
       {{- printf "\n%s: %s" $key ("" | quote) -}}
     {{- else if kindIs "string" $value -}}
