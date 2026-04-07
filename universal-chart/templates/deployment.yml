@@ -23,13 +23,7 @@ spec:
     {{- with .strategy }}
   strategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}
-    {{- if (ne .progressDeadlineSeconds nil) }}
-  progressDeadlineSeconds: {{ .progressDeadlineSeconds }}
-    {{- else if (ne $general.progressDeadlineSeconds nil) }}
-  progressDeadlineSeconds: {{ $general.progressDeadlineSeconds }}
-    {{- else }}
-  progressDeadlineSeconds: 600
-    {{- end }}
+  progressDeadlineSeconds: {{ dig "progressDeadlineSeconds" (dig "progressDeadlineSeconds" 600 $general) $d }}
   selector:
     matchLabels:
     {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}

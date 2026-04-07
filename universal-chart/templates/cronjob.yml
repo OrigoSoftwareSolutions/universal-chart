@@ -32,47 +32,39 @@ spec:
       {{- if .singleOnly }}
   concurrencyPolicy: Forbid
       {{- end }}
-      {{- if (ne .startingDeadlineSeconds nil) }}
-  startingDeadlineSeconds: {{ .startingDeadlineSeconds }}
-      {{- else if (ne $general.startingDeadlineSeconds nil) }}
-  startingDeadlineSeconds: {{ $general.startingDeadlineSeconds }}
+      {{- $sds := dig "startingDeadlineSeconds" (dig "startingDeadlineSeconds" nil $general) $job -}}
+      {{- if ne $sds nil }}
+  startingDeadlineSeconds: {{ $sds }}
       {{- end }}
-      {{- if (ne .successfulJobsHistoryLimit nil) }}
-  successfulJobsHistoryLimit: {{ .successfulJobsHistoryLimit }}
-      {{- else if (ne $general.successfulJobsHistoryLimit nil) }}
-  successfulJobsHistoryLimit: {{ $general.successfulJobsHistoryLimit }}
+      {{- $sjhl := dig "successfulJobsHistoryLimit" (dig "successfulJobsHistoryLimit" nil $general) $job -}}
+      {{- if ne $sjhl nil }}
+  successfulJobsHistoryLimit: {{ $sjhl }}
       {{- end }}
-      {{- if (ne .failedJobsHistoryLimit nil) }}
-  failedJobsHistoryLimit: {{ .failedJobsHistoryLimit }}
-      {{- else if (ne $general.failedJobsHistoryLimit nil) }}
-  failedJobsHistoryLimit: {{ $general.failedJobsHistoryLimit }}
+      {{- $fjhl := dig "failedJobsHistoryLimit" (dig "failedJobsHistoryLimit" nil $general) $job -}}
+      {{- if ne $fjhl nil }}
+  failedJobsHistoryLimit: {{ $fjhl }}
       {{- end }}
   jobTemplate:
     spec:
-      {{- if (ne .parallelism nil) }}
-      parallelism: {{ .parallelism }}
-      {{- else if (ne $general.parallelism nil) }}
-      parallelism: {{ $general.parallelism }}
+      {{- $par := dig "parallelism" (dig "parallelism" nil $general) $job -}}
+      {{- if ne $par nil }}
+      parallelism: {{ $par }}
       {{- end }}
-      {{- if (ne .completions nil) }}
-      completions: {{ .completions }}
-      {{- else if (ne $general.completions nil) }}
-      completions: {{ $general.completions }}
+      {{- $comp := dig "completions" (dig "completions" nil $general) $job -}}
+      {{- if ne $comp nil }}
+      completions: {{ $comp }}
       {{- end }}
-      {{- if (ne .activeDeadlineSeconds nil) }}
-      activeDeadlineSeconds: {{ .activeDeadlineSeconds }}
-      {{- else if (ne $general.activeDeadlineSeconds nil) }}
-      activeDeadlineSeconds: {{ $general.activeDeadlineSeconds }}
+      {{- $ads := dig "activeDeadlineSeconds" (dig "activeDeadlineSeconds" nil $general) $job -}}
+      {{- if ne $ads nil }}
+      activeDeadlineSeconds: {{ $ads }}
       {{- end }}
-      {{- if (ne .backoffLimit nil) }}
-      backoffLimit: {{ .backoffLimit }}
-      {{- else if (ne $general.backoffLimit nil) }}
-      backoffLimit: {{ $general.backoffLimit }}
+      {{- $bol := dig "backoffLimit" (dig "backoffLimit" nil $general) $job -}}
+      {{- if ne $bol nil }}
+      backoffLimit: {{ $bol }}
       {{- end }}
-      {{- if (ne .ttlSecondsAfterFinished nil) }}
-      ttlSecondsAfterFinished: {{ .ttlSecondsAfterFinished }}
-      {{- else if (ne $general.ttlSecondsAfterFinished nil) }}
-      ttlSecondsAfterFinished: {{ $general.ttlSecondsAfterFinished }}
+      {{- $ttl := dig "ttlSecondsAfterFinished" (dig "ttlSecondsAfterFinished" nil $general) $job -}}
+      {{- if ne $ttl nil }}
+      ttlSecondsAfterFinished: {{ $ttl }}
       {{- end }}
       template:
       {{- if or $.Values.defaults.podLabels $general.podLabels .podLabels $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations }}
