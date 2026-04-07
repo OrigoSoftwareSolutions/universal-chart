@@ -16,26 +16,26 @@ spec:
   applicationRefs:
     - namePattern: {{ include "helpers.tplvalues.render" (dict "value" $val.applicationName "context" $) | quote }}
       images:
-        {{- range $val.images }}
+    {{- range $val.images }}
         - alias: {{ .alias }}
           imageName: {{ .imageName }}
           commonUpdateSettings:
             updateStrategy: {{ .updateStrategy | default "latest" }}
-            {{- with .allowTags }}
+      {{- with .allowTags }}
             allowTags: {{ . | quote }}
-            {{- end }}
-            {{- with .ignoreTags }}
+      {{- end }}
+      {{- with .ignoreTags }}
             ignoreTags:
-              {{- toYaml . | nindent 14 }}
-            {{- end }}
-          {{- with .manifestTargets }}
+        {{- toYaml . | nindent 14 }}
+      {{- end }}
+      {{- with .manifestTargets }}
           manifestTargets:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-        {{- end }}
+        {{- toYaml . | nindent 12 }}
+      {{- end }}
+    {{- end }}
     {{- with $val.writeBackConfig }}
   writeBackConfig:
-    {{- toYaml . | nindent 4 }}
+      {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- end }}
 {{- end }}

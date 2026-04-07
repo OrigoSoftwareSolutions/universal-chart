@@ -55,21 +55,21 @@
         command: ["sh", "-c", "sleep {{ $.Values.defaults.preStopSleep }}"]
     {{- end }}
     {{- if not $.Values.diagnosticMode.enabled }}
-    {{- if and $enableHealthCheck .healthCheck }}
+      {{- if and $enableHealthCheck .healthCheck }}
   startupProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "startup" "healthCheck" .healthCheck) | nindent 4 }}
   livenessProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "liveness" "healthCheck" .healthCheck) | nindent 4 }}
   readinessProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "readiness" "healthCheck" .healthCheck) | nindent 4 }}
-    {{- else }}
-      {{- with .startupProbe }}
+      {{- else }}
+        {{- with .startupProbe }}
   startupProbe: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 4 }}
-      {{- end }}
-      {{- with .livenessProbe }}
+        {{- end }}
+        {{- with .livenessProbe }}
   livenessProbe: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 4 }}
-      {{- end }}
-      {{- with .readinessProbe }}
+        {{- end }}
+        {{- with .readinessProbe }}
   readinessProbe: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 4 }}
+        {{- end }}
       {{- end }}
-    {{- end }}
     {{- end }}
     {{- if .resources }}
   resources: {{- include "helpers.tplvalues.render" ( dict "value" .resources "context" $) | nindent 4 }}
