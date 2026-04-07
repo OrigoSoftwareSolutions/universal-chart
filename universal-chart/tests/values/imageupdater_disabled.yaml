@@ -1,0 +1,7 @@
+imageUpdaters:
+  my-app:
+    disabled: true
+    applicationName: "ignored"
+    images:
+      - alias: app
+        imageName: nginx

@@ -166,6 +166,7 @@ configMaps:
 hpas:
   web:
     scaleTargetRef:
+      kind: Deployment
       name: web
     minReplicas: 2
     maxReplicas: 5

@@ -1,7 +1,7 @@
 {{- range $name, $ci := .Values.clusterIssuers }}
   {{- if not ($ci.disabled | default false) }}
 ---
-apiVersion: cert-manager.io/v1
+apiVersion: {{ include "helpers.capabilities.certManager.apiVersion" $ }}
 kind: ClusterIssuer
 metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}

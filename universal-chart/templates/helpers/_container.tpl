@@ -6,13 +6,14 @@
   {{- $enableHealthCheck := .enableHealthCheckShorthand -}}
   {{- $enableMapPorts := .enableMapPorts -}}
   {{- $useDefaultImage := .useDefaultImage -}}
+  {{- $autoPvcs := .autoPvcs | default false -}}
   {{- with $c -}}
     {{- if $useDefaultImage }}
       {{- $image := $.Values.defaultImage }}{{ with .image }}{{ $image = include "helpers.tplvalues.render" ( dict "value" . "context" $) }}{{ end }}
       {{- $imageTag := $.Values.defaultImageTag }}{{ with .imageTag }}{{ $imageTag = include "helpers.tplvalues.render" ( dict "value" . "context" $) }}{{ end }}
   image: {{ $image }}:{{ $imageTag }}
     {{- else }}
-  image: {{ .image }}
+  image: {{ include "helpers.tplvalues.render" (dict "value" .image "context" $) }}
     {{- end }}
   imagePullPolicy: {{ .imagePullPolicy | default $.Values.defaultImagePullPolicy }}
     {{- if .securityContext }}
@@ -45,13 +46,19 @@
   ports: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 2 }}
       {{- end }}
     {{- end }}
-    {{- with .lifecycle }}
-  lifecycle: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 4 }}
+    {{- if .lifecycle }}
+  lifecycle: {{- include "helpers.tplvalues.render" ( dict "value" .lifecycle "context" $) | nindent 4 }}
+    {{- else if $.Values.defaults.preStopSleep }}
+  lifecycle:
+    preStop:
+      exec:
+        command: ["sh", "-c", "sleep {{ $.Values.defaults.preStopSleep }}"]
     {{- end }}
+    {{- if not $.Values.diagnosticMode.enabled }}
     {{- if and $enableHealthCheck .healthCheck }}
-  startupProbe: {{- include "helpers.workload.healthCheckProbe" .healthCheck | nindent 4 }}
-  livenessProbe: {{- include "helpers.workload.healthCheckProbe" .healthCheck | nindent 4 }}
-  readinessProbe: {{- include "helpers.workload.healthCheckProbe" .healthCheck | nindent 4 }}
+  startupProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "startup" "healthCheck" .healthCheck) | nindent 4 }}
+  livenessProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "liveness" "healthCheck" .healthCheck) | nindent 4 }}
+  readinessProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "readiness" "healthCheck" .healthCheck) | nindent 4 }}
     {{- else }}
       {{- with .startupProbe }}
   startupProbe: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 4 }}
@@ -63,12 +70,13 @@
   readinessProbe: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 4 }}
       {{- end }}
     {{- end }}
+    {{- end }}
     {{- if .resources }}
   resources: {{- include "helpers.tplvalues.render" ( dict "value" .resources "context" $) | nindent 4 }}
     {{- else if $.Values.defaults.resources }}
   resources: {{- include "helpers.tplvalues.render" ( dict "value" $.Values.defaults.resources "context" $) | nindent 4 }}
     {{- end }}
-    {{- $vmounts := include "helpers.volumes.renderVolumeMounts" (dict "value" . "general" $general "context" $) }}
+    {{- $vmounts := include "helpers.volumes.renderVolumeMounts" (dict "value" . "general" $general "context" $ "autoPvcs" $autoPvcs) }}
   volumeMounts:{{- if eq (trim $vmounts) "[]" }} []{{- else }}{{ $vmounts | nindent 2 }}{{- end }}
   {{- end -}}
 {{- end -}}

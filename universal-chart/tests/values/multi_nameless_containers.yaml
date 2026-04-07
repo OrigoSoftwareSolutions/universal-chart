@@ -1,0 +1,7 @@
+deployments:
+  web:
+    containers:
+      - image: nginx
+        imageTag: "1.25"
+      - image: redis
+        imageTag: "7"

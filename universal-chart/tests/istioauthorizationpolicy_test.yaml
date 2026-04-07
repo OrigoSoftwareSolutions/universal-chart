@@ -1,0 +1,42 @@
+suite: istioauthorizationpolicy template
+templates:
+  - istioauthorizationpolicies.yaml
+tests:
+  - it: renders an authorizationpolicy with api version name and namespace
+    capabilities:
+      apiVersions:
+        - security.istio.io/v1
+    set:
+      istioAuthorizationPolicies.my-policy.spec.action: ALLOW
+      istioAuthorizationPolicies.my-policy.spec.rules[0].from[0].source.principals[0]: cluster.local/ns/default/sa/my-sa
+    asserts:
+      - isKind:
+          of: AuthorizationPolicy
+      - equal:
+          path: apiVersion
+          value: security.istio.io/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -my-policy$
+      - isNotEmpty:
+          path: metadata.namespace
+  - it: omits authorizationpolicy documents when disabled
+    capabilities:
+      apiVersions:
+        - security.istio.io/v1
+    set:
+      istioAuthorizationPolicies.my-policy.disabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: passes authorizationpolicy spec through
+    capabilities:
+      apiVersions:
+        - security.istio.io/v1
+    set:
+      istioAuthorizationPolicies.my-policy.spec.action: ALLOW
+      istioAuthorizationPolicies.my-policy.spec.rules[0].from[0].source.principals[0]: cluster.local/ns/default/sa/my-sa
+    asserts:
+      - equal:
+          path: spec.action
+          value: ALLOW

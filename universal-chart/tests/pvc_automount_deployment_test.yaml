@@ -1,0 +1,126 @@
+suite: pvc auto-mount in deployments
+templates:
+  - deployment.yml
+tests:
+  # ---------------------------------------------------------------------------
+  # basic auto-mount
+  # ---------------------------------------------------------------------------
+  - it: adds PVC volume and volumeMount when mountPath is set
+    values:
+      - values/pvc_automount.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: app-data
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-app-data
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: app-data
+            mountPath: /data
+
+  # ---------------------------------------------------------------------------
+  # subPath and readOnly
+  # ---------------------------------------------------------------------------
+  - it: includes subPath and readOnly when set
+    values:
+      - values/pvc_automount_full.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: app-data
+            mountPath: /data
+            subPath: mydata
+            readOnly: true
+
+  # ---------------------------------------------------------------------------
+  # no mountPath — volume only, no volumeMount
+  # ---------------------------------------------------------------------------
+  - it: adds PVC volume but no volumeMount when mountPath is absent
+    values:
+      - values/pvc_automount_no_mount.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: app-data
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-app-data
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: app-data
+            mountPath: /data
+
+  # ---------------------------------------------------------------------------
+  # disabled PVC — no volume, no volumeMount
+  # ---------------------------------------------------------------------------
+  - it: skips disabled PVCs entirely
+    values:
+      - values/pvc_automount_disabled.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: app-data
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-app-data
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: app-data
+            mountPath: /data
+
+  # ---------------------------------------------------------------------------
+  # multiple PVCs — mixed mountPath / no mountPath
+  # ---------------------------------------------------------------------------
+  - it: mounts only PVCs that have mountPath
+    values:
+      - values/pvc_automount_multi.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: app-data
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-app-data
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: cache
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-cache
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: logs
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-logs
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: app-data
+            mountPath: /data
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: cache
+            mountPath: /cache
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: logs
+
+  # ---------------------------------------------------------------------------
+  # no PVCs defined — volumes still renders (empty list)
+  # ---------------------------------------------------------------------------
+  - it: renders empty volumes when no PVCs exist
+    set:
+      deployments.web.image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes
+          value: []

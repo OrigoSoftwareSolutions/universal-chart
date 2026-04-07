@@ -1,4 +1,5 @@
 {{- range $host, $gateway := .Values.istiogateways }}
+  {{- if not ($gateway.disabled | default false) }}
 ---
 apiVersion: {{ include "helpers.capabilities.istiogateway.apiVersion" $ }}
 kind: Gateway
@@ -31,5 +32,6 @@ spec:
     tls:
       {{- toYaml . | nindent 6 }}
     {{- end }} {{/* end with .tls */}}
+  {{- end }}
   {{- end }}
 {{- end -}}

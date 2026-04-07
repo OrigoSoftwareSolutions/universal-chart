@@ -1,0 +1,11 @@
+istiogateways:
+  my-gw:
+    selector:
+      istio: ingressgateway
+    servers:
+      - hosts:
+          - app.example.com
+        port:
+          name: https
+          number: 443
+          protocol: HTTPS

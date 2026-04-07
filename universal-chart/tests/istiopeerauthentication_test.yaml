@@ -1,0 +1,40 @@
+suite: istiopeerauthentication template
+templates:
+  - istiopeerauthentications.yaml
+tests:
+  - it: renders a peerauthentication with api version name and namespace
+    capabilities:
+      apiVersions:
+        - security.istio.io/v1
+    set:
+      istioPeerAuthentications.my-pa.spec.mtls.mode: STRICT
+    asserts:
+      - isKind:
+          of: PeerAuthentication
+      - equal:
+          path: apiVersion
+          value: security.istio.io/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -my-pa$
+      - isNotEmpty:
+          path: metadata.namespace
+  - it: omits peerauthentication documents when disabled
+    capabilities:
+      apiVersions:
+        - security.istio.io/v1
+    set:
+      istioPeerAuthentications.my-pa.disabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: passes peerauthentication spec through
+    capabilities:
+      apiVersions:
+        - security.istio.io/v1
+    set:
+      istioPeerAuthentications.my-pa.spec.mtls.mode: STRICT
+    asserts:
+      - equal:
+          path: spec.mtls.mode
+          value: STRICT

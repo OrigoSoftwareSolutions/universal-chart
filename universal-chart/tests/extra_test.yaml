@@ -1,0 +1,35 @@
+suite: extra template
+templates:
+  - extra.yml
+tests:
+  - it: renders a raw manifest from extraDeploy
+    set:
+      extraDeploy.my-resource: |
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: extra-cm
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: renders multiple documents from extraDeploy
+    set:
+      extraDeploy.first: |
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: first-cm
+      extraDeploy.second: |
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: second-svc
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: does not render when extraDeploy is empty
+    asserts:
+      - hasDocuments:
+          count: 0

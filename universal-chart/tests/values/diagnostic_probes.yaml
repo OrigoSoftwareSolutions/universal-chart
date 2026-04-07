@@ -1,0 +1,12 @@
+diagnosticMode:
+  enabled: true
+deployments:
+  api:
+    containers:
+      - name: api
+        image: nginx
+        imageTag: "1.25"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080

@@ -1,0 +1,8 @@
+imageUpdaters:
+  my-app:
+    applicationName: "test"
+    labels:
+      custom: my-label
+    images:
+      - alias: app
+        imageName: nginx

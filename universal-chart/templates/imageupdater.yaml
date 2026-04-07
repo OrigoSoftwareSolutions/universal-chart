@@ -1,0 +1,41 @@
+{{- range $name, $val := .Values.imageUpdaters }}
+  {{- if not ($val.disabled | default false) }}
+---
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  labels:
+    {{- include "helpers.app.labels" $ | nindent 4 }}
+    {{- with $val.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- with $val.annotations }}
+  annotations: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
+spec:
+  namespace: {{ $val.namespace | default "argocd" }}
+  applicationRefs:
+    - namePattern: {{ include "helpers.tplvalues.render" (dict "value" $val.applicationName "context" $) | quote }}
+      images:
+        {{- range $val.images }}
+        - alias: {{ .alias }}
+          imageName: {{ .imageName }}
+          commonUpdateSettings:
+            updateStrategy: {{ .updateStrategy | default "latest" }}
+            {{- with .allowTags }}
+            allowTags: {{ . | quote }}
+            {{- end }}
+            {{- with .ignoreTags }}
+            ignoreTags:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+          {{- with .manifestTargets }}
+          manifestTargets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
+    {{- with $val.writeBackConfig }}
+  writeBackConfig:
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+{{- end }}

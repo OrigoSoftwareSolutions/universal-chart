@@ -1,0 +1,6 @@
+imageUpdaters:
+  my-app:
+    applicationName: "{{ .Release.Name }}-app"
+    images:
+      - alias: app
+        imageName: nginx

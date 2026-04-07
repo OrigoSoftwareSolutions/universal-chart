@@ -69,12 +69,17 @@ envFrom:
 
 
 {{- /* Generates an HTTP probe from a healthCheck shorthand {path, port, ...} */}}
+{{- /* probeType: "startup" | "liveness" | "readiness" — controls initialDelaySeconds default */}}
 {{- define "helpers.workload.healthCheckProbe" -}}
+  {{- $probeType := .probeType | default "startup" -}}
+  {{- $defaultDelay := 0 -}}
+  {{- if eq $probeType "liveness" }}{{ $defaultDelay = 15 }}{{ end -}}
+  {{- if eq $probeType "readiness" }}{{ $defaultDelay = 5 }}{{ end -}}
 httpGet:
-  path: {{ .path | default "/healthz" }}
-  port: {{ .port | default 8080 }}
-initialDelaySeconds: {{ .initialDelaySeconds | default 0 }}
-periodSeconds: {{ .periodSeconds | default 10 }}
-timeoutSeconds: {{ .timeoutSeconds | default 1 }}
-failureThreshold: {{ .failureThreshold | default 3 }}
+  path: {{ .healthCheck.path | default "/healthz" }}
+  port: {{ .healthCheck.port | default 8080 }}
+initialDelaySeconds: {{ .healthCheck.initialDelaySeconds | default $defaultDelay }}
+periodSeconds: {{ .healthCheck.periodSeconds | default 10 }}
+timeoutSeconds: {{ .healthCheck.timeoutSeconds | default 1 }}
+failureThreshold: {{ .healthCheck.failureThreshold | default 3 }}
 {{- end }}

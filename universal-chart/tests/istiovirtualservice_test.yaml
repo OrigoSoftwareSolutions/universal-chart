@@ -1,0 +1,68 @@
+suite: istiovirtualservice template
+templates:
+  - istiovirtualservice.yml
+tests:
+  - it: renders a virtualservice with correct kind apiversion and namespace
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istiovirtualservice.yaml
+    asserts:
+      - isKind:
+          of: VirtualService
+      - equal:
+          path: apiVersion
+          value: networking.istio.io/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -my-vs$
+      - isNotEmpty:
+          path: metadata.namespace
+  - it: omits virtualservice documents when disabled
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istiovirtualservices.my-vs.disabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: renders hosts and gateways as quoted arrays
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istiovirtualservice.yaml
+    asserts:
+      - contains:
+          path: spec.hosts
+          content: example.com
+      - contains:
+          path: spec.hosts
+          content: www.example.com
+      - contains:
+          path: spec.gateways
+          content: my-gw
+      - contains:
+          path: spec.gateways
+          content: mesh
+  - it: renders http routes with match and destination
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istiovirtualservice_http.yaml
+    asserts:
+      - equal:
+          path: spec.http[0].name
+          value: default
+      - equal:
+          path: spec.http[0].match[0].uri.prefix
+          value: /
+      - equal:
+          path: spec.http[0].route[0].destination.host
+          value: my-svc
+      - equal:
+          path: spec.http[0].route[0].destination.port.number
+          value: 8080

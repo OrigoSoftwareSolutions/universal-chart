@@ -2,7 +2,7 @@
   {{- if not (.disabled | default false) }}
 ---
 kind: HorizontalPodAutoscaler
-apiVersion: {{ .apiVersion | default "autoscaling/v2" }}
+apiVersion: {{ include "helpers.capabilities.hpa.apiVersion" $ }}
 metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
   namespace: {{ $.Release.Namespace | quote }}

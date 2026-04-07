@@ -1,4 +1,5 @@
 {{- range $host, $destinationrule := .Values.istiodestinationrules }}
+  {{- if not ($destinationrule.disabled | default false) }}
 ---
 apiVersion: {{ include "helpers.capabilities.istiodestinationrule.apiVersion" $ }}
 kind: DestinationRule
@@ -47,4 +48,5 @@ spec:
       {{ $key }}: {{ $value | quote }}
     {{- end }}
   {{- end }}
-{{- end }}
+  {{- end }}
+{{- end -}}

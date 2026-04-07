@@ -1,0 +1,5 @@
+deployments:
+  web:
+    containers:
+      - image: nginx
+        imageTag: "1.25"

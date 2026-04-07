@@ -5,6 +5,7 @@ tests:
   - it: renders an HPA with correct kind and apiVersion
     set:
       hpas.web.scaleTargetRef.name: web
+      hpas.web.scaleTargetRef.kind: Deployment
       hpas.web.minReplicas: 2
       hpas.web.maxReplicas: 5
       hpas.web.targetCPU: 70
@@ -24,6 +25,7 @@ tests:
     set:
       hpas.web.disabled: true
       hpas.web.scaleTargetRef.name: web
+      hpas.web.scaleTargetRef.kind: Deployment
       hpas.web.minReplicas: 2
       hpas.web.maxReplicas: 5
       hpas.web.targetCPU: 70

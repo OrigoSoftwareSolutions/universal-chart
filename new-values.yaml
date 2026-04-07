@@ -1,0 +1,305 @@
+# =============================================================================
+# authentigo-api — Universal Chart Values
+# Migrated from: charts/projects/authentigo/authentigo-api
+# Source values: charts_values/environments/staging/authentigo/authentigo.api.values.yaml
+# =============================================================================
+
+# NOTE: imageUpdater (ArgoCD Image Updater annotations) is NOT managed by the
+# Helm chart — it is configured on the ArgoCD Application resource directly.
+# Original imageUpdater config for reference:
+#   applicationName: "authentigo-authentigo-api"
+#   images:
+#     - alias: authapi
+#       imageName: acrkerfisveitanstagingnhs5wxmd.azurecr.io/authentigo-api
+#       updateStrategy: newest-build
+#       allowTags: 'regexp:^\d+\.\d+\.\d+-[a-z0-9]+-main-\d+$'
+#   writeBackConfig:
+#     method: argocd
+
+# ---------------------------------------------------------------------------
+# Global defaults
+# ---------------------------------------------------------------------------
+defaults:
+  podLabels:
+    app: authentigo-api
+  usePredefinedAffinity: false
+
+# ---------------------------------------------------------------------------
+# ServiceAccounts
+# ---------------------------------------------------------------------------
+serviceAccount:
+  # Main application service account
+  default: {}
+  # Migration job service account (disabled by default — enable with job)
+  # migration:
+  #   annotations:
+  #     argocd.argoproj.io/sync-wave: "-2"
+  #     argocd.argoproj.io/hook: PreSync
+  #     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+
+# ---------------------------------------------------------------------------
+# Deployment
+# ---------------------------------------------------------------------------
+deployments:
+  api:
+    replicas: 1
+    # Pod-level security context
+    securityContext:
+      fsGroup: 1001
+    # Using containers list to separate pod vs container securityContext
+    containers:
+      - name: api
+        image: acrkerfisveitanstagingnhs5wxmd.azurecr.io/authentigo-api
+        imageTag: ""
+        imagePullPolicy: Always
+        securityContext:
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          runAsUser: 1001
+          runAsGroup: 1001
+          allowPrivilegeEscalation: false
+        ports:
+          - name: http
+            containerPort: 8080
+            protocol: TCP
+        resources: {}
+        env:
+          - name: ASPNETCORE_URLS
+            value: http://*:8080
+          - name: ASPNETCORE_ENVIRONMENT
+            value: Production
+          # Audkenni
+          - name: Audkenni__BaseUrl
+            valueFrom:
+              secretKeyRef:
+                name: applications-azure-secrets
+                key: applications-project-authentigo-api-audkenni-baseurl
+          - name: Audkenni__ClientId
+            valueFrom:
+              secretKeyRef:
+                name: applications-azure-secrets
+                key: applications-project-authentigo-api-audkenni-client-id
+          - name: Audkenni__ClientSecret
+            valueFrom:
+              secretKeyRef:
+                name: applications-azure-secrets
+                key: applications-project-authentigo-api-audkenni-client-secret
+          - name: Audkenni__DisplayMessageTitle
+            value: "Innskráning á"
+          - name: Audkenni__SecurityCodeMessage
+            value: "Öryggistalan þín er: "
+          # CompanyRegister
+          - name: CompanyRegister__BaseUrl
+            value: "https://apinreg.umsja.is"
+          - name: CompanyRegister__OwnerSSN
+            value: "5302922079"
+          - name: CompanyRegister__UserSSN
+            value: "Klokur"
+          - name: CompanyRegister__Username
+            valueFrom:
+              secretKeyRef:
+                name: applications-azure-secrets
+                key: applications-project-authentigo-api-companyregister-username
+          - name: CompanyRegister__Password
+            valueFrom:
+              secretKeyRef:
+                name: applications-azure-secrets
+                key: applications-project-authentigo-api-companyregister-password
+          # Authentigo
+          - name: Authentigo__ClientSecret
+            valueFrom:
+              secretKeyRef:
+                name: applications-azure-secrets
+                key: applications-project-authentigo-api-authentigo-clientsecret
+          - name: Authentigo__RedirectUri
+            value: "https://web.staging.klokur.project.origo.dev/realms/origo/broker/authentigo/endpoint"
+          - name: Authentigo__PostLogoutRedirectUri
+            value: "https://origo-minarsidur.staging.orbit.project.origo.dev"
+          - name: Authentigo__Issuer
+            value: "https://innskraning.staging.authentigo.project.origo.dev"
+          - name: Authentigo__Username
+            value: ".staging.authentigo.project.origo.dev"
+          # Logging
+          - name: Logging__LogLevel__Default
+            value: "Warning"
+          - name: Logging__LogLevel__Microsoft.AspNetCore
+            value: "Warning"
+          - name: LoginUrl
+            value: https://innskraning.staging.authentigo.project.origo.dev
+          - name: Language
+            value: en
+          - name: ConnectionStrings__DefaultConnection
+            valueFrom:
+              secretKeyRef:
+                name: applications-azure-secrets
+                key: applications-project-authentigo-api-db-connection-string
+          # Cors
+          - name: Cors__AllowedOrigins
+            value: "https://innskraning.staging.authentigo.project.origo.dev"
+          - name: AllowedHosts
+            value: "innskraning.staging.authentigo.project.origo.dev"
+          - name: Authentigo__LoginCountAPIKey
+            valueFrom:
+              secretKeyRef:
+                name: applications-azure-secrets
+                key: applications-project-authentigo-api-logincountapikey
+          - name: Authentigo__LoginCountBaseUrl
+            value: "https://appwmprdorkaapi8008bada.azurewebsites.net"
+
+# ---------------------------------------------------------------------------
+# Auto-created Service
+# ---------------------------------------------------------------------------
+# NOTE: When using the containers list (not single-container shorthand),
+# the auto-service from ports map is NOT created. Define service explicitly.
+services:
+  api:
+    type: ClusterIP
+    ports:
+      - name: http
+        port: 8080
+        targetPort: 8080
+        protocol: TCP
+
+# ---------------------------------------------------------------------------
+# HPA (disabled — autoscaling.enabled was false in old values)
+# ---------------------------------------------------------------------------
+hpas:
+  api:
+    disabled: true
+    scaleTargetRef:
+      name: api
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPU: 70
+    targetMemory: 70
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 0
+        policies:
+          - type: Percent
+            value: 51
+            periodSeconds: 15
+        selectPolicy: Max
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - type: Percent
+            value: 10
+            periodSeconds: 60
+        selectPolicy: Min
+
+# ---------------------------------------------------------------------------
+# Istio VirtualService
+# ---------------------------------------------------------------------------
+istiovirtualservices:
+  api:
+    gateways:
+      - istio-ingress/staging-gateway
+    hosts:
+      - api.staging.authentigo.project.origo.dev
+    http:
+      - name: default
+        match:
+          - uri:
+              prefix: /
+        route:
+          - destination:
+              host: authentigo-authentigo-api.authentigo.svc.cluster.local
+              port:
+                number: 8080
+        timeout: 120s
+
+# ---------------------------------------------------------------------------
+# Helm Hook — Migration Job (disabled — job.create was false in old values)
+# ---------------------------------------------------------------------------
+# Uncomment to enable the pre-install migration job:
+# hooks:
+#   migration:
+#     disabled: false
+#     kind: pre-install,pre-upgrade
+#     weight: "-1"
+#     deletePolicy: before-hook-creation
+#     image: acrkerfisveitanstagingnhs5wxmd.azurecr.io/authentigo-api
+#     imageTag: ""
+#     imagePullPolicy: Always
+#     serviceAccountName: "{{ .Release.Name }}-migration"
+#     podAnnotations:
+#       sidecar.istio.io/inject: "false"
+#     env:
+#       - name: ASPNETCORE_URLS
+#         value: http://*:8080
+#       - name: ASPNETCORE_ENVIRONMENT
+#         value: Production
+#       # Audkenni
+#       - name: Audkenni__BaseUrl
+#         valueFrom:
+#           secretKeyRef:
+#             name: applications-azure-secrets
+#             key: applications-project-authentigo-api-audkenni-baseurl
+#       - name: Audkenni__ClientId
+#         valueFrom:
+#           secretKeyRef:
+#             name: applications-azure-secrets
+#             key: applications-project-authentigo-api-audkenni-client-id
+#       - name: Audkenni__ClientSecret
+#         valueFrom:
+#           secretKeyRef:
+#             name: applications-azure-secrets
+#             key: applications-project-authentigo-api-audkenni-client-secret
+#       - name: Audkenni__DisplayMessageTitle
+#         value: "Innskráning á"
+#       - name: Audkenni__SecurityCodeMessage
+#         value: "Öryggistalan þín er: "
+#       # CompanyRegister
+#       - name: CompanyRegister__BaseUrl
+#         value: "https://apinreg.umsja.is"
+#       - name: CompanyRegister__OwnerSSN
+#         value: "5302922079"
+#       - name: CompanyRegister__UserSSN
+#         value: "Klokur"
+#       - name: CompanyRegister__Username
+#         valueFrom:
+#           secretKeyRef:
+#             name: applications-azure-secrets
+#             key: applications-project-authentigo-api-companyregister-username
+#       - name: CompanyRegister__Password
+#         valueFrom:
+#           secretKeyRef:
+#             name: applications-azure-secrets
+#             key: applications-project-authentigo-api-companyregister-password
+#       # Authentigo
+#       - name: Authentigo__ClientSecret
+#         valueFrom:
+#           secretKeyRef:
+#             name: applications-azure-secrets
+#             key: applications-project-authentigo-api-authentigo-clientsecret
+#       - name: Authentigo__RedirectUri
+#         value: "https://web.staging.klokur.project.origo.dev/realms/origo/broker/authentigo/endpoint"
+#       - name: Authentigo__PostLogoutRedirectUri
+#         value: "https://origo-minarsidur.staging.orbit.project.origo.dev"
+#       - name: Authentigo__Issuer
+#         value: "https://innskraning.staging.authentigo.project.origo.dev"
+#       - name: Authentigo__Username
+#         value: ".staging.authentigo.project.origo.dev"
+#       # Logging
+#       - name: Logging__LogLevel__Default
+#         value: "Warning"
+#       - name: Logging__LogLevel__Microsoft.AspNetCore
+#         value: "Warning"
+#       - name: LoginUrl
+#         value: https://innskraning.staging.authentigo.project.origo.dev
+#       - name: Language
+#         value: en
+#       - name: ConnectionStrings__DefaultConnection
+#         valueFrom:
+#           secretKeyRef:
+#             name: applications-azure-secrets
+#             key: applications-project-authentigo-api-db-connection-string
+#       # Cors
+#       - name: Cors__AllowedOrigins
+#         value: "https://innskraning.staging.authentigo.project.origo.dev"
+#       - name: AllowedHosts
+#         value: "innskraning.staging.authentigo.project.origo.dev"

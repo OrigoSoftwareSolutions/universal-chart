@@ -5,6 +5,7 @@
   {{- $usePredefinedAffinity := $.Values.defaults.usePredefinedAffinity -}}
   {{- if (ne $general.usePredefinedAffinity nil) }}{{ $usePredefinedAffinity = $general.usePredefinedAffinity }}{{ end -}}
   {{- $name := .name -}}
+  {{- $autoPvcs := .autoPvcs | default false -}}
   {{- with .value -}}
     {{- if .serviceAccountName }}
 serviceAccountName: {{- include "helpers.tplvalues.render" (dict "value" .serviceAccountName "context" $) | nindent 2 }}
@@ -72,35 +73,40 @@ imagePullSecrets:
       {{- with .extraImagePullSecrets }}{{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 0 }}{{- end }}
       {{- with $.Values.defaults.extraImagePullSecrets }}{{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 0 }}{{- end }}
     {{- end }}
-    {{- if .terminationGracePeriodSeconds }}
-terminationGracePeriodSeconds: {{ .terminationGracePeriodSeconds }}
+    {{- $termGrace := 0 -}}
+    {{- $termGraceSet := false -}}
+    {{- if .terminationGracePeriodSeconds }}{{ $termGrace = .terminationGracePeriodSeconds }}{{ $termGraceSet = true }}{{ end -}}
+    {{- if and (not $termGraceSet) $general.terminationGracePeriodSeconds }}{{ $termGrace = $general.terminationGracePeriodSeconds }}{{ $termGraceSet = true }}{{ end -}}
+    {{- if and (not $termGraceSet) $.Values.defaults.terminationGracePeriodSeconds }}{{ $termGrace = $.Values.defaults.terminationGracePeriodSeconds }}{{ $termGraceSet = true }}{{ end -}}
+    {{- if $termGraceSet }}
+terminationGracePeriodSeconds: {{ $termGrace }}
     {{- end }}
     {{- with .initContainers}}
 initContainers:
-      {{- range . }}
-        {{- with .name }}
+      {{- range $idx, $ic := . }}
+        {{- with $ic.name }}
 - name: {{ include "helpers.tplvalues.render" ( dict "value" . "context" $) }}
         {{- else }}
-- name: {{ printf "%s-init-%s" $name (lower (randAlphaNum 5)) }}
+- name: {{ printf "%s-init-%d" $name $idx }}
         {{- end }}
-        {{- include "helpers.container.render" (dict "value" . "name" "" "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" true) | indent 0 }}
+        {{- include "helpers.container.render" (dict "value" $ic "name" "" "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" true) | indent 0 }}
       {{- end }}{{- end }}
       {{- if and (not .containers) .image }}
 containers:
 - name: {{ $name }}
-        {{- include "helpers.container.render" (dict "value" . "name" $name "general" $general "context" $ "enableHealthCheckShorthand" true "enableMapPorts" true "useDefaultImage" false) | indent 0 }}
+        {{- include "helpers.container.render" (dict "value" . "name" $name "general" $general "context" $ "enableHealthCheckShorthand" true "enableMapPorts" true "useDefaultImage" false "autoPvcs" $autoPvcs) | indent 0 }}
       {{- else }}
 containers:
-        {{- range .containers }}
-          {{- with .name }}
+        {{- range $idx, $ct := .containers }}
+          {{- with $ct.name }}
 - name: {{ include "helpers.tplvalues.render" ( dict "value" . "context" $) }}
           {{- else }}
-- name: {{ printf "%s-%s" $name (lower (randAlphaNum 5)) }}
+- name: {{ printf "%s-%d" $name $idx }}
           {{- end }}
-          {{- include "helpers.container.render" (dict "value" . "name" "" "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" true) | indent 0 }}
+          {{- include "helpers.container.render" (dict "value" $ct "name" "" "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" true "autoPvcs" $autoPvcs) | indent 0 }}
         {{- end }}
       {{- end }}
-      {{- $vols := include "helpers.volumes.renderVolume" (dict "value" . "general" $general "context" $) }}
+      {{- $vols := include "helpers.volumes.renderVolume" (dict "value" . "general" $general "context" $ "autoPvcs" $autoPvcs) }}
 volumes:{{- if eq (trim $vols) "[]" }} []{{- else }}{{ $vols }}{{- end }}
     {{- end -}}
   {{- end -}}

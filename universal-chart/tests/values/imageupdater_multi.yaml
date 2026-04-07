@@ -1,0 +1,29 @@
+imageUpdaters:
+  app-one:
+    applicationName: "first-app"
+    images:
+      - alias: web
+        imageName: registry.example.com/web
+        updateStrategy: latest
+    writeBackConfig:
+      method: argocd
+  app-two:
+    applicationName: "second-app"
+    namespace: custom-ns
+    images:
+      - alias: api
+        imageName: registry.example.com/api
+        updateStrategy: newest-build
+        allowTags: 'regexp:^\d+$'
+      - alias: worker
+        imageName: registry.example.com/worker
+        ignoreTags:
+          - latest
+          - dev
+        manifestTargets:
+          - kustomization:
+              image: registry.example.com/worker
+    writeBackConfig:
+      method: git
+      git:
+        branch: main

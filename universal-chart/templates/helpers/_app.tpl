@@ -17,7 +17,7 @@ If release name contains chart name it will be used as a full name.
 {{- define "helpers.app.fullname" -}}
   {{- if .name -}}
     {{- if .context.Values.releasePrefix -}}
-      {{- printf "%s-%s" .context.Values.releasePrefix .name | trunc 63 | trimAll "-" -}}
+      {{- printf "%s-%s" .context.Values.releasePrefix .name | trunc 63 | trimSuffix "-" -}}
     {{- else -}}
       {{- printf "%s-%s" (include "helpers.app.name" .context) .name | trunc 63 | trimSuffix "-" -}}
     {{- end -}}
