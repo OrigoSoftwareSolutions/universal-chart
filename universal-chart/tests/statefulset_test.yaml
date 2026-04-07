@@ -121,3 +121,50 @@ tests:
       - matchRegex:
           path: spec.serviceName
           pattern: -my-custom-svc$
+
+  - it: omits revisionHistoryLimit when not set
+    set:
+      statefulSets.db.image: postgres
+      statefulSets.db.imageTag: "16"
+    asserts:
+      - notExists:
+          path: spec.revisionHistoryLimit
+
+  - it: sets revisionHistoryLimit from instance
+    set:
+      statefulSets:
+        db:
+          image: postgres
+          imageTag: "16"
+          revisionHistoryLimit: 5
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 5
+
+  - it: inherits revisionHistoryLimit from statefulSetsGeneral
+    set:
+      statefulSetsGeneral:
+        revisionHistoryLimit: 3
+      statefulSets:
+        db:
+          image: postgres
+          imageTag: "16"
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 3
+
+  - it: instance revisionHistoryLimit overrides statefulSetsGeneral
+    set:
+      statefulSetsGeneral:
+        revisionHistoryLimit: 3
+      statefulSets:
+        db:
+          image: postgres
+          imageTag: "16"
+          revisionHistoryLimit: 10
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 10

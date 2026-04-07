@@ -20,6 +20,10 @@ metadata:
     {{- end }}
 spec:
   replicas: {{ dig "replicas" (dig "replicas" 1 $general) $d | int }}
+    {{- $rhl := dig "revisionHistoryLimit" (dig "revisionHistoryLimit" nil $general) $d }}
+    {{- with $rhl }}
+  revisionHistoryLimit: {{ . | int }}
+    {{- end }}
     {{- with .strategy }}
   strategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}

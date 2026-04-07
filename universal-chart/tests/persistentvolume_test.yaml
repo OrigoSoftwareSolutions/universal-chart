@@ -1,0 +1,226 @@
+suite: persistentvolume
+templates:
+  - persistentvolumes.yaml
+tests:
+  - it: renders a PersistentVolume with correct kind and apiVersion
+    set:
+      persistentVolumes:
+        data:
+          spec:
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            hostPath:
+              path: /mnt/data
+    asserts:
+      - isKind:
+          of: PersistentVolume
+      - equal:
+          path: apiVersion
+          value: v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -data$
+      - isNotEmpty:
+          path: metadata.labels
+
+  - it: does not render namespace (cluster-scoped)
+    set:
+      persistentVolumes:
+        data:
+          spec:
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            hostPath:
+              path: /mnt/data
+    asserts:
+      - notExists:
+          path: metadata.namespace
+
+  - it: passes spec through as-is
+    set:
+      persistentVolumes:
+        azure-share:
+          spec:
+            capacity:
+              storage: 50Gi
+            accessModes:
+              - ReadWriteMany
+            azureFile:
+              secretName: azure-secret
+              shareName: my-share
+              readOnly: false
+            persistentVolumeReclaimPolicy: Retain
+    asserts:
+      - equal:
+          path: spec.capacity.storage
+          value: 50Gi
+      - equal:
+          path: spec.accessModes[0]
+          value: ReadWriteMany
+      - equal:
+          path: spec.azureFile.secretName
+          value: azure-secret
+      - equal:
+          path: spec.azureFile.shareName
+          value: my-share
+      - equal:
+          path: spec.persistentVolumeReclaimPolicy
+          value: Retain
+
+  - it: renders labels and annotations
+    set:
+      persistentVolumes:
+        data:
+          labels:
+            team: platform
+          annotations:
+            note: important
+          spec:
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            hostPath:
+              path: /mnt/data
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            team: platform
+      - isSubset:
+          path: metadata.annotations
+          content:
+            note: important
+
+  - it: merges defaults.annotations into PV metadata
+    set:
+      defaults:
+        annotations:
+          team: platform
+      persistentVolumes:
+        data:
+          spec:
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            hostPath:
+              path: /mnt/data
+    asserts:
+      - equal:
+          path: metadata.annotations.team
+          value: platform
+
+  - it: renders multiple PVs
+    set:
+      persistentVolumes:
+        data:
+          spec:
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            hostPath:
+              path: /mnt/data
+        logs:
+          spec:
+            capacity:
+              storage: 20Gi
+            accessModes:
+              - ReadWriteOnce
+            hostPath:
+              path: /mnt/logs
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: renders no documents when persistentVolumes is empty
+    set:
+      persistentVolumes: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: skips rendering when disabled is true
+    set:
+      persistentVolumes:
+        data:
+          disabled: true
+          spec:
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            hostPath:
+              path: /mnt/data
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: skips only disabled PV among multiple
+    set:
+      persistentVolumes:
+        data:
+          spec:
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            hostPath:
+              path: /mnt/data
+        logs:
+          disabled: true
+          spec:
+            capacity:
+              storage: 20Gi
+            accessModes:
+              - ReadWriteOnce
+            hostPath:
+              path: /mnt/logs
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: renders spec through tplvalues.render
+    set:
+      persistentVolumes:
+        data:
+          spec:
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            hostPath:
+              path: "/mnt/{{ .Release.Name }}"
+    asserts:
+      - equal:
+          path: spec.hostPath.path
+          value: /mnt/RELEASE-NAME
+
+  - it: renders NFS spec
+    set:
+      persistentVolumes:
+        nfs-share:
+          spec:
+            capacity:
+              storage: 100Gi
+            accessModes:
+              - ReadWriteMany
+            nfs:
+              server: nfs.example.com
+              path: /exports/data
+            persistentVolumeReclaimPolicy: Recycle
+    asserts:
+      - equal:
+          path: spec.nfs.server
+          value: nfs.example.com
+      - equal:
+          path: spec.nfs.path
+          value: /exports/data
+      - equal:
+          path: spec.persistentVolumeReclaimPolicy
+          value: Recycle

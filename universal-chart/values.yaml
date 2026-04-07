@@ -267,6 +267,21 @@ secrets: {}
 #     data:
 #       api.key: supersecret
 
+# -- Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name.
+# Thin passthrough — `spec:` goes directly to the Kubernetes resource unchanged.
+persistentVolumes: {}
+#   azure-share:
+#     spec:
+#       capacity:
+#         storage: 50Gi
+#       accessModes:
+#         - ReadWriteMany
+#       azureFile:
+#         secretName: azure-storage-secret
+#         shareName: my-share
+#         readOnly: false
+#       persistentVolumeReclaimPolicy: Retain
+
 # -- Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name.
 # PVCs are automatically added to the `volumes` block in each workload (excluding hooks).
 # Set `mountPath` on a PVC to also auto-mount it into every container.

@@ -241,3 +241,46 @@ tests:
       - equal:
           path: spec.template.spec.initContainers[0].securityContext.runAsUser
           value: 2000
+
+  - it: omits revisionHistoryLimit when not set
+    set:
+      deployments.web.image: nginx
+    asserts:
+      - notExists:
+          path: spec.revisionHistoryLimit
+
+  - it: sets revisionHistoryLimit from instance
+    set:
+      deployments:
+        web:
+          image: nginx
+          revisionHistoryLimit: 5
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 5
+
+  - it: inherits revisionHistoryLimit from deploymentsGeneral
+    set:
+      deploymentsGeneral:
+        revisionHistoryLimit: 3
+      deployments:
+        web:
+          image: nginx
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 3
+
+  - it: instance revisionHistoryLimit overrides deploymentsGeneral
+    set:
+      deploymentsGeneral:
+        revisionHistoryLimit: 3
+      deployments:
+        web:
+          image: nginx
+          revisionHistoryLimit: 10
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 10

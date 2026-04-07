@@ -81,3 +81,46 @@ tests:
       - equal:
           path: spec.template.metadata.labels["app.kubernetes.io/component"]
           value: agent
+
+  - it: omits revisionHistoryLimit when not set
+    set:
+      daemonSets.agent.image: datadog/agent:7
+    asserts:
+      - notExists:
+          path: spec.revisionHistoryLimit
+
+  - it: sets revisionHistoryLimit from instance
+    set:
+      daemonSets:
+        agent:
+          image: datadog/agent:7
+          revisionHistoryLimit: 5
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 5
+
+  - it: inherits revisionHistoryLimit from daemonSetsGeneral
+    set:
+      daemonSetsGeneral:
+        revisionHistoryLimit: 3
+      daemonSets:
+        agent:
+          image: datadog/agent:7
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 3
+
+  - it: instance revisionHistoryLimit overrides daemonSetsGeneral
+    set:
+      daemonSetsGeneral:
+        revisionHistoryLimit: 3
+      daemonSets:
+        agent:
+          image: datadog/agent:7
+          revisionHistoryLimit: 10
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 10

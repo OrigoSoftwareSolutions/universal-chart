@@ -1,0 +1,20 @@
+{{- range $name, $pv := .Values.persistentVolumes }}
+  {{- if not ($pv.disabled | default false) }}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  labels:
+    {{- include "helpers.app.labels" $ | nindent 4 }}
+    {{- with $pv.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots $pv.annotations }}
+  annotations:
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- with $pv.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- end }}
+spec:
+    {{- include "helpers.tplvalues.render" (dict "value" $pv.spec "context" $) | nindent 2 }}
+  {{- end }}
+{{- end }}

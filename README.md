@@ -1949,6 +1949,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | nodeAffinityPreset.type | string | `""` | Affinity type. Allowed values: `soft`, `hard`, or empty string to disable. |
 | nodeAffinityPreset.values | list | `[]` | Node label values to match. |
 | pdbs | object | `{}` | Kubernetes PodDisruptionBudget resources. Each key becomes the resource name. |
+| persistentVolumes | object | `{}` | Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name. Thin passthrough — `spec:` goes directly to the Kubernetes resource unchanged. |
 | podAffinityPreset | string | `"soft"` | Pod affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | pvcs | object | `{}` | Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name. PVCs are automatically added to the `volumes` block in each workload (excluding hooks). Set `mountPath` on a PVC to also auto-mount it into every container. |

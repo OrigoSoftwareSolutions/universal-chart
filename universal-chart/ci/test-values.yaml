@@ -238,6 +238,18 @@ pdbs:
   web:
     minAvailable: 1
 
+# --- PersistentVolume ---
+persistentVolumes:
+  shared-data:
+    spec:
+      capacity:
+        storage: 10Gi
+      accessModes:
+        - ReadWriteMany
+      hostPath:
+        path: /mnt/data
+      persistentVolumeReclaimPolicy: Retain
+
 # --- PersistentVolumeClaim ---
 pvcs:
   data:
