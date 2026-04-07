@@ -1,4 +1,5 @@
 {{- range $name, $p := .Values.pvcs }}
+  {{- if not ($p.disabled | default false) }}
 ---
 kind: PersistentVolumeClaim
 apiVersion: v1
@@ -6,27 +7,30 @@ metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
-  {{- include "helpers.app.labels" $ | nindent 4 }}
-  {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-  {{- with .annotations }}
+    {{- include "helpers.app.labels" $ | nindent 4 }}
+    {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots .annotations }}
   annotations:
-    {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
-  {{- end }}
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- end }}
 spec:
   accessModes: {{- include "helpers.tplvalues.render" ( dict "value" .accessModes "context" $ ) | nindent 4 }}
-  {{- with .volumeMode }}
+    {{- with .volumeMode }}
   volumeMode: {{ . }}
-  {{- end }}
-  {{- with .volumeName}}
+    {{- end }}
+    {{- with .volumeName}}
   volumeName: {{ . }}
-  {{- end }}
+    {{- end }}
   resources:
     requests:
       storage: {{ .size | default "1Gi" }}
-  {{- with .storageClassName }}
+    {{- with .storageClassName }}
   storageClassName: {{ . }}
-  {{- end }}
-  {{- with .selector }}
-    {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ ) | nindent 4 }}
+    {{- end }}
+    {{- with .selector }}
+      {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ ) | nindent 4 }}
+    {{- end }}
   {{- end }}
 {{- end }}

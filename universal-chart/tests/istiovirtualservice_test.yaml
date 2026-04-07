@@ -66,3 +66,28 @@ tests:
       - equal:
           path: spec.http[0].route[0].destination.port.number
           value: 8080
+
+  - it: renders template expressions in hosts and gateways
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istiovirtualservices:
+        my-vs:
+          hosts:
+            - '{{ .Release.Name }}.example.com'
+          gateways:
+            - '{{ .Release.Name }}-gw'
+          http:
+            - route:
+                - destination:
+                    host: my-svc
+                    port:
+                      number: 8080
+    asserts:
+      - contains:
+          path: spec.hosts
+          content: RELEASE-NAME.example.com
+      - contains:
+          path: spec.gateways
+          content: RELEASE-NAME-gw

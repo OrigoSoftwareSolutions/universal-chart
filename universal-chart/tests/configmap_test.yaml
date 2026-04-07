@@ -93,6 +93,9 @@ tests:
           path: metadata.labels
           content:
             team: platform
+      - equal:
+          path: metadata.annotations.note
+          value: important
 
   - it: skips configMap with reserved name envs
     set:
@@ -100,6 +103,17 @@ tests:
         envs:
           data:
             SHOULD: not-render
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: respects the disabled flag for custom configMaps
+    set:
+      configMaps:
+        disabled-cm:
+          disabled: true
+          data:
+            key: value
     asserts:
       - hasDocuments:
           count: 0
@@ -115,3 +129,48 @@ tests:
     asserts:
       - hasDocuments:
           count: 2
+
+  - it: defaults.annotations appear on auto-generated envs configmap
+    set:
+      defaults:
+        annotations:
+          team: platform
+      envs:
+        LOG_LEVEL: info
+    asserts:
+      - equal:
+          path: metadata.annotations.team
+          value: platform
+
+  - it: defaults.annotations appear on user-defined configmap without instance annotations
+    set:
+      defaults:
+        annotations:
+          team: platform
+      configMaps:
+        app-config:
+          data:
+            key: val
+    asserts:
+      - equal:
+          path: metadata.annotations.team
+          value: platform
+
+  - it: defaults.annotations merge with instance annotations on user-defined configmap
+    set:
+      defaults:
+        annotations:
+          team: platform
+      configMaps:
+        app-config:
+          annotations:
+            custom: value
+          data:
+            key: val
+    asserts:
+      - equal:
+          path: metadata.annotations.team
+          value: platform
+      - equal:
+          path: metadata.annotations.custom
+          value: value

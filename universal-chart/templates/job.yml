@@ -27,42 +27,44 @@ metadata:
         {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
       {{- end }}
 spec:
-      {{- if .parallelism }}
+      {{- if (ne .parallelism nil) }}
   parallelism: {{ .parallelism }}
-      {{- else if $general.parallelism }}
+      {{- else if (ne $general.parallelism nil) }}
   parallelism: {{ $general.parallelism }}
       {{- end }}
-      {{- if .completions }}
+      {{- if (ne .completions nil) }}
   completions: {{ .completions }}
-      {{- else if $general.completions }}
+      {{- else if (ne $general.completions nil) }}
   completions: {{ $general.completions }}
       {{- end }}
-      {{- if .activeDeadlineSeconds }}
+      {{- if (ne .activeDeadlineSeconds nil) }}
   activeDeadlineSeconds: {{ .activeDeadlineSeconds }}
-      {{- else if $general.activeDeadlineSeconds }}
+      {{- else if (ne $general.activeDeadlineSeconds nil) }}
   activeDeadlineSeconds: {{ $general.activeDeadlineSeconds }}
       {{- end }}
-      {{- if .backoffLimit }}
+      {{- if (ne .backoffLimit nil) }}
   backoffLimit: {{ .backoffLimit }}
-      {{- else if $general.backoffLimit }}
+      {{- else if (ne $general.backoffLimit nil) }}
   backoffLimit: {{ $general.backoffLimit }}
       {{- end }}
-      {{- if .ttlSecondsAfterFinished }}
+      {{- if (ne .ttlSecondsAfterFinished nil) }}
   ttlSecondsAfterFinished: {{ .ttlSecondsAfterFinished }}
-      {{- else if $general.ttlSecondsAfterFinished }}
+      {{- else if (ne $general.ttlSecondsAfterFinished nil) }}
   ttlSecondsAfterFinished: {{ $general.ttlSecondsAfterFinished }}
       {{- end }}
   template:
-      {{- if or $.Values.defaults.podLabels .podLabels $.Values.defaults.podAnnotations .podAnnotations }}
+      {{- if or $.Values.defaults.podLabels $general.podLabels .podLabels $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations }}
     metadata:
-        {{- if or $.Values.defaults.podLabels .podLabels }}
+        {{- if or $.Values.defaults.podLabels $general.podLabels .podLabels }}
       labels:
           {{- with $.Values.defaults.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+          {{- with $general.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
           {{- with .podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
         {{- end }}
-        {{- if or $.Values.defaults.podAnnotations .podAnnotations }}
+        {{- if or $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations }}
       annotations:
           {{- with $.Values.defaults.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+          {{- with $general.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
           {{- with .podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
         {{- end }}
       {{- else }}
@@ -71,7 +73,7 @@ spec:
     spec:
       {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | trim | nindent 6 }}
       restartPolicy: {{ .restartPolicy | default "Never" }}
-      {{- if .commandDurationAlert }}
+      {{- if ne .commandDurationAlert nil }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -87,7 +89,7 @@ spec:
     interval: 1m # period check for alerts
     rules:
     - alert: "job-{{ $jobName }}-too-long-execution"
-      expr: '((time() - kube_job_status_start_time{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $jobName }}-.*"}) and kube_job_status_active{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $jobName }}-.*"} == 1) > {{ .commandDurationAlert }}'
+      expr: '((time() - kube_job_status_start_time{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $jobName }}(-.*)?"}) and kube_job_status_active{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $jobName }}(-.*)?"} == 1) > {{ .commandDurationAlert }}'
       for: 3m
       labels:
         severity: warning

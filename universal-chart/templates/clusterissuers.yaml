@@ -5,11 +5,16 @@ apiVersion: {{ include "helpers.capabilities.certManager.apiVersion" $ }}
 kind: ClusterIssuer
 metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
-  labels: {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
-    {{- with $ci.annotations }}
-  annotations: {{- toYaml . | nindent 4 }}
+  labels:
+    {{- include "helpers.app.labels" $ | nindent 4 }}
+    {{- with $ci.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots $ci.annotations }}
+  annotations:
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- with $ci.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- end }}
 spec:
-    {{- toYaml $ci.spec | nindent 2 }}
+    {{- include "helpers.tplvalues.render" (dict "value" $ci.spec "context" $) | nindent 2 }}
   {{- end }}
 {{- end }}

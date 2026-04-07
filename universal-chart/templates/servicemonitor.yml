@@ -1,4 +1,5 @@
 {{- range $name, $sm := .Values.serviceMonitors }}
+  {{- if not ($sm.disabled | default false) }}
 ---
 kind: ServiceMonitor
 apiVersion: monitoring.coreos.com/v1
@@ -6,13 +7,27 @@ metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
-  {{- include "helpers.app.labels" $ | nindent 4 }}
-  {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- include "helpers.app.labels" $ | nindent 4 }}
+    {{- with $sm.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots $sm.annotations }}
+  annotations:
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- with $sm.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- end }}
 spec:
   endpoints:
-  {{- include "helpers.tplvalues.render" (dict "value" .endpoints "context" $) | nindent 4 }}
+    {{- include "helpers.tplvalues.render" (dict "value" $sm.endpoints "context" $) | nindent 4 }}
+    {{- with $sm.namespaceSelector }}
+  namespaceSelector: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
   selector:
+    {{- if $sm.selector }}
+      {{- include "helpers.tplvalues.render" (dict "value" $sm.selector "context" $) | nindent 4 }}
+    {{- else }}
     matchLabels:
-  {{- include "helpers.app.selectorLabels" $ | nindent 6 }}
-  {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end -}}
+      {{- include "helpers.app.selectorLabels" $ | nindent 6 }}
+      {{- with $sm.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end -}}
+    {{- end }}
+  {{- end }}
 {{- end }}

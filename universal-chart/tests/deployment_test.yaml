@@ -50,3 +50,194 @@ tests:
     asserts:
       - notExists:
           path: spec.template.spec.imagePullSecrets
+
+  - it: merges defaults.annotations into deployment metadata
+    set:
+      defaults:
+        annotations:
+          team: platform
+          env: prod
+      deployments.web.image: nginx
+    asserts:
+      - isSubset:
+          path: metadata.annotations
+          content:
+            team: platform
+            env: prod
+
+  - it: diagnosticMode overrides command and args and suppresses probes
+    set:
+      diagnosticMode:
+        enabled: true
+      deployments.web.image: nginx
+      deployments.web.command: "python app.py"
+      deployments.web.healthCheck:
+        path: /healthz
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command[0]
+          value: sleep
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: infinity
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: injects preStopSleep lifecycle hook from defaults
+    set:
+      defaults:
+        preStopSleep: 5
+      deployments.web.image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command
+          value:
+            - sh
+            - -c
+            - sleep 5
+
+  - it: renders hostPath typed volume
+    set:
+      deployments.web.image: nginx
+      deployments.web.volumes:
+        - name: varlog
+          type: hostPath
+          path: /var/log
+          hostPathType: Directory
+      deployments.web.volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: varlog
+            hostPath:
+              path: /var/log
+              type: Directory
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: varlog
+            mountPath: /var/log
+            readOnly: true
+
+  - it: does not double-tag when container image has embedded tag
+    set:
+      deployments:
+        web:
+          containers:
+            - name: app
+              image: "nginx:1.20"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "nginx:1.20"
+
+  - it: appends default tag to registry-with-port image without embedded tag
+    set:
+      deployments:
+        web:
+          containers:
+            - name: app
+              image: "registry.example.com:5000/myapp"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "registry.example.com:5000/myapp:v0.0.1"
+
+  - it: uses explicit imageTag even when image has no embedded tag
+    set:
+      deployments:
+        web:
+          containers:
+            - name: app
+              image: nginx
+              imageTag: "1.25"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "nginx:1.25"
+
+  - it: merges imagePullSecrets from all sources (top-level + defaults + workload)
+    set:
+      imagePullSecrets:
+        - global-secret
+      defaults:
+        extraImagePullSecrets:
+          - defaults-secret
+      deployments:
+        web:
+          image: nginx
+          extraImagePullSecrets:
+            - workload-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: global-secret
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: defaults-secret
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: workload-secret
+
+  - it: merges deprecated workload imagePullSecrets alongside extraImagePullSecrets
+    set:
+      deployments:
+        web:
+          image: nginx
+          imagePullSecrets:
+            - deprecated-secret
+          extraImagePullSecrets:
+            - extra-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: deprecated-secret
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: extra-secret
+
+  - it: initContainers inherit workload containerSecurityContext
+    set:
+      deployments:
+        web:
+          image: nginx
+          containerSecurityContext:
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+          initContainers:
+            - image: busybox
+              command: ["sh", "-c", "echo init"]
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.readOnlyRootFilesystem
+          value: true
+
+  - it: initContainers own securityContext overrides workload containerSecurityContext
+    set:
+      deployments:
+        web:
+          image: nginx
+          containerSecurityContext:
+            runAsUser: 1000
+          initContainers:
+            - image: busybox
+              securityContext:
+                runAsUser: 2000
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsUser
+          value: 2000

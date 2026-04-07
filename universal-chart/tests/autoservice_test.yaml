@@ -76,3 +76,79 @@ tests:
             port: 8125
             targetPort: metrics
             protocol: TCP
+
+  - it: includes defaults.annotations on auto-generated service
+    set:
+      defaults:
+        annotations:
+          global: from-defaults
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+    asserts:
+      - equal:
+          path: metadata.annotations.global
+          value: from-defaults
+
+  - it: merges defaults.annotations with service annotations
+    set:
+      defaults:
+        annotations:
+          global: from-defaults
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+      deployments.api.service.annotations.svc: from-service
+    asserts:
+      - equal:
+          path: metadata.annotations.global
+          value: from-defaults
+      - equal:
+          path: metadata.annotations.svc
+          value: from-service
+
+  - it: auto-service selector includes component label matching workload name
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+    asserts:
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: api
+
+  - it: statefulset auto-service selector includes component label
+    set:
+      statefulSets.db.image: postgres:15
+      statefulSets.db.ports.postgres: 5432
+    asserts:
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: db
+
+  - it: daemonset auto-service selector includes component label
+    set:
+      daemonSets.agent.image: datadog/agent:7
+      daemonSets.agent.ports.metrics: 8125
+    asserts:
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: agent
+
+  - it: two workloads produce auto-services with different component selectors
+    set:
+      deployments:
+        api:
+          image: myapp:1.0
+          ports:
+            http: 8080
+        worker:
+          image: myapp:1.0
+          ports:
+            http: 9090
+    asserts:
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: api
+        documentIndex: 0
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: worker
+        documentIndex: 1

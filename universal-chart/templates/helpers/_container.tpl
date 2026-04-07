@@ -7,24 +7,40 @@
   {{- $enableMapPorts := .enableMapPorts -}}
   {{- $useDefaultImage := .useDefaultImage -}}
   {{- $autoPvcs := .autoPvcs | default false -}}
+  {{- $workloadContainerSecurityContext := .workloadContainerSecurityContext -}}
   {{- with $c -}}
     {{- if $useDefaultImage }}
       {{- $image := $.Values.defaultImage }}{{ with .image }}{{ $image = include "helpers.tplvalues.render" ( dict "value" . "context" $) }}{{ end }}
       {{- $imageTag := $.Values.defaultImageTag }}{{ with .imageTag }}{{ $imageTag = include "helpers.tplvalues.render" ( dict "value" . "context" $) }}{{ end }}
+      {{- $hasEmbeddedTag := false -}}
+      {{- $lastSegment := (last (splitList "/" $image)) -}}
+      {{- if contains ":" $lastSegment }}{{ $hasEmbeddedTag = true }}{{ end -}}
+      {{- if and (not .imageTag) $hasEmbeddedTag }}
+  image: {{ $image }}
+      {{- else }}
   image: {{ $image }}:{{ $imageTag }}
+      {{- end }}
     {{- else }}
   image: {{ include "helpers.tplvalues.render" (dict "value" .image "context" $) }}
     {{- end }}
-  imagePullPolicy: {{ .imagePullPolicy | default $.Values.defaultImagePullPolicy }}
+  imagePullPolicy: {{ include "helpers.tplvalues.render" (dict "value" (.imagePullPolicy | default $.Values.defaultImagePullPolicy) "context" $) }}
     {{- if .securityContext }}
   securityContext: {{- include "helpers.tplvalues.render" ( dict "value" .securityContext "context" $) | nindent 4 }}
+    {{- else if $workloadContainerSecurityContext }}
+  securityContext: {{- include "helpers.tplvalues.render" ( dict "value" $workloadContainerSecurityContext "context" $) | nindent 4 }}
+    {{- else if $general.containerSecurityContext }}
+  securityContext: {{- include "helpers.tplvalues.render" ( dict "value" $general.containerSecurityContext "context" $) | nindent 4 }}
     {{- else if $.Values.defaults.containerSecurityContext }}
   securityContext: {{- include "helpers.tplvalues.render" ( dict "value" $.Values.defaults.containerSecurityContext "context" $) | nindent 4 }}
     {{- end }}
     {{- if $.Values.diagnosticMode.enabled }}
   args: {{- include "helpers.tplvalues.render" ( dict "value" $.Values.diagnosticMode.args "context" $) | nindent 2 }}
     {{- else if .args }}
+      {{- if typeIs "string" .args }}
+  args: {{ printf "[\"%s\"]" (join ("\", \"") (without (splitList " " .args) "" )) }}
+      {{- else }}
   args: {{- include "helpers.tplvalues.render" ( dict "value" .args "context" $) | nindent 2 }}
+      {{- end }}
     {{- end }}
     {{- if $.Values.diagnosticMode.enabled }}
   command: {{- include "helpers.tplvalues.render" ( dict "value" $.Values.diagnosticMode.command "context" $) | nindent 2 }}
@@ -73,10 +89,12 @@
     {{- end }}
     {{- if .resources }}
   resources: {{- include "helpers.tplvalues.render" ( dict "value" .resources "context" $) | nindent 4 }}
+    {{- else if $general.resources }}
+  resources: {{- include "helpers.tplvalues.render" ( dict "value" $general.resources "context" $) | nindent 4 }}
     {{- else if $.Values.defaults.resources }}
   resources: {{- include "helpers.tplvalues.render" ( dict "value" $.Values.defaults.resources "context" $) | nindent 4 }}
     {{- end }}
     {{- $vmounts := include "helpers.volumes.renderVolumeMounts" (dict "value" . "general" $general "context" $ "autoPvcs" $autoPvcs) }}
-  volumeMounts:{{- if eq (trim $vmounts) "[]" }} []{{- else }}{{ $vmounts | nindent 2 }}{{- end }}
+  volumeMounts:{{- if eq (trim $vmounts) "[]" }} []{{- else }}{{ $vmounts | trim | nindent 2 }}{{- end }}
   {{- end -}}
 {{- end -}}

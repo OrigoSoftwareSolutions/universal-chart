@@ -44,6 +44,17 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   {{- include "helpers.app.genericSelectorLabels" $ }}
 {{- end }}
 
+{{/*
+Workload-specific selector labels. Includes base selectorLabels plus
+app.kubernetes.io/component derived from the workload $name so that
+multiple workloads in the same release get unique selectors.
+Expects dict with: name (string), context ($ root).
+*/}}
+{{- define "helpers.app.workloadSelectorLabels" -}}
+  {{- include "helpers.app.selectorLabels" .context }}
+app.kubernetes.io/component: {{ .name | trunc 63 | trimSuffix "-" }}
+{{- end -}}
+
 {{- define "helpers.app.genericSelectorLabels" -}}
   {{- with .Values.defaults.extraSelectorLabels }}
     {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
@@ -54,14 +65,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   {{- with .Values.defaults.annotations }}
     {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
   {{- end }}
-{{- end }}
-
-{{/*
-For a backward compatibility
-TODO: remove it in version 3.x.x, use defaultHookAnnotations
-*/}}
-{{- define "helpers.app.hooksAnnotations" -}}
-  {{ include "helpers.app.defaultHookAnnotations" .context | fromYaml }}
 {{- end }}
 
 {{/*

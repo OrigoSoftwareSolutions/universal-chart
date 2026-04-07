@@ -5,11 +5,15 @@ apiVersion: argocd-image-updater.argoproj.io/v1alpha1
 kind: ImageUpdater
 metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  namespace: {{ $.Release.Namespace | quote }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with $val.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- with $val.annotations }}
-  annotations: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots $val.annotations }}
+  annotations:
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- with $val.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- end }}
 spec:
   namespace: {{ include "helpers.tplvalues.render" (dict "value" ($val.namespace | default "argocd") "context" $) | quote }}

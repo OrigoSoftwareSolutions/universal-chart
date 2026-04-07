@@ -1,0 +1,5 @@
+deployments:
+  test:
+    image: nginx
+    securityContext:
+      runAsUser: 1000

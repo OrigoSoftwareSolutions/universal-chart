@@ -21,3 +21,91 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: includes defaults.annotations on pdb
+    set:
+      defaults:
+        annotations:
+          global: from-defaults
+      pdbs.web.minAvailable: 1
+    asserts:
+      - equal:
+          path: metadata.annotations.global
+          value: from-defaults
+
+  - it: merges defaults.annotations with instance annotations
+    set:
+      defaults:
+        annotations:
+          global: from-defaults
+      pdbs.web.minAvailable: 1
+      pdbs.web.annotations:
+        instance: from-pdb
+    asserts:
+      - equal:
+          path: metadata.annotations.global
+          value: from-defaults
+      - equal:
+          path: metadata.annotations.instance
+          value: from-pdb
+
+  - it: omits annotations when none are set
+    set:
+      pdbs.web.minAvailable: 1
+    asserts:
+      - notExists:
+          path: metadata.annotations
+
+  - it: renders maxUnavailable when set
+    set:
+      pdbs.web.maxUnavailable: 25%
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 25%
+      - notExists:
+          path: spec.minAvailable
+
+  - it: renders unhealthyPodEvictionPolicy when set
+    set:
+      pdbs.web.minAvailable: 1
+      pdbs.web.unhealthyPodEvictionPolicy: IfHealthyBudget
+    asserts:
+      - equal:
+          path: spec.unhealthyPodEvictionPolicy
+          value: IfHealthyBudget
+
+  - it: omits unhealthyPodEvictionPolicy when not set
+    set:
+      pdbs.web.minAvailable: 1
+    asserts:
+      - notExists:
+          path: spec.unhealthyPodEvictionPolicy
+
+  - it: renders minAvailable zero
+    set:
+      pdbs.web.minAvailable: 0
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 0
+      - notExists:
+          path: spec.maxUnavailable
+
+  - it: renders maxUnavailable zero
+    set:
+      pdbs.web.maxUnavailable: 0
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 0
+      - notExists:
+          path: spec.minAvailable
+
+  - it: selector includes app.kubernetes.io/component label
+    set:
+      pdbs.web.minAvailable: 1
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: web

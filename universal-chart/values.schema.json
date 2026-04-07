@@ -55,9 +55,22 @@
         "extraVolumeMounts": { "type": "array" },
         "extraImagePullSecrets": { "type": "array", "items": { "type": "string" } },
         "usePredefinedAffinity": { "type": "boolean" },
+        "serviceAccountName": { "type": "string" },
+        "hostAliases": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "priorityClassName": { "type": "string" },
+        "dnsPolicy": {
+          "type": "string",
+          "enum": ["ClusterFirst", "Default", "ClusterFirstWithHostNet", "None"]
+        },
+        "tolerations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
+        "volumes": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "volumeMounts": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
         "resources": { "$ref": "#/$defs/resources" },
         "podSecurityContext": { "$ref": "#/$defs/podSecurityContext" },
         "containerSecurityContext": { "$ref": "#/$defs/containerSecurityContext" },
+        "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
+        "preStopSleep": { "type": "integer", "minimum": 0 },
         "topologySpreadConstraints": {
           "type": "array",
           "items": { "$ref": "#/$defs/topologySpreadConstraint" }
@@ -110,12 +123,12 @@
     "daemonSetsGeneral": { "$ref": "#/$defs/workloadGeneral" },
     "cronJobs": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/workload" }
+      "additionalProperties": { "$ref": "#/$defs/cronJob" }
     },
     "cronJobsGeneral": { "$ref": "#/$defs/workloadGeneral" },
     "jobs": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/workload" }
+      "additionalProperties": { "$ref": "#/$defs/job" }
     },
     "jobsGeneral": { "$ref": "#/$defs/workloadGeneral" },
     "hooks": {
@@ -125,7 +138,7 @@
     "hooksGeneral": { "$ref": "#/$defs/workloadGeneral" },
     "services": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
+      "additionalProperties": { "$ref": "#/$defs/service" }
     },
     "configMaps": {
       "type": "object",
@@ -227,6 +240,56 @@
       "additionalProperties": true,
       "properties": {
         "disabled": { "type": "boolean" }
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Kubernetes Service instance.",
+      "properties": {
+        "disabled": { "type": "boolean" },
+        "type": {
+          "type": "string",
+          "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"],
+          "description": "Service type."
+        },
+        "externalTrafficPolicy": {
+          "type": "string",
+          "enum": ["Cluster", "Local"],
+          "description": "External traffic policy for NodePort/LoadBalancer services."
+        },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "cronJob": {
+      "allOf": [
+        { "$ref": "#/$defs/workload" },
+        {
+          "if": {
+            "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
+          },
+          "then": {
+            "required": ["schedule"]
+          }
+        }
+      ],
+      "properties": {
+        "schedule": { "type": "string", "description": "Cron schedule expression (required)." },
+        "startingDeadlineSeconds": { "type": "integer", "minimum": 0, "description": "Deadline in seconds for starting the job if it misses its scheduled time." },
+        "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0, "description": "Number of successful finished jobs to retain." },
+        "failedJobsHistoryLimit": { "type": "integer", "minimum": 0, "description": "Number of failed finished jobs to retain." },
+        "singleOnly": { "type": "boolean", "description": "Shorthand for concurrencyPolicy: Forbid." },
+        "suspend": { "type": "boolean", "description": "Suspend the CronJob." },
+        "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Seconds threshold — creates a PrometheusRule that fires when CronJob execution exceeds this duration." }
+      }
+    },
+    "job": {
+      "allOf": [
+        { "$ref": "#/$defs/workload" }
+      ],
+      "properties": {
+        "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Seconds threshold — creates a PrometheusRule that fires when Job execution exceeds this duration." }
       }
     },
     "imagePullPolicy": {
@@ -416,6 +479,15 @@
       "type": "object",
       "additionalProperties": true,
       "description": "Workload instance (Deployment, StatefulSet, DaemonSet, CronJob, Job, Hook).",
+      "if": {
+        "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
+      },
+      "then": {
+        "anyOf": [
+          { "required": ["image"] },
+          { "required": ["containers"] }
+        ]
+      },
       "properties": {
         "disabled": { "type": "boolean" },
         "replicas": { "type": "integer", "minimum": 0 },
@@ -429,7 +501,11 @@
         },
         "resources": { "$ref": "#/$defs/resources" },
         "healthCheck": { "$ref": "#/$defs/healthCheck" },
-        "securityContext": { "$ref": "#/$defs/podSecurityContext" },
+        "podSecurityContext": { "$ref": "#/$defs/podSecurityContext" },
+        "securityContext": {
+          "$ref": "#/$defs/podSecurityContext",
+          "description": "Deprecated alias for podSecurityContext. Prefer podSecurityContext for pod-level settings."
+        },
         "containerSecurityContext": { "$ref": "#/$defs/containerSecurityContext" },
         "topologySpreadConstraints": {
           "type": "array",
@@ -437,6 +513,7 @@
         },
         "containers": {
           "type": "array",
+          "minItems": 1,
           "items": { "$ref": "#/$defs/container" }
         },
         "initContainers": {
@@ -456,6 +533,20 @@
           ]
         },
         "serviceAccountName": { "type": "string" },
+        "usePredefinedAffinity": { "type": "boolean" },
+        "affinity": { "type": "object", "additionalProperties": true, "description": "Custom pod affinity/anti-affinity rules. Overrides predefined affinity." },
+        "hostAliases": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "priorityClassName": { "type": "string" },
+        "dnsPolicy": { "type": "string", "description": "DNS policy for pods. Supports template expressions." },
+        "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
+        "tolerations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
+        "parallelism": { "type": "integer", "minimum": 0, "description": "Number of pods running at the same time (Jobs/Hooks)." },
+        "completions": { "type": "integer", "minimum": 0, "description": "Number of successful completions required (Jobs/Hooks)." },
+        "activeDeadlineSeconds": { "type": "integer", "minimum": 0, "description": "Maximum duration in seconds before the Job is terminated." },
+        "backoffLimit": { "type": "integer", "minimum": 0, "description": "Number of retries before marking a Job as failed." },
+        "ttlSecondsAfterFinished": { "type": "integer", "minimum": 0, "description": "TTL for cleaning up finished Jobs." },
+        "progressDeadlineSeconds": { "type": "integer", "minimum": 0, "description": "Maximum time for a Deployment to make progress before considered failed." },
         "labels": { "type": "object", "additionalProperties": { "type": "string" } },
         "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
         "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
@@ -466,6 +557,20 @@
             { "type": "boolean" },
             { "type": "object", "additionalProperties": true }
           ]
+        },
+        "serviceName": {
+          "type": "string",
+          "description": "Governing service name for StatefulSets. Defaults to the workload key name."
+        },
+        "imagePullSecrets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Deprecated: use extraImagePullSecrets instead. Image pull secret names for this workload."
+        },
+        "extraImagePullSecrets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional image pull secrets for this workload, merged with top-level and defaults."
         }
       }
     },
@@ -479,12 +584,31 @@
         "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
         "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
         "resources": { "$ref": "#/$defs/resources" },
-        "securityContext": { "$ref": "#/$defs/podSecurityContext" },
+        "podSecurityContext": { "$ref": "#/$defs/podSecurityContext" },
+        "securityContext": {
+          "$ref": "#/$defs/podSecurityContext",
+          "description": "Deprecated alias for podSecurityContext. Prefer podSecurityContext for pod-level settings."
+        },
+        "containerSecurityContext": { "$ref": "#/$defs/containerSecurityContext" },
         "topologySpreadConstraints": {
           "type": "array",
           "items": { "$ref": "#/$defs/topologySpreadConstraint" }
         },
-        "usePredefinedAffinity": { "type": "boolean" }
+        "usePredefinedAffinity": { "type": "boolean" },
+        "affinity": { "type": "object", "additionalProperties": true, "description": "Custom pod affinity/anti-affinity rules. Overrides predefined affinity." },
+        "serviceAccountName": { "type": "string" },
+        "hostAliases": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "priorityClassName": { "type": "string" },
+        "dnsPolicy": { "type": "string", "description": "DNS policy for pods. Supports template expressions." },
+        "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
+        "tolerations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
+        "parallelism": { "type": "integer", "minimum": 0 },
+        "completions": { "type": "integer", "minimum": 0 },
+        "activeDeadlineSeconds": { "type": "integer", "minimum": 0 },
+        "backoffLimit": { "type": "integer", "minimum": 0 },
+        "ttlSecondsAfterFinished": { "type": "integer", "minimum": 0 },
+        "progressDeadlineSeconds": { "type": "integer", "minimum": 0 }
       }
     },
     "pvc": {
@@ -562,10 +686,21 @@
         },
         "extraSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" } }
       },
-      "anyOf": [
-        { "required": ["minAvailable"] },
-        { "required": ["maxUnavailable"] }
-      ]
+      "if": {
+        "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": ["minAvailable"],
+            "not": { "required": ["maxUnavailable"] }
+          },
+          {
+            "required": ["maxUnavailable"],
+            "not": { "required": ["minAvailable"] }
+          }
+        ]
+      }
     },
     "envEntry": {
       "type": "object",

@@ -47,3 +47,15 @@ tests:
       - equal:
           path: spec.trafficPolicy.tls.mode
           value: ISTIO_MUTUAL
+
+  - it: renders template expressions in host field
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istiodestinationrules.my-dr.host: '{{ .Release.Name }}-svc.default.svc.cluster.local'
+      istiodestinationrules.my-dr.trafficPolicy.connectionPool.tcp.maxConnections: 50
+    asserts:
+      - equal:
+          path: spec.host
+          value: RELEASE-NAME-svc.default.svc.cluster.local

@@ -23,21 +23,29 @@ spec:
     {{- with .strategy }}
   strategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}
-  progressDeadlineSeconds: {{ .progressDeadlineSeconds | default 600 }}
+    {{- if (ne .progressDeadlineSeconds nil) }}
+  progressDeadlineSeconds: {{ .progressDeadlineSeconds }}
+    {{- else if (ne $general.progressDeadlineSeconds nil) }}
+  progressDeadlineSeconds: {{ $general.progressDeadlineSeconds }}
+    {{- else }}
+  progressDeadlineSeconds: 600
+    {{- end }}
   selector:
     matchLabels:
-    {{- include "helpers.app.selectorLabels" $ | nindent 6 }}
+    {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}
     {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end }}
   template:
     metadata:
       labels:
-    {{- include "helpers.app.selectorLabels" $ | nindent 8 }}
+    {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 8 }}
     {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
     {{- with $.Values.defaults.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+    {{- with $general.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
     {{- with .podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
-    {{- if or $.Values.defaults.podAnnotations .podAnnotations }}
+    {{- if or $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations }}
       annotations:
       {{- with $.Values.defaults.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
+      {{- with $general.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
       {{- with .podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}{{- end }}
     {{- end }}
     spec:

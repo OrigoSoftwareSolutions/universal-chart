@@ -28,3 +28,96 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: merges statefulSetsGeneral annotations into metadata
+    set:
+      statefulSetsGeneral:
+        annotations:
+          note: from-general
+      statefulSets:
+        db:
+          containers:
+            - name: db
+              image: postgres
+              imageTag: "16"
+    asserts:
+      - equal:
+          path: metadata.annotations.note
+          value: from-general
+
+  - it: merges statefulSetsGeneral pod metadata into template metadata
+    set:
+      statefulSetsGeneral:
+        podLabels:
+          tier: data
+        podAnnotations:
+          checksum/config: abc123
+      statefulSets:
+        db:
+          containers:
+            - name: db
+              image: postgres
+              imageTag: "16"
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.tier
+          value: data
+      - equal:
+          path: spec.template.metadata.annotations.checksum/config
+          value: abc123
+
+  - it: renders updateStrategy instead of strategy
+    set:
+      statefulSets:
+        db:
+          updateStrategy:
+            type: RollingUpdate
+            rollingUpdate:
+              maxUnavailable: 1
+          containers:
+            - name: db
+              image: postgres
+              imageTag: "16"
+    asserts:
+      - equal:
+          path: spec.updateStrategy.type
+          value: RollingUpdate
+      - notExists:
+          path: spec.strategy
+
+  - it: adds app.kubernetes.io/component label to statefulset matchLabels and pod labels
+    set:
+      statefulSets:
+        db:
+          image: postgres
+          imageTag: "16"
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: db
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/component"]
+          value: db
+
+  - it: defaults serviceName to the statefulset name when not specified
+    set:
+      statefulSets:
+        db:
+          image: postgres
+          imageTag: "16"
+    asserts:
+      - matchRegex:
+          path: spec.serviceName
+          pattern: -db$
+
+  - it: uses explicit serviceName when specified
+    set:
+      statefulSets:
+        db:
+          image: postgres
+          imageTag: "16"
+          serviceName: my-custom-svc
+    asserts:
+      - matchRegex:
+          path: spec.serviceName
+          pattern: -my-custom-svc$

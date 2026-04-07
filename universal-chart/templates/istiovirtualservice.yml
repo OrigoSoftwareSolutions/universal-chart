@@ -18,11 +18,11 @@ metadata:
 spec:
   hosts:
     {{- range $virtualservice.hosts }}
-    - {{ . | quote }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
     {{- end }}
   gateways:
     {{- range $virtualservice.gateways }}
-    - {{ . | quote }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
     {{- end }}
   http:
     {{- range $httpRoute := $virtualservice.http }}

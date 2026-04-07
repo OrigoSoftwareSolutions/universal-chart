@@ -212,6 +212,29 @@ tests:
           path: metadata.annotations.note
           value: my-annotation
 
+  - it: includes namespace in metadata
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - isNotEmpty:
+          path: metadata.namespace
+
+  - it: includes defaults.annotations on imageupdater
+    set:
+      defaults:
+        annotations:
+          global: from-defaults
+      imageUpdaters:
+        my-app:
+          applicationName: my-argocd-app
+          images:
+            - alias: api
+              imageName: registry.example.com/my-image
+    asserts:
+      - equal:
+          path: metadata.annotations.global
+          value: from-defaults
+
   - it: omits annotations when not set
     values:
       - values/imageupdater.yaml

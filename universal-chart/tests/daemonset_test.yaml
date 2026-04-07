@@ -42,3 +42,42 @@ tests:
     asserts:
       - notExists:
           path: spec.progressDeadlineSeconds
+
+  - it: daemonSetsGeneral.podLabels appears in pod template
+    set:
+      daemonSetsGeneral:
+        podLabels:
+          team: infra
+      daemonSets:
+        agent:
+          image: datadog/agent:7
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.team
+          value: infra
+
+  - it: daemonSetsGeneral.podAnnotations appears in pod template
+    set:
+      daemonSetsGeneral:
+        podAnnotations:
+          log-collector: enabled
+      daemonSets:
+        agent:
+          image: datadog/agent:7
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations.log-collector
+          value: enabled
+
+  - it: adds app.kubernetes.io/component label to daemonset matchLabels and pod labels
+    set:
+      daemonSets:
+        agent:
+          image: datadog/agent:7
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: agent
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/component"]
+          value: agent
