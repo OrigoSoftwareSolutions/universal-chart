@@ -9,9 +9,10 @@ metadata:
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- if or $.Values.defaults.annotations .annotations }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots .annotations }}
   annotations:
-      {{- with $.Values.defaults.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
       {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- end }}
 spec:
@@ -20,7 +21,11 @@ spec:
     {{- end }}
     {{- if not (empty .type) }}
   type: {{ .type }}
-      {{- if eq .type "LoadBalancer" }}
+      {{- if eq .type "ExternalName" }}
+        {{- with .externalName }}
+  externalName: {{ . }}
+        {{- end }}
+      {{- else if eq .type "LoadBalancer" }}
         {{- if not (empty .loadBalancerIP) }}
   loadBalancerIP: {{ .loadBalancerIP }}
         {{- end }}
@@ -65,8 +70,10 @@ spec:
     nodePort: {{ .nodePort }}
       {{- end }}
     {{- end }}
+    {{- if ne (.type | default "") "ExternalName" }}
   selector:
-    {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
-    {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+      {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
+      {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- end }}
   {{- end }}
 {{- end }}

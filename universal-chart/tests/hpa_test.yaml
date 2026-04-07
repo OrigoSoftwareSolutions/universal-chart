@@ -32,3 +32,53 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: includes defaults.annotations on hpa
+    set:
+      defaults:
+        annotations:
+          global: from-defaults
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.minReplicas: 2
+      hpas.web.maxReplicas: 5
+      hpas.web.targetCPU: 70
+    asserts:
+      - equal:
+          path: metadata.annotations.global
+          value: from-defaults
+
+  - it: merges defaults.annotations with instance annotations
+    set:
+      defaults:
+        annotations:
+          global: from-defaults
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.minReplicas: 2
+      hpas.web.maxReplicas: 5
+      hpas.web.targetCPU: 70
+      hpas.web.annotations:
+        instance: from-hpa
+    asserts:
+      - equal:
+          path: metadata.annotations.global
+          value: from-defaults
+      - equal:
+          path: metadata.annotations.instance
+          value: from-hpa
+
+  - it: renders targetMemory metric when set
+    set:
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.minReplicas: 2
+      hpas.web.maxReplicas: 5
+      hpas.web.targetMemory: 80
+    asserts:
+      - contains:
+          path: spec.metrics
+          content:
+            type: Resource
+            resource:
+              name: memory
+              target:
+                type: Utilization
+                averageUtilization: 80

@@ -9,17 +9,24 @@ metadata:
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots .annotations }}
+  annotations:
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- end }}
 spec:
-    {{- if not (empty .minAvailable) }}
+    {{- if hasKey $pdb "minAvailable" }}
   minAvailable: {{ .minAvailable }}
-    {{- else }}
-      {{- if not (empty .maxUnavailable) }}
+    {{- else if hasKey $pdb "maxUnavailable" }}
   maxUnavailable: {{ .maxUnavailable }}
-      {{- end }}
+    {{- end }}
+    {{- with .unhealthyPodEvictionPolicy }}
+  unhealthyPodEvictionPolicy: {{ . }}
     {{- end }}
   selector:
     matchLabels:
-    {{- include "helpers.app.selectorLabels" $ | nindent 6 }}
+    {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}
     {{- with $.Values.defaults.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end -}}
     {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end -}}
   {{- end }}

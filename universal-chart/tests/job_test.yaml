@@ -44,3 +44,90 @@ tests:
       - isNotEmpty:
           path: metadata.namespace
         documentIndex: 1
+
+  - it: jobsGeneral.podLabels appears in pod template
+    set:
+      jobsGeneral:
+        podLabels:
+          team: data
+      jobs:
+        refresh:
+          containers:
+            - name: refresh
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.team
+          value: data
+
+  - it: jobsGeneral.podAnnotations appears in pod template
+    set:
+      jobsGeneral:
+        podAnnotations:
+          batch-owner: data-team
+      jobs:
+        refresh:
+          containers:
+            - name: refresh
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations.batch-owner
+          value: data-team
+
+  - it: renders backoffLimit zero
+    set:
+      jobs:
+        refresh:
+          backoffLimit: 0
+          containers:
+            - name: refresh
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.backoffLimit
+          value: 0
+
+  - it: renders ttlSecondsAfterFinished zero
+    set:
+      jobs:
+        refresh:
+          ttlSecondsAfterFinished: 0
+          containers:
+            - name: refresh
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.ttlSecondsAfterFinished
+          value: 0
+
+  - it: renders parallelism zero
+    set:
+      jobs:
+        refresh:
+          parallelism: 0
+          containers:
+            - name: refresh
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.parallelism
+          value: 0
+
+  - it: renders PrometheusRule when commandDurationAlert is zero
+    set:
+      jobs.refresh.commandDurationAlert: 0
+      jobs.refresh.containers[0].name: refresh
+      jobs.refresh.containers[0].image: myapp
+      jobs.refresh.containers[0].imageTag: "1.0"
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: PrometheusRule
+        documentIndex: 1

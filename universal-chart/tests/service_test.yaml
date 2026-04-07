@@ -23,3 +23,62 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: merges defaults.annotations into service metadata
+    set:
+      defaults:
+        annotations:
+          team: platform
+      services.web.ports[0].port: 80
+    asserts:
+      - equal:
+          path: metadata.annotations.team
+          value: platform
+
+  - it: merges defaults.annotations with instance annotations
+    set:
+      defaults:
+        annotations:
+          team: platform
+      services.web.annotations:
+        custom: value
+      services.web.ports[0].port: 80
+    asserts:
+      - equal:
+          path: metadata.annotations.team
+          value: platform
+      - equal:
+          path: metadata.annotations.custom
+          value: value
+
+  - it: ExternalName service renders externalName and omits selector
+    set:
+      services:
+        extdb:
+          type: ExternalName
+          externalName: db.example.com
+          ports:
+            - name: pg
+              port: 5432
+    asserts:
+      - equal:
+          path: spec.type
+          value: ExternalName
+      - equal:
+          path: spec.externalName
+          value: db.example.com
+      - notExists:
+          path: spec.selector
+
+  - it: ClusterIP service renders selector and omits externalName
+    set:
+      services:
+        web:
+          ports:
+            - name: http
+              port: 80
+    asserts:
+      - isNotEmpty:
+          path: spec.selector
+      - notExists:
+          path: spec.externalName

@@ -2,3 +2,4 @@
 {{- include "helpers.deprecation.workload.imagePullSecrets" $ }}
 {{- include "helpers.deprecation.serviceMonitors" $ }}
 {{- include "helpers.deprecation.extraVolumeMounts" $ }}
+{{- include "helpers.deprecation.securityContext" $ }}

@@ -19,6 +19,8 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -my-issuer$
+      - isNotEmpty:
+          path: metadata.namespace
       - equal:
           path: spec.acme.server
           value: https://acme-v02.api.letsencrypt.org/directory
@@ -44,15 +46,20 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -my-issuer$
+      - notExists:
+          path: metadata.namespace
 
-  - it: does not render without cert-manager capability
+  - it: falls back to v1alpha2 without cert-manager v1
     set:
       issuers.my-issuer.acme.server: https://acme-v02.api.letsencrypt.org/directory
       issuers.my-issuer.acme.email: admin@example.com
       issuers.my-issuer.acme.privateKeySecretRef.name: letsencrypt-key
     asserts:
-      - hasDocuments:
-          count: 0
+      - isKind:
+          of: Issuer
+      - equal:
+          path: apiVersion
+          value: cert-manager.io/v1alpha2
 
   - it: does not render a disabled issuer
     capabilities:
@@ -85,3 +92,40 @@ tests:
       - equal:
           path: spec.acme.privateKeySecretRef.name
           value: letsencrypt-key
+
+  - it: includes defaults.annotations on issuer
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      defaults:
+        annotations:
+          global: from-defaults
+      issuers.my-issuer.acme.server: https://acme-v02.api.letsencrypt.org/directory
+      issuers.my-issuer.acme.email: admin@example.com
+      issuers.my-issuer.acme.privateKeySecretRef.name: letsencrypt-key
+    asserts:
+      - equal:
+          path: metadata.annotations.global
+          value: from-defaults
+
+  - it: merges defaults.annotations with instance annotations on issuer
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      defaults:
+        annotations:
+          global: from-defaults
+      issuers.my-issuer.acme.server: https://acme-v02.api.letsencrypt.org/directory
+      issuers.my-issuer.acme.email: admin@example.com
+      issuers.my-issuer.acme.privateKeySecretRef.name: letsencrypt-key
+      issuers.my-issuer.annotations:
+        instance: from-issuer
+    asserts:
+      - equal:
+          path: metadata.annotations.global
+          value: from-defaults
+      - equal:
+          path: metadata.annotations.instance
+          value: from-issuer

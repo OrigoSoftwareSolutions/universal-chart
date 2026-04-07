@@ -44,3 +44,108 @@ tests:
       - isNotEmpty:
           path: metadata.namespace
         documentIndex: 1
+
+  - it: singleOnly sets concurrencyPolicy to Forbid
+    set:
+      cronJobs.cleanup.schedule: "*/5 * * * *"
+      cronJobs.cleanup.singleOnly: true
+      cronJobs.cleanup.containers[0].name: cleanup
+      cronJobs.cleanup.containers[0].image: myapp
+      cronJobs.cleanup.containers[0].imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Forbid
+
+  - it: cronJobsGeneral.podLabels appears in pod template
+    set:
+      cronJobsGeneral:
+        podLabels:
+          team: platform
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.metadata.labels.team
+          value: platform
+
+  - it: cronJobsGeneral.podAnnotations appears in pod template
+    set:
+      cronJobsGeneral:
+        podAnnotations:
+          cron-owner: platform-team
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.metadata.annotations.cron-owner
+          value: platform-team
+
+  - it: renders backoffLimit zero
+    set:
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          backoffLimit: 0
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.backoffLimit
+          value: 0
+
+  - it: renders successfulJobsHistoryLimit zero
+    set:
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          successfulJobsHistoryLimit: 0
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.successfulJobsHistoryLimit
+          value: 0
+
+  - it: renders failedJobsHistoryLimit zero
+    set:
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          failedJobsHistoryLimit: 0
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.failedJobsHistoryLimit
+          value: 0
+
+  - it: renders PrometheusRule when commandDurationAlert is zero
+    set:
+      cronJobs.cleanup.schedule: "*/5 * * * *"
+      cronJobs.cleanup.commandDurationAlert: 0
+      cronJobs.cleanup.containers[0].name: cleanup
+      cronJobs.cleanup.containers[0].image: myapp
+      cronJobs.cleanup.containers[0].imageTag: "1.0"
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: PrometheusRule
+        documentIndex: 1

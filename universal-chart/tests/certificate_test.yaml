@@ -31,14 +31,17 @@ tests:
           path: spec.issuerRef.kind
           value: ClusterIssuer
 
-  - it: does not render without cert-manager capability
+  - it: falls back to v1alpha2 without cert-manager v1
     set:
       certificates.my-cert.dnsNames[0]: example.com
       certificates.my-cert.issuerRef.name: letsencrypt
       certificates.my-cert.secretName: my-cert-tls
     asserts:
-      - hasDocuments:
-          count: 0
+      - isKind:
+          of: Certificate
+      - equal:
+          path: apiVersion
+          value: cert-manager.io/v1alpha2
 
   - it: does not render a disabled certificate
     capabilities:
@@ -66,3 +69,52 @@ tests:
       - matchRegex:
           path: spec.issuerRef.name
           pattern: -letsencrypt$
+
+  - it: includes namespace in metadata
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      certificates.my-cert.dnsNames[0]: example.com
+      certificates.my-cert.issuerRef.name: letsencrypt
+      certificates.my-cert.secretName: my-cert-tls
+    asserts:
+      - isNotEmpty:
+          path: metadata.namespace
+
+  - it: includes defaults.annotations on certificate metadata
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      defaults:
+        annotations:
+          global: from-defaults
+      certificates.my-cert.dnsNames[0]: example.com
+      certificates.my-cert.issuerRef.name: letsencrypt
+      certificates.my-cert.secretName: my-cert-tls
+    asserts:
+      - equal:
+          path: metadata.annotations.global
+          value: from-defaults
+
+  - it: merges defaults.annotations with instance annotations on certificate metadata
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      defaults:
+        annotations:
+          global: from-defaults
+      certificates.my-cert.dnsNames[0]: example.com
+      certificates.my-cert.issuerRef.name: letsencrypt
+      certificates.my-cert.secretName: my-cert-tls
+      certificates.my-cert.annotations:
+        instance: from-cert
+    asserts:
+      - equal:
+          path: metadata.annotations.global
+          value: from-defaults
+      - equal:
+          path: metadata.annotations.instance
+          value: from-cert

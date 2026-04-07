@@ -56,6 +56,21 @@ tests:
           path: spec.template.spec.securityContext.runAsUser
           value: 3000
 
+  - it: instance podSecurityContext overrides deploymentsGeneral securityContext
+    set:
+      deploymentsGeneral:
+        securityContext:
+          runAsUser: 2000
+      deployments:
+        web:
+          image: myapp:1.0
+          podSecurityContext:
+            runAsUser: 3000
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 3000
+
   - it: no pod securityContext when all tiers are empty
     values:
       - values/empty_defaults.yaml
@@ -96,6 +111,37 @@ tests:
           image: myapp:1.0
           securityContext:
             readOnlyRootFilesystem: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: false
+
+  - it: workload containerSecurityContext overrides defaults.containerSecurityContext
+    set:
+      defaults:
+        containerSecurityContext:
+          readOnlyRootFilesystem: true
+      deployments:
+        web:
+          image: myapp:1.0
+          containerSecurityContext:
+            readOnlyRootFilesystem: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: false
+
+  - it: deploymentsGeneral.containerSecurityContext overrides defaults.containerSecurityContext
+    set:
+      defaults:
+        containerSecurityContext:
+          readOnlyRootFilesystem: true
+      deploymentsGeneral:
+        containerSecurityContext:
+          readOnlyRootFilesystem: false
+      deployments:
+        web:
+          image: myapp:1.0
     asserts:
       - equal:
           path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
@@ -158,6 +204,81 @@ tests:
     asserts:
       - notExists:
           path: spec.template.spec.containers[0].resources
+
+  - it: deploymentsGeneral.resources overrides defaults.resources
+    set:
+      defaults:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+      deploymentsGeneral:
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 250m
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 256Mi
+
+  - it: instance resources override deploymentsGeneral.resources
+    set:
+      defaults:
+        resources:
+          requests:
+            cpu: 100m
+      deploymentsGeneral:
+        resources:
+          requests:
+            cpu: 250m
+      deployments:
+        web:
+          image: myapp:1.0
+          resources:
+            requests:
+              cpu: 500m
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 500m
+
+  - it: deploymentsGeneral.tolerations overrides defaults.tolerations
+    set:
+      defaults:
+        tolerations:
+          - key: default-key
+            operator: Exists
+            effect: NoSchedule
+      deploymentsGeneral:
+        tolerations:
+          - key: general-key
+            operator: Equal
+            value: general-val
+            effect: NoExecute
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: general-key
+            operator: Equal
+            value: general-val
+            effect: NoExecute
+      - notContains:
+          path: spec.template.spec.tolerations
+          content:
+            key: default-key
+            operator: Exists
+            effect: NoSchedule
 
   # ── TopologySpreadConstraints: 3-tier cascade ──────────────────────────────
   - it: applies defaults.topologySpreadConstraints when nothing else is set
@@ -308,3 +429,502 @@ tests:
       - equal:
           path: spec.template.spec.containers[1].securityContext.readOnlyRootFilesystem
           value: true
+
+  # ── serviceAccountName: 3-tier cascade ───────────────────────────────────
+  - it: deploymentsGeneral.serviceAccountName overrides defaults.serviceAccountName
+    set:
+      defaults:
+        serviceAccountName: default-sa
+      deploymentsGeneral:
+        serviceAccountName: general-sa
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: general-sa
+
+  - it: instance serviceAccountName overrides deploymentsGeneral
+    set:
+      defaults:
+        serviceAccountName: default-sa
+      deploymentsGeneral:
+        serviceAccountName: general-sa
+      deployments:
+        web:
+          image: myapp:1.0
+          serviceAccountName: instance-sa
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: instance-sa
+
+  - it: deploymentsGeneral.priorityClassName overrides defaults.priorityClassName
+    set:
+      defaults:
+        priorityClassName: default-priority
+      deploymentsGeneral:
+        priorityClassName: general-priority
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.priorityClassName
+          value: general-priority
+
+  - it: deploymentsGeneral.dnsPolicy overrides defaults.dnsPolicy
+    set:
+      defaults:
+        dnsPolicy: ClusterFirst
+      deploymentsGeneral:
+        dnsPolicy: None
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.dnsPolicy
+          value: None
+
+  - it: deploymentsGeneral.hostAliases overrides defaults.hostAliases
+    set:
+      defaults:
+        hostAliases:
+          - ip: 10.0.0.1
+            hostnames:
+              - default.local
+      deploymentsGeneral:
+        hostAliases:
+          - ip: 10.0.0.2
+            hostnames:
+              - general.local
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - contains:
+          path: spec.template.spec.hostAliases
+          content:
+            ip: 10.0.0.2
+            hostnames:
+              - general.local
+      - notContains:
+          path: spec.template.spec.hostAliases
+          content:
+            ip: 10.0.0.1
+            hostnames:
+              - default.local
+
+  - it: deploymentsGeneral.nodeSelector overrides defaults.nodeSelector
+    set:
+      defaults:
+        nodeSelector:
+          disk: ssd
+      deploymentsGeneral:
+        nodeSelector:
+          gpu: "true"
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.gpu
+          value: "true"
+      - notExists:
+          path: spec.template.spec.nodeSelector.disk
+
+  - it: instance nodeSelector overrides deploymentsGeneral
+    set:
+      deploymentsGeneral:
+        nodeSelector:
+          gpu: "true"
+      deployments:
+        web:
+          image: myapp:1.0
+          nodeSelector:
+            zone: us-east-1a
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.zone
+          value: us-east-1a
+      - notExists:
+          path: spec.template.spec.nodeSelector.gpu
+
+  - it: defaults.nodeSelector applies when no general or instance set
+    set:
+      defaults:
+        nodeSelector:
+          disk: ssd
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.disk
+          value: ssd
+
+  # ── usePredefinedAffinity: instance-level override ──────────────────────────
+  - it: instance usePredefinedAffinity false disables predefined affinity
+    set:
+      defaults:
+        usePredefinedAffinity: true
+      deployments:
+        web:
+          image: myapp:1.0
+          usePredefinedAffinity: false
+    asserts:
+      - notExists:
+          path: spec.template.spec.affinity
+
+  - it: instance usePredefinedAffinity overrides general
+    set:
+      defaults:
+        usePredefinedAffinity: true
+      deploymentsGeneral:
+        usePredefinedAffinity: false
+      deployments:
+        web:
+          image: myapp:1.0
+          usePredefinedAffinity: true
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: custom
+                        operator: In
+                        values:
+                          - "true"
+    asserts:
+      - isNotEmpty:
+          path: spec.template.spec.affinity
+
+  # ── general.podLabels / general.podAnnotations on deployment ────────────────
+  - it: deploymentsGeneral.podLabels appears in pod template
+    set:
+      deploymentsGeneral:
+        podLabels:
+          team: backend
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.team
+          value: backend
+
+  - it: deploymentsGeneral.podAnnotations appears in pod template
+    set:
+      deploymentsGeneral:
+        podAnnotations:
+          instrumentation: enabled
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations.instrumentation
+          value: enabled
+
+  # ── terminationGracePeriodSeconds: zero override ────────────────────────────
+  - it: instance terminationGracePeriodSeconds 0 overrides defaults
+    set:
+      defaults:
+        terminationGracePeriodSeconds: 30
+      deployments:
+        web:
+          image: myapp:1.0
+          terminationGracePeriodSeconds: 0
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 0
+
+  - it: general terminationGracePeriodSeconds 0 overrides defaults
+    set:
+      defaults:
+        terminationGracePeriodSeconds: 30
+      deploymentsGeneral:
+        terminationGracePeriodSeconds: 0
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 0
+
+  # ── empty collections clear inherited values ────────────────────────────────
+  - it: instance empty hostAliases clears defaults
+    set:
+      defaults:
+        hostAliases:
+          - ip: 10.0.0.1
+            hostnames:
+              - default.local
+      deployments:
+        web:
+          image: myapp:1.0
+          hostAliases: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.hostAliases
+
+  - it: instance empty nodeSelector clears defaults
+    set:
+      defaults:
+        nodeSelector:
+          disk: ssd
+      deployments:
+        web:
+          image: myapp:1.0
+          nodeSelector: {}
+    asserts:
+      - notExists:
+          path: spec.template.spec.nodeSelector
+
+  - it: instance empty tolerations clears defaults
+    set:
+      defaults:
+        tolerations:
+          - key: default-key
+            operator: Exists
+            effect: NoSchedule
+      deployments:
+        web:
+          image: myapp:1.0
+          tolerations: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.tolerations
+
+  - it: instance empty topologySpreadConstraints clears defaults
+    set:
+      defaults:
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
+      deployments:
+        web:
+          image: myapp:1.0
+          topologySpreadConstraints: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints
+
+  - it: general empty hostAliases clears defaults
+    set:
+      defaults:
+        hostAliases:
+          - ip: 10.0.0.1
+            hostnames:
+              - default.local
+      deploymentsGeneral:
+        hostAliases: []
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - notExists:
+          path: spec.template.spec.hostAliases
+
+  - it: general empty tolerations clears defaults
+    set:
+      defaults:
+        tolerations:
+          - key: default-key
+            operator: Exists
+            effect: NoSchedule
+      deploymentsGeneral:
+        tolerations: []
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - notExists:
+          path: spec.template.spec.tolerations
+
+  # --- serviceAccountName nil-safe cascade ---
+
+  - it: instance empty serviceAccountName clears general
+    set:
+      deploymentsGeneral:
+        serviceAccountName: general-sa
+      deployments:
+        web:
+          image: myapp:1.0
+          serviceAccountName: ""
+    asserts:
+      - notExists:
+          path: spec.template.spec.serviceAccountName
+
+  - it: instance serviceAccountName overrides general
+    set:
+      deploymentsGeneral:
+        serviceAccountName: general-sa
+      deployments:
+        web:
+          image: myapp:1.0
+          serviceAccountName: instance-sa
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: instance-sa
+
+  # --- affinity nil-safe cascade ---
+
+  - it: instance empty affinity disables predefined affinity
+    set:
+      defaults:
+        usePredefinedAffinity: true
+      deployments:
+        web:
+          image: myapp:1.0
+          affinity: {}
+    asserts:
+      - notExists:
+          path: spec.template.spec.affinity
+
+  # --- priorityClassName nil-safe cascade ---
+
+  - it: instance empty priorityClassName clears defaults
+    set:
+      defaults:
+        priorityClassName: default-priority
+      deployments:
+        web:
+          image: myapp:1.0
+          priorityClassName: ""
+    asserts:
+      - notExists:
+          path: spec.template.spec.priorityClassName
+
+  # --- dnsPolicy nil-safe cascade ---
+
+  - it: instance empty dnsPolicy clears defaults
+    set:
+      defaults:
+        dnsPolicy: ClusterFirst
+      deployments:
+        web:
+          image: myapp:1.0
+          dnsPolicy: ""
+    asserts:
+      - notExists:
+          path: spec.template.spec.dnsPolicy
+
+  # --- podSecurityContext nil-safe cascade ---
+
+  - it: instance empty podSecurityContext clears defaults
+    set:
+      defaults:
+        podSecurityContext:
+          runAsNonRoot: true
+      deployments:
+        web:
+          image: myapp:1.0
+          podSecurityContext: {}
+    asserts:
+      - notExists:
+          path: spec.template.spec.securityContext
+
+  # --- progressDeadlineSeconds cascade ---
+
+  - it: progressDeadlineSeconds defaults to 600
+    set:
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 600
+
+  - it: progressDeadlineSeconds respects general tier
+    set:
+      deploymentsGeneral:
+        progressDeadlineSeconds: 300
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 300
+
+  - it: progressDeadlineSeconds instance overrides general
+    set:
+      deploymentsGeneral:
+        progressDeadlineSeconds: 300
+      deployments:
+        web:
+          image: myapp:1.0
+          progressDeadlineSeconds: 120
+    asserts:
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 120
+
+  # ── Workload component selector labels ──────────────────────────────────────
+  - it: adds app.kubernetes.io/component label to deployment matchLabels
+    set:
+      deployments:
+        api:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: api
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/component"]
+          value: api
+
+  - it: two deployments in same release have different component selector labels
+    set:
+      deployments:
+        api:
+          image: myapp:1.0
+        worker:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: api
+        documentIndex: 0
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: worker
+        documentIndex: 1
+
+  - it: component label appears in pod affinity matchLabels
+    set:
+      deployments:
+        api:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.labelSelector.matchLabels["app.kubernetes.io/component"]
+          value: api
+
+  - it: component label is truncated to 63 characters for long workload names
+    set:
+      deployments:
+        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:
+          image: myapp:1.0
+    asserts:
+      - matchRegex:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          pattern: ^a{63}$
+
+  - it: container name is truncated to 63 characters for long workload names
+    set:
+      deployments:
+        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:
+          image: myapp:1.0
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].name
+          pattern: ^a{63}$

@@ -47,6 +47,13 @@
       {{- else }}
   emptyDir: {}
       {{- end }}
+    {{- else if eq .type "hostPath" }}
+- name: {{ .name }}
+  hostPath:
+    path: {{ .path }}
+      {{- with .hostPathType }}
+    type: {{ . }}
+      {{- end }}
     {{- end }}
   {{- end }}
 {{- end }}
@@ -71,6 +78,9 @@
       {{- with $p.subPath }}
   subPath: {{ . }}
       {{- end }}
+      {{- with $p.subPathExpr }}
+  subPathExpr: {{ . }}
+      {{- end }}
       {{- with $p.readOnly }}
   readOnly: {{ . }}
       {{- end }}
@@ -86,13 +96,27 @@
   {{- $hasAutoPvcs := false -}}
   {{- if $autoPvcs }}{{- range $name, $p := $ctx.Values.pvcs -}}{{- if not ($p.disabled | default false) }}{{ $hasAutoPvcs = true }}{{- end }}{{- end }}{{- end -}}
   {{- if or $hasAutoPvcs (or (or $val.volumes $val.extraVolumes) (or (or $general.extraVolumes $ctx.Values.defaults.extraVolumes) (or $general.volumes $ctx.Values.defaults.volumes))) }}
-    {{ with $val.volumes }}{{ include "helpers.volumes.typed" ( dict "volumes" . "context" $ctx) }}{{ end }}
-    {{ with $general.volumes }}{{ include "helpers.volumes.typed" ( dict "volumes" . "context" $ctx) }}{{ end }}
-    {{ with $ctx.Values.defaults.volumes }}{{ include "helpers.volumes.typed" ( dict "volumes" . "context" $ctx) }}{{ end }}
-    {{ with $val.extraVolumes }}{{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}{{ end }}
-    {{ with $general.extraVolumes }}{{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}{{ end }}
-    {{ with $ctx.Values.defaults.extraVolumes }}{{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}{{ end }}
-    {{- if $hasAutoPvcs }}{{ include "helpers.volumes.autoPvcVolumes" (dict "context" $ctx) }}{{ end }}
+    {{- with $val.volumes }}
+      {{ include "helpers.volumes.typed" ( dict "volumes" . "context" $ctx) }}
+    {{- end }}
+    {{- with $general.volumes }}
+      {{ include "helpers.volumes.typed" ( dict "volumes" . "context" $ctx) }}
+    {{- end }}
+    {{- with $ctx.Values.defaults.volumes }}
+      {{ include "helpers.volumes.typed" ( dict "volumes" . "context" $ctx) }}
+    {{- end }}
+    {{- with $val.extraVolumes }}
+      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
+    {{- end }}
+    {{- with $general.extraVolumes }}
+      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
+    {{- end }}
+    {{- with $ctx.Values.defaults.extraVolumes }}
+      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
+    {{- end }}
+    {{- if $hasAutoPvcs }}
+      {{ include "helpers.volumes.autoPvcVolumes" (dict "context" $ctx) }}
+    {{- end }}
   {{- else }}
   []
   {{- end }}
@@ -106,11 +130,23 @@
   {{- $hasAutoPvcMounts := false -}}
   {{- if $autoPvcs }}{{- range $name, $p := $ctx.Values.pvcs -}}{{- if and (not ($p.disabled | default false)) $p.mountPath }}{{ $hasAutoPvcMounts = true }}{{- end }}{{- end }}{{- end -}}
   {{- if or $hasAutoPvcMounts (or (or $val.volumeMounts $general.extraVolumeMounts) (or $ctx.Values.defaults.extraVolumeMounts (or $general.volumeMounts $ctx.Values.defaults.volumeMounts))) -}}
-    {{ with $val.volumeMounts }}{{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}{{ end }}
-    {{ with $general.volumeMounts }}{{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}{{ end }}
-    {{ with $general.extraVolumeMounts }}{{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}{{ end }}
-    {{ with $ctx.Values.defaults.volumeMounts }}{{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}{{ end }}
-    {{ with $ctx.Values.defaults.extraVolumeMounts }}{{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}{{ end }}
-    {{- if $hasAutoPvcMounts }}{{ include "helpers.volumes.autoPvcMounts" (dict "context" $ctx) }}{{ end }}
+    {{- with $val.volumeMounts }}
+      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
+    {{- end }}
+    {{- with $general.volumeMounts }}
+      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
+    {{- end }}
+    {{- with $general.extraVolumeMounts }}
+      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
+    {{- end }}
+    {{- with $ctx.Values.defaults.volumeMounts }}
+      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
+    {{- end }}
+    {{- with $ctx.Values.defaults.extraVolumeMounts }}
+      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
+    {{- end }}
+    {{- if $hasAutoPvcMounts }}
+      {{ include "helpers.volumes.autoPvcMounts" (dict "context" $ctx) }}
+    {{- end }}
   {{- else }}  []{{- end -}}
   {{- end -}}

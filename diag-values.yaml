@@ -1,0 +1,10 @@
+diagnosticMode:
+  enabled: true
+deployments:
+  api:
+    image: nginx
+    imageTag: "1.25"
+    ports:
+      http: 8080
+    healthCheck:
+      path: /healthz

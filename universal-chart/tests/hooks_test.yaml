@@ -20,3 +20,100 @@ tests:
           path: metadata.namespace
       - isNotEmpty:
           path: metadata.annotations["helm.sh/hook"]
+
+  - it: skips rendering when disabled is true
+    set:
+      hooks.migration.disabled: true
+      hooks.migration.containers[0].name: migrate
+      hooks.migration.containers[0].image: myapp
+      hooks.migration.containers[0].imageTag: "1.0"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: skips only disabled hook among multiple
+    set:
+      hooks.migration.containers[0].name: migrate
+      hooks.migration.containers[0].image: myapp
+      hooks.migration.containers[0].imageTag: "1.0"
+      hooks.cleanup.disabled: true
+      hooks.cleanup.containers[0].name: clean
+      hooks.cleanup.containers[0].image: myapp
+      hooks.cleanup.containers[0].imageTag: "1.0"
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: hooksGeneral.podLabels appears in pod template
+    set:
+      hooksGeneral:
+        podLabels:
+          team: devops
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.team
+          value: devops
+
+  - it: hooksGeneral.podAnnotations appears in pod template
+    set:
+      hooksGeneral:
+        podAnnotations:
+          hook-owner: devops-team
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations.hook-owner
+          value: devops-team
+
+  - it: minimal hook does not render empty labels or annotations in pod template
+    set:
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - notExists:
+          path: spec.template.metadata.labels
+      - notExists:
+          path: spec.template.metadata.annotations
+
+  - it: renders backoffLimit zero
+    set:
+      hooks:
+        migration:
+          backoffLimit: 0
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.backoffLimit
+          value: 0
+
+  - it: renders parallelism zero
+    set:
+      hooks:
+        migration:
+          parallelism: 0
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.parallelism
+          value: 0

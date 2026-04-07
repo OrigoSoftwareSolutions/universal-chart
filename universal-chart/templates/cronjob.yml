@@ -32,59 +32,61 @@ spec:
       {{- if .singleOnly }}
   concurrencyPolicy: Forbid
       {{- end }}
-      {{- if .startingDeadlineSeconds }}
+      {{- if (ne .startingDeadlineSeconds nil) }}
   startingDeadlineSeconds: {{ .startingDeadlineSeconds }}
-      {{- else if $general.startingDeadlineSeconds }}
+      {{- else if (ne $general.startingDeadlineSeconds nil) }}
   startingDeadlineSeconds: {{ $general.startingDeadlineSeconds }}
       {{- end }}
-      {{- if .successfulJobsHistoryLimit }}
+      {{- if (ne .successfulJobsHistoryLimit nil) }}
   successfulJobsHistoryLimit: {{ .successfulJobsHistoryLimit }}
-      {{- else if $general.successfulJobsHistoryLimit }}
+      {{- else if (ne $general.successfulJobsHistoryLimit nil) }}
   successfulJobsHistoryLimit: {{ $general.successfulJobsHistoryLimit }}
       {{- end }}
-      {{- if .failedJobsHistoryLimit }}
+      {{- if (ne .failedJobsHistoryLimit nil) }}
   failedJobsHistoryLimit: {{ .failedJobsHistoryLimit }}
-      {{- else if $general.failedJobsHistoryLimit }}
+      {{- else if (ne $general.failedJobsHistoryLimit nil) }}
   failedJobsHistoryLimit: {{ $general.failedJobsHistoryLimit }}
       {{- end }}
   jobTemplate:
     spec:
-      {{- if .parallelism }}
+      {{- if (ne .parallelism nil) }}
       parallelism: {{ .parallelism }}
-      {{- else if $general.parallelism }}
+      {{- else if (ne $general.parallelism nil) }}
       parallelism: {{ $general.parallelism }}
       {{- end }}
-      {{- if .completions }}
+      {{- if (ne .completions nil) }}
       completions: {{ .completions }}
-      {{- else if $general.completions }}
+      {{- else if (ne $general.completions nil) }}
       completions: {{ $general.completions }}
       {{- end }}
-      {{- if .activeDeadlineSeconds }}
+      {{- if (ne .activeDeadlineSeconds nil) }}
       activeDeadlineSeconds: {{ .activeDeadlineSeconds }}
-      {{- else if $general.activeDeadlineSeconds }}
+      {{- else if (ne $general.activeDeadlineSeconds nil) }}
       activeDeadlineSeconds: {{ $general.activeDeadlineSeconds }}
       {{- end }}
-      {{- if .backoffLimit }}
+      {{- if (ne .backoffLimit nil) }}
       backoffLimit: {{ .backoffLimit }}
-      {{- else if $general.backoffLimit }}
+      {{- else if (ne $general.backoffLimit nil) }}
       backoffLimit: {{ $general.backoffLimit }}
       {{- end }}
-      {{- if .ttlSecondsAfterFinished }}
+      {{- if (ne .ttlSecondsAfterFinished nil) }}
       ttlSecondsAfterFinished: {{ .ttlSecondsAfterFinished }}
-      {{- else if $general.ttlSecondsAfterFinished }}
+      {{- else if (ne $general.ttlSecondsAfterFinished nil) }}
       ttlSecondsAfterFinished: {{ $general.ttlSecondsAfterFinished }}
       {{- end }}
       template:
-      {{- if or $.Values.defaults.podLabels .podLabels $.Values.defaults.podAnnotations .podAnnotations }}
+      {{- if or $.Values.defaults.podLabels $general.podLabels .podLabels $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations }}
         metadata:
-        {{- if or $.Values.defaults.podLabels .podLabels }}
+        {{- if or $.Values.defaults.podLabels $general.podLabels .podLabels }}
           labels:
           {{- with $.Values.defaults.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
+          {{- with $general.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
           {{- with .podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
         {{- end }}
-        {{- if or $.Values.defaults.podAnnotations .podAnnotations }}
+        {{- if or $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations }}
           annotations:
           {{- with $.Values.defaults.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
+          {{- with $general.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
           {{- with .podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
         {{- end }}
       {{- else }}
@@ -93,7 +95,7 @@ spec:
         spec:
       {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | trim | nindent 10 }}
           restartPolicy: {{ .restartPolicy | default "Never" }}
-      {{- if .commandDurationAlert }}
+      {{- if ne .commandDurationAlert nil }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule

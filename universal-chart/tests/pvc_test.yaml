@@ -132,3 +132,42 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: skips rendering when disabled is true
+    set:
+      pvcs:
+        data:
+          disabled: true
+          accessModes:
+            - ReadWriteOnce
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: skips only disabled PVC among multiple
+    set:
+      pvcs:
+        data:
+          accessModes:
+            - ReadWriteOnce
+        logs:
+          disabled: true
+          accessModes:
+            - ReadWriteOnce
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: merges defaults.annotations into PVC metadata
+    set:
+      defaults:
+        annotations:
+          team: platform
+      pvcs:
+        data:
+          accessModes:
+            - ReadWriteOnce
+    asserts:
+      - equal:
+          path: metadata.annotations.team
+          value: platform

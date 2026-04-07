@@ -26,3 +26,90 @@ tests:
       - equal:
           path: apiVersion
           value: gateway.networking.k8s.io/v1beta1
+
+  - it: renders full chart labels including helm.sh/chart
+    capabilities:
+      apiVersions:
+        - gateway.networking.k8s.io/v1
+    set:
+      httpRoutes.my-route.spec.parentRefs[0].name: gateway
+    asserts:
+      - isNotEmpty:
+          path: metadata.labels["helm.sh/chart"]
+      - isNotEmpty:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+
+  - it: includes defaults.annotations on httproute
+    capabilities:
+      apiVersions:
+        - gateway.networking.k8s.io/v1
+    set:
+      defaults.annotations.team: platform
+      httpRoutes.my-route.spec.parentRefs[0].name: gateway
+    asserts:
+      - equal:
+          path: metadata.annotations.team
+          value: platform
+
+  - it: merges defaults.annotations with instance annotations
+    capabilities:
+      apiVersions:
+        - gateway.networking.k8s.io/v1
+    set:
+      defaults.annotations.team: platform
+      httpRoutes.my-route.annotations.env: prod
+      httpRoutes.my-route.spec.parentRefs[0].name: gateway
+    asserts:
+      - equal:
+          path: metadata.annotations.team
+          value: platform
+      - equal:
+          path: metadata.annotations.env
+          value: prod
+
+  - it: renders annotations through tplvalues.render
+    capabilities:
+      apiVersions:
+        - gateway.networking.k8s.io/v1
+    set:
+      httpRoutes.my-route.annotations.release: "{{ .Release.Name }}"
+      httpRoutes.my-route.spec.parentRefs[0].name: gateway
+    asserts:
+      - equal:
+          path: metadata.annotations.release
+          value: RELEASE-NAME
+
+  - it: renders spec through tplvalues.render
+    capabilities:
+      apiVersions:
+        - gateway.networking.k8s.io/v1
+    set:
+      httpRoutes.my-route.spec.parentRefs[0].name: gateway
+      httpRoutes.my-route.spec.hostnames[0]: "{{ .Release.Name }}.example.com"
+    asserts:
+      - equal:
+          path: spec.hostnames[0]
+          value: RELEASE-NAME.example.com
+
+  - it: skips rendering when disabled is true
+    capabilities:
+      apiVersions:
+        - gateway.networking.k8s.io/v1
+    set:
+      httpRoutes.my-route.disabled: true
+      httpRoutes.my-route.spec.parentRefs[0].name: gateway
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: includes defaults.labels on httproute
+    capabilities:
+      apiVersions:
+        - gateway.networking.k8s.io/v1
+    set:
+      defaults.labels.team: platform
+      httpRoutes.my-route.spec.parentRefs[0].name: gateway
+    asserts:
+      - equal:
+          path: metadata.labels.team
+          value: platform

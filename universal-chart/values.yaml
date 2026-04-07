@@ -26,13 +26,12 @@ defaultImageTag: v0.0.1
 # -- Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`.
 defaultImagePullPolicy: "IfNotPresent"
 
-# -- Override the chart name used in resource name generation.
-# @ignored
-# nameOverride: ""
-
 # -- Image pull secret names referenced in every pod spec. Secrets must be pre-created in the namespace.
+# @default -- `[]`
 imagePullSecrets: []
-#   - my-registry-secret
+
+# Override the chart name used in resource name generation (uncomment to use).
+# nameOverride: ""
 
 # -- Diagnostic mode — overrides command/args on ALL containers (useful for debugging).
 diagnosticMode:
@@ -81,6 +80,8 @@ defaults:
   # priorityClassName: ""
   # -- Default DNS policy for pods. One of: `ClusterFirst`, `Default`, `ClusterFirstWithHostNet`, `None`.
   # dnsPolicy: ""
+  # -- Default nodeSelector applied to every pod spec.
+  # nodeSelector: {}
   # -- Default tolerations applied to every pod spec.
   # tolerations: []
   # -- Default volumes (typed format) added to every pod spec (see `_volumes.tpl`).
@@ -196,6 +197,7 @@ deployments: {}
 # -- Shared defaults for all StatefulSets.
 statefulSetsGeneral: {}
 # -- Kubernetes StatefulSet resources. Each key becomes the resource name.
+# Uses `updateStrategy` instead of `strategy`. Adds `volumeClaimTemplates` support.
 statefulSets: {}
 
 # -- Shared defaults for all DaemonSets.
@@ -296,6 +298,7 @@ pdbs: {}
 #   web:
 #     minAvailable: 1
 #     maxUnavailable: 25%
+#     unhealthyPodEvictionPolicy: IfHealthyBudget  # IfHealthyBudget | AlwaysAllow
 #     extraSelectorLabels:
 #       app: web
 

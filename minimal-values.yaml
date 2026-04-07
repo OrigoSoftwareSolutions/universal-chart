@@ -1,0 +1,6 @@
+deployments:
+  api:
+    image: nginx
+    imageTag: "1.25"
+    ports:
+      http: 8080

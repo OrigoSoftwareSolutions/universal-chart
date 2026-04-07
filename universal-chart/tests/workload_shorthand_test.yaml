@@ -64,3 +64,55 @@ tests:
           value: 8080
       - isNotNull:
           path: spec.template.spec.containers[0].startupProbe
+
+  # ── command / args string auto-split ─────────────────────────────────────
+  - it: command string is auto-split into array
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.command: "node server.js --port 8080"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["node", "server.js", "--port", "8080"]
+
+  - it: args string is auto-split into array
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.args: "--port 8080 --verbose"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["--port", "8080", "--verbose"]
+
+  - it: args array passes through unchanged
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.args:
+        - --port
+        - "8080"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: --port
+      - equal:
+          path: spec.template.spec.containers[0].args[1]
+          value: "8080"
+
+  # ── priorityClassName through tplvalues.render ────────────────────────────
+  - it: priorityClassName supports template expressions
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.priorityClassName: "{{ .Release.Name }}-priority"
+    asserts:
+      - equal:
+          path: spec.template.spec.priorityClassName
+          value: RELEASE-NAME-priority
+
+  - it: dnsPolicy supports template expressions
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.dnsPolicy: "{{ .Release.Name }}-dns"
+    asserts:
+      - equal:
+          path: spec.template.spec.dnsPolicy
+          value: RELEASE-NAME-dns

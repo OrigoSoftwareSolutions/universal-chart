@@ -24,11 +24,13 @@ metadata:
         {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
       {{- end }}
     {{- end }}
-    {{- if kindIs "map" $val.service }}
-      {{- with (index $val.service "annotations") }}
+    {{- $svcAnnotations := dict }}
+    {{- if kindIs "map" $val.service }}{{ $svcAnnotations = index $val.service "annotations" | default dict }}{{- end }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots $svcAnnotations }}
   annotations:
-        {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
-      {{- end }}
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- with $svcAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- end }}
 spec:
     {{- if kindIs "map" $val.service }}
@@ -50,7 +52,7 @@ spec:
     protocol: TCP
     {{- end }}
   selector:
-    {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
+    {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 4 }}
   {{- end }}
 {{- end }}
 

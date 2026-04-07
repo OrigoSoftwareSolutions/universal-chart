@@ -7,8 +7,11 @@ metadata:
   namespace: {{ .Release.Namespace | quote }}
   labels: {{- include "helpers.app.labels" $ | nindent 4 }}
   {{- $hookAnnots := include "helpers.app.defaultHookAnnotations" $ | trim }}
-  {{- if $hookAnnots }}
-  annotations:{{ $hookAnnots | nindent 4 }}
+  {{- $defaultAnnots := include "helpers.app.defaultAnnotations" $ | trim }}
+  {{- if or $hookAnnots $defaultAnnots }}
+  annotations:
+    {{- if $hookAnnots }}{{ $hookAnnots | nindent 4 }}{{- end }}
+    {{- if $defaultAnnots }}{{ $defaultAnnots | nindent 4 }}{{- end }}
   {{- end }}
 data:
   {{- $d1 := include "helpers.configmaps.renderConfigMap" (dict "value" .Values.envs) | trim }}
@@ -18,7 +21,7 @@ data:
 {{- end }}
 
 {{- range $cName, $val := .Values.configMaps -}}
-  {{- if not (eq $cName "envs") }}
+  {{- if and (not (eq $cName "envs")) (not ($val.disabled | default false)) }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -29,13 +32,15 @@ metadata:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with $val.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{ end }}
     {{- $hookAnnots := include "helpers.app.defaultHookAnnotations" $ | trim }}
-    {{- if or $val.annotations $hookAnnots }}
+    {{- $defaultAnnots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $val.annotations $hookAnnots $defaultAnnots }}
   annotations:
       {{- if $val.annotations -}}
         {{- $_ := include "helpers.tplvalues.render" (dict "value" $val.annotations "context" $) }}
         {{- include "helpers.app.annotations" (dict "value" $_ "context" $) | nindent 4 -}}
       {{- else }}
-      {{- $hookAnnots | nindent 4 }}
+        {{- if $hookAnnots }}{{ $hookAnnots | nindent 4 }}{{- end }}
+        {{- if $defaultAnnots }}{{ $defaultAnnots | nindent 4 }}{{- end }}
       {{- end }}
     {{- end }}
     {{- if and $val.data $val.binaryData }}{{- fail "Cannot set both data and binaryData in single ConfigMap" }} {{- end }}

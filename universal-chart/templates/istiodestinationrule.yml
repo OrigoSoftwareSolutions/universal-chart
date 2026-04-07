@@ -16,7 +16,7 @@ metadata:
       {{- with $destinationrule.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- end }}
 spec:
-  host: {{ $destinationrule.host | quote }}
+  host: {{ include "helpers.tplvalues.render" (dict "value" $destinationrule.host "context" $) | quote }}
   trafficPolicy:
     {{- with $destinationrule.trafficPolicy }}
       {{- toYaml . | nindent 4 }}
