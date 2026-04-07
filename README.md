@@ -1,8 +1,8 @@
 # Origo Universal Helm Chart
 
-![Version: 1.2.0](https://img.shields.io/badge/Version-1.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.2.1](https://img.shields.io/badge/Version-1.2.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
-A single, opinionated Helm chart that can deploy **any** standard Kubernetes workload and popular CRD resources. Instead of maintaining dozens of per-service charts, define all your resources declaratively under one release.
+One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
 ## Supported Resources
 
@@ -15,128 +15,969 @@ A single, opinionated Helm chart that can deploy **any** standard Kubernetes wor
 | Helm Hooks | Istio DestinationRule | | Istio AuthorizationPolicy |
 | HPA / PDB | ServiceMonitor | | ImageUpdater (Argo CD) |
 
-## Quick Start
-
-### Install from OCI registry
+## Install
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.2.0 \
+  --version 1.2.1 \
   -f my-values.yaml
 ```
 
-### Minimal values example
+## Quick Start — Realistic Web Service
+
+This single values file creates a Deployment, Service, HPA, PDB, CronJob, ExternalSecret, and environment variables:
 
 ```yaml
+# ── Deployment with auto-generated Service ──
 deployments:
   api:
-    image: myapp
-    imageTag: "1.0.0"
+    image: registry.example.com/my-api
+    imageTag: "1.4.2"
+    replicas: 2
     ports:
       http: 8080
     healthCheck:
       path: /healthz
     resources:
       requests:
-        cpu: 100m
-        memory: 128Mi
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
 
+# ── Autoscaling ──
+hpas:
+  api:
+    scaleTargetRef:
+      name: api
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPU: 70
+
+# ── Availability ──
+pdbs:
+  api:
+    minAvailable: 1
+
+# ── Scheduled work ──
+cronJobs:
+  cleanup:
+    schedule: "0 3 * * *"
+    image: registry.example.com/my-api
+    imageTag: "1.4.2"
+    command: "python manage.py cleanup --older-than 30d"
+
+# ── Secrets from AWS Secrets Manager ──
+secretStores:
+  aws:
+    spec:
+      provider:
+        aws:
+          service: SecretsManager
+          region: eu-west-1
+
+externalSecrets:
+  api-secrets:
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: aws
+        kind: SecretStore
+      target:
+        name: api-secrets
+      data:
+        - secretKey: DB_PASSWORD
+          remoteRef:
+            key: prod/api
+            property: db_password
+
+# ── Environment variables ──
 envs:
   LOG_LEVEL: info
+  API_BASE_URL: https://api.example.com
+
+secretEnvs:
+  SESSION_SECRET: change-me-in-real-life
 ```
 
-This creates a Deployment, a matching ClusterIP Service, liveness/readiness probes, a ConfigMap with environment variables — all from one values file.
+Everything below explains each feature in detail with copy-pasteable examples.
 
-## Features Worth Knowing About
+---
 
-### Auto-generated Services
+## Workloads
 
-When a workload (Deployment, StatefulSet, or DaemonSet) uses the single-container shorthand with a `ports:` map, a matching ClusterIP Service is created automatically — no separate `services:` block needed. Suppress it with `service: false` or customize with `service: { type: NodePort, clusterIP: None, labels: {...}, annotations: {...} }`.
+### Deployments
 
-### Single-Container Shorthand
+#### Single-container shorthand
 
-Instead of a full `containers:` list, set `image:`, `ports:`, `resources:`, `healthCheck:` directly on the workload. The chart synthesizes the container spec for you. `command` can be a string (`command: "python app.py"`) — it is automatically split into an array.
+The most common pattern. Set `image`, `ports`, `resources`, `healthCheck` directly on the workload — no `containers:` list needed.
 
-### Health Check Shorthand
+```yaml
+deployments:
+  api:
+    image: registry.example.com/my-api
+    imageTag: "2.0.0"
+    replicas: 3
+    ports:
+      http: 8080
+      metrics: 9090
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+    healthCheck:
+      path: /healthz
+      port: 8080            # default: 8080
+    command: "node server.js"  # string is auto-split into array
+```
 
-A single `healthCheck: { path: /healthz }` generates startup, liveness, **and** readiness probes simultaneously (HTTP GET, port 8080, 10s period by default).
+This creates:
+- A Deployment with one container
+- A ClusterIP Service with ports `http:8080` and `metrics:9090` (auto-generated from `ports:`)
+- Startup, liveness, and readiness probes (all from one `healthCheck`)
+
+#### Suppress or customize the auto-generated Service
+
+```yaml
+deployments:
+  worker:
+    image: my-worker
+    imageTag: "1.0.0"
+    ports:
+      http: 8080
+    service: false  # no Service created
+
+  api:
+    image: my-api
+    imageTag: "1.0.0"
+    ports:
+      http: 8080
+    service:
+      type: NodePort
+      annotations:
+        external-dns.alpha.kubernetes.io/hostname: api.example.com
+```
+
+#### Multi-container workloads
+
+When you need sidecars or multiple containers, use the full `containers:` list:
+
+```yaml
+deployments:
+  web:
+    replicas: 2
+    containers:
+      - name: app
+        image: my-app
+        imageTag: "1.0.0"
+        ports:
+          - name: http
+            containerPort: 8080
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+      - name: sidecar
+        image: envoyproxy/envoy
+        imageTag: "v1.28"
+        ports:
+          - name: admin
+            containerPort: 9901
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+```
+
+#### Health check shorthand
+
+A single `healthCheck` generates startup, liveness, **and** readiness probes:
+
+```yaml
+deployments:
+  api:
+    image: my-api
+    imageTag: "1.0.0"
+    healthCheck:
+      path: /healthz          # HTTP GET path
+      port: 8080              # default: 8080
+      periodSeconds: 10       # default: 10
+      failureThreshold: 3     # default: 3
+      initialDelaySeconds: 0  # default: 0
+```
+
+For full control, set `livenessProbe`, `readinessProbe`, `startupProbe` directly on the container.
+
+### StatefulSets
+
+Same shorthand as Deployments. Adds `volumeClaimTemplates` and uses `updateStrategy` instead of `strategy`:
+
+```yaml
+statefulSets:
+  postgres:
+    image: postgres
+    imageTag: "16"
+    replicas: 1
+    ports:
+      pg: 5432
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+    volumeClaimTemplates:
+      - metadata:
+          name: data
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 50Gi
+    volumeMounts:
+      - name: data
+        mountPath: /var/lib/postgresql/data
+```
+
+### DaemonSets
+
+Run one pod per node. No `replicas` field. Uses `updateStrategy`:
+
+```yaml
+daemonSets:
+  log-agent:
+    image: fluent/fluent-bit
+    imageTag: "3.0"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+    volumes:
+      - name: varlog
+        type: hostPath
+        path: /var/log
+    volumeMounts:
+      - name: varlog
+        mountPath: /var/log
+        readOnly: true
+```
+
+### CronJobs
+
+```yaml
+cronJobs:
+  nightly-report:
+    schedule: "0 2 * * *"
+    image: registry.example.com/reporter
+    imageTag: "1.0.0"
+    command: "python generate_report.py"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+  db-backup:
+    schedule: "0 */6 * * *"
+    singleOnly: true          # shorthand for concurrencyPolicy: Forbid
+    image: postgres
+    imageTag: "16"
+    command: "pg_dump -h $DB_HOST mydb | gzip > /backup/dump.sql.gz"
+    commandDurationAlert: 3600  # PrometheusRule fires if job runs > 1 hour
+```
+
+### Jobs
+
+```yaml
+jobs:
+  seed-data:
+    image: registry.example.com/my-api
+    imageTag: "1.0.0"
+    command: "python manage.py seed"
+    backoffLimit: 3
+```
+
+### Helm Hooks
+
+Pre/post-install/upgrade jobs that run during Helm lifecycle:
+
+```yaml
+hooks:
+  db-migrate:
+    containers:
+      - image: registry.example.com/my-api
+        imageTag: "1.0.0"
+        command:
+          - python
+          - manage.py
+          - migrate
+    hookAnnotations:
+      helm.sh/hook: pre-upgrade
+      helm.sh/hook-weight: "-5"
+      helm.sh/hook-delete-policy: before-hook-creation
+```
+
+---
+
+## Networking
+
+### Services
+
+Auto-generated from `ports:` on workloads (see above). For standalone Services:
+
+```yaml
+services:
+  external-db:
+    type: ExternalName
+    externalName: db.example.com
+    ports:
+      - name: pg
+        port: 5432
+```
+
+### HTTPRoute (Gateway API)
+
+Thin passthrough — `spec:` goes directly to the Kubernetes resource:
+
+```yaml
+httpRoutes:
+  api:
+    spec:
+      parentRefs:
+        - name: main-gateway
+          namespace: istio-ingress
+      hostnames:
+        - api.example.com
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: api
+              port: 8080
+```
+
+### Istio VirtualService
+
+```yaml
+istiovirtualservices:
+  api:
+    gateways:
+      - main-gateway
+    hosts:
+      - api.example.com
+    http:
+      - match:
+          - uri:
+              prefix: /v1
+        route:
+          - destination:
+              host: api
+              port:
+                number: 8080
+```
+
+### Istio Gateway
+
+```yaml
+istiogateways:
+  main:
+    selector:
+      istio: ingressgateway
+    servers:
+      - port:
+          number: 443
+          name: https
+          protocol: HTTPS
+        tls:
+          mode: SIMPLE
+          credentialName: tls-cert
+        hosts:
+          - "*.example.com"
+```
+
+### Istio DestinationRule
+
+```yaml
+istiodestinationrules:
+  api:
+    host: api.default.svc.cluster.local
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 100
+        http:
+          h2UpgradePolicy: DEFAULT
+```
+
+### Istio PeerAuthentication
+
+```yaml
+istioPeerAuthentications:
+  strict-mtls:
+    spec:
+      mtls:
+        mode: STRICT
+```
+
+### Istio AuthorizationPolicy
+
+```yaml
+istioAuthorizationPolicies:
+  allow-frontend:
+    spec:
+      action: ALLOW
+      rules:
+        - from:
+            - source:
+                principals:
+                  - "cluster.local/ns/frontend/sa/frontend"
+```
+
+---
+
+## Storage & Config
+
+### ConfigMaps
+
+```yaml
+configMaps:
+  app-config:
+    data:
+      config.yaml: |
+        database:
+          host: postgres
+          port: 5432
+      FEATURE_FLAG: "true"
+```
+
+### Secrets
+
+```yaml
+secrets:
+  api-keys:
+    data:
+      API_KEY: my-secret-key
+      # Prefix with b64: to pass raw base64 (avoids double-encoding)
+      CERT: "b64:LS0tLS1CRUdJTi..."
+```
+
+### PersistentVolumeClaims
+
+PVCs are **auto-mounted** as volumes into every Deployment, StatefulSet, and DaemonSet. Add `mountPath` to also inject a `volumeMount`:
+
+```yaml
+pvcs:
+  app-data:
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+    storageClassName: gp3
+    mountPath: /data          # auto-mount into every container
+    subPath: app              # optional: sub-directory within the volume
+    readOnly: false           # optional: default false
+
+  shared-cache:
+    accessModes:
+      - ReadWriteMany
+    size: 5Gi
+    # no mountPath = volume is added but not mounted (manual volumeMount needed)
+
+  old-pvc:
+    disabled: true            # skipped entirely — no volume, no mount
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+```
+
+Hooks, Jobs, and CronJobs are excluded from auto-mounting.
 
 ### Typed Volumes
 
-Volumes use a simplified format — `{ type: configMap, name: my-cm }` — instead of raw Kubernetes volume specs. Supports `configMap`, `secret`, `pvc`, `emptyDir`.
+Instead of raw Kubernetes volume specs, use simplified `type` + `name`:
 
-### PVCs Auto-Mounted
+```yaml
+deployments:
+  api:
+    image: my-api
+    imageTag: "1.0.0"
+    volumes:
+      - name: config
+        type: configMap
+        configMapName: app-config
+      - name: certs
+        type: secret
+        secretName: tls-certs
+      - name: tmp
+        type: emptyDir
+      - name: data
+        type: pvc
+        claimName: app-data
+    volumeMounts:
+      - name: config
+        mountPath: /etc/app
+      - name: certs
+        mountPath: /certs
+        readOnly: true
+      - name: tmp
+        mountPath: /tmp
+```
 
-PVCs defined under `pvcs:` are automatically added as volumes to every Deployment, StatefulSet, and DaemonSet. Add a `mountPath` to also inject a `volumeMount` into every container. Optional `subPath` and `readOnly` fields are supported. Hooks, Jobs, and CronJobs are excluded. Disabled PVCs (`disabled: true`) are skipped entirely.
+---
 
-### Template Expressions in Values
+## Environment Variables
 
-Go template expressions work anywhere in values. Write `"{{ .Release.Name }}-suffix"` and it renders at deploy time.
+### Global envs (injected into all workloads)
 
-### Environment Variable Shorthand
+```yaml
+# Plain text → ConfigMap + envFrom
+envs:
+  LOG_LEVEL: info
+  API_URL: https://api.example.com
 
-Top-level `envs:` and `secretEnvs:` maps auto-create ConfigMaps/Secrets and inject them via `envFrom`. For multiline or special characters, use `envsString:` / `secretEnvsString:` as raw YAML strings. Use `envsFromConfigmap` / `envsFromSecret` to cherry-pick individual keys from existing resources.
+# Secrets → Secret + envFrom
+secretEnvs:
+  DB_PASSWORD: s3cret
+  API_KEY: abc123
 
-### Per-Workload Env Injection
+# For multiline values or special characters, use the string variants:
+envsString: |
+  MULTILINE_CONFIG: |
+    line1
+    line2
 
-Beyond top-level `envs:`, each workload (or its `*General` block) can inject environment variables from existing resources. `envConfigmaps: [my-cm]` and `envSecrets: [my-secret]` inject entire ConfigMaps/Secrets via `envFrom`. `envsFromConfigmap` / `envsFromSecret` cherry-pick individual keys into `env`. Raw `env:` entries are also supported for inline variable definitions.
+secretEnvsString: |
+  PRIVATE_KEY: |
+    -----BEGIN RSA PRIVATE KEY-----
+    ...
+```
 
-### Base64 Shorthand
+### Per-workload env injection
 
-Values prefixed with `b64:` are handled automatically — in ConfigMaps the prefix is stripped and the value is decoded, while in Secrets it is passed through as raw base64 (skipping double-encoding).
+Each workload can pull envs from existing ConfigMaps/Secrets:
 
-### 3-Tier Defaults Cascade
+```yaml
+deployments:
+  api:
+    image: my-api
+    imageTag: "1.0.0"
 
-`defaults` (global) → `deploymentsGeneral` (kind-level) → per-instance values. Set shared config once, override where needed.
+    # Inject entire ConfigMap/Secret via envFrom
+    envConfigmaps:
+      - app-config
+      - feature-flags
+    envSecrets:
+      - api-credentials
 
-### Security Defaults
+    # Cherry-pick individual keys
+    envsFromConfigmap:
+      DATABASE_URL:
+        name: db-config
+        key: url
+    envsFromSecret:
+      DB_PASSWORD:
+        name: db-secret
+        key: password
 
-Every pod and container gets hardened security contexts out of the box: `runAsNonRoot`, `readOnlyRootFilesystem`, and `drop: ALL` capabilities. Override per-workload or globally via `defaults.podSecurityContext` / `defaults.containerSecurityContext`.
+    # Inline env entries
+    env:
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+```
 
-### Affinity Presets
+### Base64 shorthand
 
-Built-in pod affinity (`soft`), anti-affinity (`soft`), and node affinity presets. Control via `podAffinityPreset`, `podAntiAffinityPreset`, and `nodeAffinityPreset`. Disable per-workload with `usePredefinedAffinity: false` or supply a custom `affinity:` block.
+Values prefixed with `b64:` skip double-encoding in Secrets and auto-decode in ConfigMaps:
 
-### Diagnostic Mode
+```yaml
+secrets:
+  certs:
+    data:
+      ca.crt: "b64:LS0tLS1CRUdJTi..."  # stored as-is (already base64)
+      token: my-plain-token               # auto-encoded to base64
+```
 
-Set `diagnosticMode.enabled: true` to override all containers with `sleep infinity` and suppress all health probes — useful for debugging pods that crash-loop.
+---
 
-### Graceful Shutdown
+## Autoscaling & Availability
 
-Set `defaults.preStopSleep: 5` to inject a `sleep N` preStop lifecycle hook into every container, allowing in-flight requests to drain before SIGTERM.
+### HorizontalPodAutoscaler
 
-### Disable Without Deleting
+```yaml
+hpas:
+  api:
+    scaleTargetRef:
+      name: api               # references Deployment name
+      # kind: Deployment      # optional, defaults to Deployment
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70             # percentage
+    targetMemory: 80          # percentage
+    behavior:                 # optional: fine-grained scaling behavior
+      scaleDown:
+        stabilizationWindowSeconds: 300
+```
 
-Any resource instance accepts `disabled: true` to suppress rendering without removing its configuration.
+### PodDisruptionBudget
 
-### Escape Hatch
+```yaml
+pdbs:
+  api:
+    minAvailable: 1
+    # OR
+    # maxUnavailable: 25%
+    extraSelectorLabels:      # additional labels for pod selection
+      app: api
+```
 
-`extraDeploy:` accepts raw Kubernetes manifests (with template support) for anything the chart doesn't natively cover.
+---
 
-### ServiceAccount Auto-RBAC
+## Identity & Access
 
-Define `role:` or `clusterRole:` inside a `serviceAccount:` entry to auto-create the corresponding Role/ClusterRole and RoleBinding/ClusterRoleBinding. Provide `rules:` to create both the role and binding; omit `rules:` to bind to a pre-existing role by name.
+### ServiceAccount with auto-RBAC
+
+Define `role:` or `clusterRole:` inside a ServiceAccount to auto-create Role/ClusterRole and their bindings:
 
 ```yaml
 serviceAccount:
-  my-sa:
+  app-sa:
+    # Create a Role + RoleBinding
     role:
-      name: my-role
+      name: app-role
       rules:
-        - apiGroups: [""]
-          resources: ["pods"]
-          verbs: ["get", "list"]
+        - apiGroups:
+            - ""
+          resources:
+            - pods
+            - services
+          verbs:
+            - get
+            - list
+            - watch
+        - apiGroups:
+            - apps
+          resources:
+            - deployments
+          verbs:
+            - get
+            - list
+
+    # Bind to an existing ClusterRole (no rules = binding only)
     clusterRole:
-      name: my-cluster-role  # binds to existing ClusterRole (no rules = binding only)
+      name: view  # built-in K8s ClusterRole
 ```
 
-### Job / CronJob Duration Alerts
+Use `defaults.serviceAccountName: app-sa` or set `serviceAccountName` per workload to assign the ServiceAccount.
 
-Set `commandDurationAlert: <seconds>` on a Job or CronJob to auto-create a PrometheusRule that fires a warning when execution exceeds the threshold.
+---
 
-### CronJob Single Execution
+## Monitoring
 
-Set `singleOnly: true` on a CronJob as a shorthand for `concurrencyPolicy: Forbid` — ensures only one instance runs at a time.
+### ServiceMonitor (Prometheus)
+
+```yaml
+serviceMonitors:
+  api:
+    endpoints:
+      - port: metrics
+        path: /metrics
+        interval: 30s
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: api
+```
+
+### Job/CronJob Duration Alerts
+
+Auto-creates a PrometheusRule when execution exceeds a threshold:
+
+```yaml
+cronJobs:
+  etl:
+    schedule: "0 * * * *"
+    image: my-etl
+    imageTag: "1.0.0"
+    command: "python etl.py"
+    commandDurationAlert: 1800  # fires warning if job runs > 30 minutes
+```
+
+---
+
+## CRD Resources
+
+### ExternalSecret (External Secrets Operator)
+
+```yaml
+secretStores:
+  aws:
+    spec:
+      provider:
+        aws:
+          service: SecretsManager
+          region: eu-west-1
+          auth:
+            jwt:
+              serviceAccountRef:
+                name: eso-sa
+
+externalSecrets:
+  db-credentials:
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: aws
+        kind: SecretStore
+      target:
+        name: db-credentials
+      data:
+        - secretKey: password
+          remoteRef:
+            key: prod/database
+            property: password
+        - secretKey: username
+          remoteRef:
+            key: prod/database
+            property: username
+
+# Cluster-scoped variants
+clusterSecretStores:
+  global-aws:
+    spec:
+      provider:
+        aws:
+          service: SecretsManager
+          region: eu-west-1
+
+clusterExternalSecrets:
+  shared-config:
+    spec:
+      refreshInterval: 24h
+      secretStoreRef:
+        name: global-aws
+        kind: ClusterSecretStore
+      target:
+        name: shared-config
+      data: []
+```
+
+### Certificate (cert-manager)
+
+```yaml
+clusterIssuers:
+  letsencrypt-prod:
+    spec:
+      acme:
+        server: https://acme-v02.api.letsencrypt.org/directory
+        email: devops@example.com
+        privateKeySecretRef:
+          name: letsencrypt-prod
+        solvers:
+          - http01:
+              ingress:
+                class: istio
+
+certificates:
+  api-tls:
+    spec:
+      secretName: api-tls
+      issuerRef:
+        name: letsencrypt-prod
+        kind: ClusterIssuer
+      dnsNames:
+        - api.example.com
+        - "*.api.example.com"
+```
+
+### ImageUpdater (Argo CD)
+
+Configures automatic image updates for Argo CD applications:
+
+```yaml
+imageUpdaters:
+  my-app:
+    applicationName: my-argocd-app
+    # namespace: argocd       # default: argocd
+    images:
+      - alias: api
+        imageName: registry.example.com/my-api
+        updateStrategy: newest-build    # latest | newest-build | alphabetical | digest
+        allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
+      - alias: worker
+        imageName: registry.example.com/my-worker
+        updateStrategy: latest
+        ignoreTags:
+          - dev
+          - latest
+    writeBackConfig:
+      method: argocd    # or git
+      # git:
+      #   branch: main
+```
+
+---
+
+## Chart Behavior
+
+### 3-Tier Defaults Cascade
+
+Settings merge in order: `defaults` (global) → `deploymentsGeneral` (kind-level) → per-instance. Set shared config once, override where needed:
+
+```yaml
+defaults:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  podAnnotations:
+    sidecar.istio.io/inject: "true"
+
+deploymentsGeneral:
+  replicas: 2                 # all Deployments get 2 replicas unless overridden
+
+deployments:
+  api:
+    image: my-api
+    imageTag: "1.0.0"
+    # inherits: 2 replicas, 100m/128Mi resources, istio sidecar annotation
+
+  heavy-worker:
+    image: my-worker
+    imageTag: "1.0.0"
+    replicas: 1               # overrides deploymentsGeneral
+    resources:
+      requests:
+        cpu: 1
+        memory: 2Gi  # overrides defaults
+```
+
+Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountGeneral`.
+
+### Security Defaults
+
+Every pod gets hardened security contexts out of the box:
+
+```yaml
+# These are the defaults — you don't need to set them
+defaults:
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+```
+
+Override per-workload:
+
+```yaml
+deployments:
+  legacy-app:
+    image: old-app
+    imageTag: "1.0.0"
+    podSecurityContext:
+      runAsNonRoot: false
+    containerSecurityContext:
+      readOnlyRootFilesystem: false
+```
+
+### Affinity Presets
+
+Built-in pod affinity/anti-affinity rules are on by default:
+
+```yaml
+podAffinityPreset: soft       # soft | hard | "" (disabled)
+podAntiAffinityPreset: soft
+nodeAffinityPreset:
+  type: hard                  # soft | hard | ""
+  key: topology.kubernetes.io/zone
+  values:
+    - eu-west-1a
+    - eu-west-1b
+```
+
+Disable per-workload with `usePredefinedAffinity: false`, or supply a custom `affinity:` block.
+
+### Diagnostic Mode
+
+Override **all** containers with `sleep infinity` and suppress all health probes — useful for debugging crash-looping pods:
+
+```yaml
+diagnosticMode:
+  enabled: true
+  # command:
+  #   - sleep     # default
+  # args:
+  #   - infinity     # default
+```
+
+### Graceful Shutdown
+
+Inject a `sleep N` preStop hook into every container:
+
+```yaml
+defaults:
+  preStopSleep: 5  # seconds — allows in-flight requests to drain before SIGTERM
+```
+
+### Disable Without Deleting
+
+Any resource instance accepts `disabled: true` to suppress rendering. The config stays in your values file for easy re-enabling:
+
+```yaml
+deployments:
+  api:
+    disabled: true    # skipped entirely — no Deployment, no Service
+    image: my-api
+    imageTag: "1.0.0"
+    ports:
+      http: 8080
+```
+
+### Template Expressions in Values
+
+Go template expressions work anywhere in string values:
+
+```yaml
+deployments:
+  api:
+    image: my-api
+    imageTag: "1.0.0"
+    podAnnotations:
+      config-hash: '{{ include "helpers.workload.checksum" (printf "%s" $.Values.envs) }}'
+
+envs:
+  RELEASE: '{{ .Release.Name }}'
+```
+
+### Escape Hatch
+
+Deploy raw Kubernetes manifests for anything the chart doesn't natively support:
+
+```yaml
+extraDeploy:
+  network-policy: |-
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: {{ include "helpers.app.fullname" (dict "name" "deny-all" "context" $) }}
+      namespace: {{ .Release.Namespace | quote }}
+    spec:
+      podSelector: {}
+      policyTypes:
+        - Ingress
+        - Egress
+```
+
+---
 
 ## Values
 
