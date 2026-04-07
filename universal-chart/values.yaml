@@ -111,6 +111,12 @@ defaults:
   #     whenUnsatisfiable: ScheduleAnyway
   #     labelSelector:
   #       matchLabels: {}
+  # -- Default terminationGracePeriodSeconds for all pods. Omit to use Kubernetes default (30s).
+  # terminationGracePeriodSeconds: 60
+  # -- Default preStop sleep duration (seconds). When set, adds a `sleep N` preStop lifecycle hook
+  # to every container that does not define an explicit `lifecycle` block. Useful for graceful
+  # shutdown to allow in-flight requests to drain before SIGTERM.
+  # preStopSleep: 5
 
 # =============================================================================
 # @section Pod Scheduling & Affinity
@@ -261,10 +267,14 @@ secrets: {}
 
 # -- Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name.
 # PVCs are automatically added to the `volumes` block in each workload (excluding hooks).
+# Set `mountPath` on a PVC to also auto-mount it into every container.
 pvcs: {}
 #   app-data:
 #     accessModes: [ReadWriteOnce]
 #     size: 8Gi
+#     mountPath: /data           # auto-mounts this PVC into every container
+#     # subPath: ""              # optional: mount a sub-path of the volume
+#     # readOnly: false          # optional: mount read-only
 
 # =============================================================================
 # @section Autoscaling & Availability
@@ -285,6 +295,7 @@ hpas: {}
 pdbs: {}
 #   web:
 #     minAvailable: 1
+#     maxUnavailable: 25%
 #     extraSelectorLabels:
 #       app: web
 
@@ -420,6 +431,23 @@ clusterIssuers: {}
 #         email: devops@example.com
 #         privateKeySecretRef: { name: letsencrypt-prod }
 #         solvers: []
+
+# =============================================================================
+# @section Argo CD Image Updater
+# =============================================================================
+
+# -- Argo CD Image Updater resources. Each key becomes the resource name.
+# Configures automatic image updates for Argo CD applications.
+imageUpdaters: {}
+#   my-app:
+#     applicationName: "my-argocd-app"
+#     images:
+#       - alias: api
+#         imageName: registry.example.com/my-image
+#         updateStrategy: newest-build
+#         allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
+#     writeBackConfig:
+#       method: argocd
 
 # =============================================================================
 # @section Escape Hatch

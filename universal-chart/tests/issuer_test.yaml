@@ -1,0 +1,87 @@
+suite: issuer template
+templates:
+  - issuer.yml
+tests:
+  - it: renders an issuer when cert-manager is available
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      issuers.my-issuer.acme.server: https://acme-v02.api.letsencrypt.org/directory
+      issuers.my-issuer.acme.email: admin@example.com
+      issuers.my-issuer.acme.privateKeySecretRef.name: letsencrypt-key
+    asserts:
+      - isKind:
+          of: Issuer
+      - equal:
+          path: apiVersion
+          value: cert-manager.io/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -my-issuer$
+      - equal:
+          path: spec.acme.server
+          value: https://acme-v02.api.letsencrypt.org/directory
+      - equal:
+          path: spec.acme.email
+          value: admin@example.com
+      - equal:
+          path: spec.acme.privateKeySecretRef.name
+          value: letsencrypt-key
+
+  - it: renders a clusterissuer when kind is set to clusterissuer
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      issuers.my-issuer.kind: ClusterIssuer
+      issuers.my-issuer.acme.server: https://acme-v02.api.letsencrypt.org/directory
+      issuers.my-issuer.acme.email: admin@example.com
+      issuers.my-issuer.acme.privateKeySecretRef.name: letsencrypt-key
+    asserts:
+      - isKind:
+          of: ClusterIssuer
+      - matchRegex:
+          path: metadata.name
+          pattern: -my-issuer$
+
+  - it: does not render without cert-manager capability
+    set:
+      issuers.my-issuer.acme.server: https://acme-v02.api.letsencrypt.org/directory
+      issuers.my-issuer.acme.email: admin@example.com
+      issuers.my-issuer.acme.privateKeySecretRef.name: letsencrypt-key
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: does not render a disabled issuer
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      issuers.my-issuer.disabled: true
+      issuers.my-issuer.acme.server: https://acme-v02.api.letsencrypt.org/directory
+      issuers.my-issuer.acme.email: admin@example.com
+      issuers.my-issuer.acme.privateKeySecretRef.name: letsencrypt-key
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders acme spec correctly
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      issuers.my-issuer.acme.server: https://acme-v02.api.letsencrypt.org/directory
+      issuers.my-issuer.acme.email: admin@example.com
+      issuers.my-issuer.acme.privateKeySecretRef.name: letsencrypt-key
+    asserts:
+      - equal:
+          path: spec.acme.server
+          value: https://acme-v02.api.letsencrypt.org/directory
+      - equal:
+          path: spec.acme.email
+          value: admin@example.com
+      - equal:
+          path: spec.acme.privateKeySecretRef.name
+          value: letsencrypt-key

@@ -1,0 +1,61 @@
+suite: istiogateway template
+templates:
+  - istiogateway.yml
+tests:
+  - it: renders a gateway with correct kind apiversion and namespace
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istiogateway.yaml
+    asserts:
+      - isKind:
+          of: Gateway
+      - equal:
+          path: apiVersion
+          value: networking.istio.io/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -my-gw$
+      - isNotEmpty:
+          path: metadata.namespace
+  - it: omits gateway documents when disabled
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istiogateways.my-gw.disabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: renders selector and server ports
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istiogateway.yaml
+    asserts:
+      - equal:
+          path: spec.selector.istio
+          value: ingressgateway
+      - equal:
+          path: spec.servers[0].port.name
+          value: https
+      - equal:
+          path: spec.servers[0].port.number
+          value: 443
+      - equal:
+          path: spec.servers[0].port.protocol
+          value: HTTPS
+  - it: uses custom gateway name when provided
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istiogateway.yaml
+    set:
+      istiogateways.my-gw.name: custom-gateway
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: custom-gateway$

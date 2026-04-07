@@ -1,0 +1,10 @@
+hooks:
+  migrate:
+    image: myapp
+    imageTag: "1.0"
+
+pvcs:
+  app-data:
+    accessModes: [ReadWriteOnce]
+    size: 8Gi
+    mountPath: /data

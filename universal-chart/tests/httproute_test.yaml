@@ -3,6 +3,9 @@ templates:
   - httproutes.yaml
 tests:
   - it: renders an HTTPRoute with correct apiVersion
+    capabilities:
+      apiVersions:
+        - gateway.networking.k8s.io/v1
     set:
       httpRoutes.my-route.spec.parentRefs[0].name: gateway
       httpRoutes.my-route.spec.rules[0].matches[0].path.type: PathPrefix
@@ -15,3 +18,11 @@ tests:
           value: gateway.networking.k8s.io/v1
       - isNotEmpty:
           path: metadata.namespace
+
+  - it: falls back to v1beta1 without gateway API
+    set:
+      httpRoutes.my-route.spec.parentRefs[0].name: gateway
+    asserts:
+      - equal:
+          path: apiVersion
+          value: gateway.networking.k8s.io/v1beta1

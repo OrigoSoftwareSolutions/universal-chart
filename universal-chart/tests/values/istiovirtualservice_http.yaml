@@ -1,0 +1,16 @@
+istiovirtualservices:
+  my-vs:
+    hosts:
+      - example.com
+    gateways:
+      - my-gw
+    http:
+      - name: default
+        match:
+          - uri:
+              prefix: /
+        route:
+          - destination:
+              host: my-svc
+              port:
+                number: 8080

@@ -1,0 +1,68 @@
+suite: certificate template
+templates:
+  - certificate.yml
+tests:
+  - it: renders a certificate when cert-manager is available
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      certificates.my-cert.dnsNames[0]: example.com
+      certificates.my-cert.issuerRef.name: letsencrypt
+      certificates.my-cert.issuerRef.kind: ClusterIssuer
+      certificates.my-cert.issuerRef.originalName: letsencrypt-prod
+      certificates.my-cert.secretName: my-cert-tls
+    asserts:
+      - isKind:
+          of: Certificate
+      - equal:
+          path: apiVersion
+          value: cert-manager.io/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -my-cert$
+      - equal:
+          path: spec.dnsNames[0]
+          value: example.com
+      - equal:
+          path: spec.issuerRef.name
+          value: letsencrypt-prod
+      - equal:
+          path: spec.issuerRef.kind
+          value: ClusterIssuer
+
+  - it: does not render without cert-manager capability
+    set:
+      certificates.my-cert.dnsNames[0]: example.com
+      certificates.my-cert.issuerRef.name: letsencrypt
+      certificates.my-cert.secretName: my-cert-tls
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: does not render a disabled certificate
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      certificates.my-cert.disabled: true
+      certificates.my-cert.dnsNames[0]: example.com
+      certificates.my-cert.issuerRef.name: letsencrypt
+      certificates.my-cert.secretName: my-cert-tls
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders issuerref with helper fullname when original name is omitted
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
+    set:
+      certificates.my-cert.dnsNames[0]: example.com
+      certificates.my-cert.issuerRef.name: letsencrypt
+      certificates.my-cert.issuerRef.kind: Issuer
+      certificates.my-cert.secretName: my-cert-tls
+    asserts:
+      - matchRegex:
+          path: spec.issuerRef.name
+          pattern: -letsencrypt$

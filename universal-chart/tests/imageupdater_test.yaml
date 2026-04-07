@@ -1,0 +1,239 @@
+# =============================================================================
+# ImageUpdater CRD Tests
+# =============================================================================
+suite: imageupdater template
+templates:
+  - imageupdater.yaml
+
+tests:
+  # ---------------------------------------------------------------------------
+  # Basic rendering
+  # ---------------------------------------------------------------------------
+  - it: renders an ImageUpdater with correct apiVersion and kind
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - isKind:
+          of: ImageUpdater
+      - equal:
+          path: apiVersion
+          value: argocd-image-updater.argoproj.io/v1alpha1
+
+  - it: renders name via helpers.app.fullname
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: -my-app$
+
+  - it: includes standard labels
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - isNotEmpty:
+          path: metadata.labels["app.kubernetes.io/name"]
+
+  # ---------------------------------------------------------------------------
+  # Spec fields
+  # ---------------------------------------------------------------------------
+  - it: defaults namespace to argocd
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - equal:
+          path: spec.namespace
+          value: argocd
+
+  - it: renders applicationName as namePattern
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - equal:
+          path: spec.applicationRefs[0].namePattern
+          value: "my-argocd-app"
+
+  - it: renders image alias and imageName
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - equal:
+          path: spec.applicationRefs[0].images[0].alias
+          value: api
+      - equal:
+          path: spec.applicationRefs[0].images[0].imageName
+          value: registry.example.com/my-image
+
+  - it: renders updateStrategy from values
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - equal:
+          path: spec.applicationRefs[0].images[0].commonUpdateSettings.updateStrategy
+          value: newest-build
+
+  - it: defaults updateStrategy to latest
+    values:
+      - values/imageupdater_simple.yaml
+    asserts:
+      - equal:
+          path: spec.applicationRefs[0].images[0].commonUpdateSettings.updateStrategy
+          value: latest
+
+  - it: renders allowTags with regex preserved
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - matchRegex:
+          path: spec.applicationRefs[0].images[0].commonUpdateSettings.allowTags
+          pattern: "regexp:"
+
+  - it: renders writeBackConfig
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - equal:
+          path: spec.writeBackConfig.method
+          value: argocd
+
+  # ---------------------------------------------------------------------------
+  # Disabled guard
+  # ---------------------------------------------------------------------------
+  - it: omits disabled imageUpdaters
+    values:
+      - values/imageupdater_disabled.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # ---------------------------------------------------------------------------
+  # Multiple instances
+  # ---------------------------------------------------------------------------
+  - it: renders multiple imageUpdaters
+    values:
+      - values/imageupdater_multi.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: renders custom namespace override
+    values:
+      - values/imageupdater_multi.yaml
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: spec.namespace
+          value: custom-ns
+
+  - it: renders multiple images per instance
+    values:
+      - values/imageupdater_multi.yaml
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: spec.applicationRefs[0].images[0].alias
+          value: api
+      - equal:
+          path: spec.applicationRefs[0].images[1].alias
+          value: worker
+
+  - it: renders ignoreTags list
+    values:
+      - values/imageupdater_multi.yaml
+    documentIndex: 1
+    asserts:
+      - contains:
+          path: spec.applicationRefs[0].images[1].commonUpdateSettings.ignoreTags
+          content: latest
+      - contains:
+          path: spec.applicationRefs[0].images[1].commonUpdateSettings.ignoreTags
+          content: dev
+
+  - it: renders manifestTargets
+    values:
+      - values/imageupdater_multi.yaml
+    documentIndex: 1
+    asserts:
+      - isNotEmpty:
+          path: spec.applicationRefs[0].images[1].manifestTargets
+
+  - it: renders git writeBackConfig
+    values:
+      - values/imageupdater_multi.yaml
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: spec.writeBackConfig.method
+          value: git
+      - equal:
+          path: spec.writeBackConfig.git.branch
+          value: main
+
+  # ---------------------------------------------------------------------------
+  # Optional fields omitted when not set
+  # ---------------------------------------------------------------------------
+  - it: omits allowTags when not set
+    values:
+      - values/imageupdater_simple.yaml
+    asserts:
+      - notExists:
+          path: spec.applicationRefs[0].images[0].commonUpdateSettings.allowTags
+
+  - it: omits ignoreTags when not set
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - notExists:
+          path: spec.applicationRefs[0].images[0].commonUpdateSettings.ignoreTags
+
+  - it: omits manifestTargets when not set
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - notExists:
+          path: spec.applicationRefs[0].images[0].manifestTargets
+
+  # ---------------------------------------------------------------------------
+  # Labels and annotations
+  # ---------------------------------------------------------------------------
+  - it: renders custom labels
+    values:
+      - values/imageupdater_labels.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.custom
+          value: my-label
+
+  - it: renders custom annotations
+    values:
+      - values/imageupdater_annotations.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations.note
+          value: my-annotation
+
+  - it: omits annotations when not set
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - notExists:
+          path: metadata.annotations
+
+  # ---------------------------------------------------------------------------
+  # Template expressions
+  # ---------------------------------------------------------------------------
+  - it: renders template expressions in applicationName
+    values:
+      - values/imageupdater_tpl.yaml
+    asserts:
+      - equal:
+          path: spec.applicationRefs[0].namePattern
+          value: "RELEASE-NAME-app"
+
+  # ---------------------------------------------------------------------------
+  # Empty map
+  # ---------------------------------------------------------------------------
+  - it: renders no documents with empty imageUpdaters
+    asserts:
+      - hasDocuments:
+          count: 0

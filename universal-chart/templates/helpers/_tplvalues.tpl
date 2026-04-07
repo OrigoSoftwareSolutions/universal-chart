@@ -1,7 +1,13 @@
 {{- define "helpers.tplvalues.render" -}}
-  {{- if typeIs "string" .value }}
-    {{- tpl .value .context }}
-  {{- else }}
-    {{- tpl (.value | toYaml) .context }}
-  {{- end }}
+  {{- $rendered := "" -}}
+  {{- if typeIs "string" .value -}}
+    {{- $rendered = .value -}}
+  {{- else -}}
+    {{- $rendered = (.value | toYaml) -}}
+  {{- end -}}
+  {{- if contains "{{" $rendered -}}
+    {{- tpl $rendered .context -}}
+  {{- else -}}
+    {{- $rendered -}}
+  {{- end -}}
 {{- end -}}

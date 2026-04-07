@@ -6,7 +6,7 @@
 
 ---
 kind: {{ $kind }}
-apiVersion: cert-manager.io/v1
+apiVersion: {{ include "helpers.capabilities.certManager.apiVersion" $ }}
 metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
   labels:

@@ -89,14 +89,8 @@
         }
       }
     },
-    "envs": {
-      "type": "object",
-      "additionalProperties": { "type": ["string", "number", "boolean"] }
-    },
-    "secretEnvs": {
-      "type": "object",
-      "additionalProperties": { "type": ["string", "number", "boolean"] }
-    },
+    "envs": { "type": "object", "additionalProperties": true },
+    "secretEnvs": { "type": "object", "additionalProperties": true },
     "envsString": { "type": "string" },
     "secretEnvsString": { "type": "string" },
     "deployments": {
@@ -147,11 +141,11 @@
     },
     "hpas": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
+      "additionalProperties": { "$ref": "#/$defs/hpa" }
     },
     "pdbs": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
+      "additionalProperties": { "$ref": "#/$defs/pdb" }
     },
     "serviceAccount": {
       "type": "object",
@@ -217,6 +211,10 @@
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/disableable" }
     },
+    "imageUpdaters": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/imageUpdater" }
+    },
     "extraDeploy": {
       "type": "object",
       "additionalProperties": {},
@@ -237,36 +235,27 @@
       "description": "Image pull policy."
     },
     "resources": {
-      "description": "Container resource requests/limits. Can be a preset string (nano/small/medium/large/xlarge) or an object.",
-      "oneOf": [
-        {
-          "type": "string",
-          "enum": ["nano", "small", "medium", "large", "xlarge"],
-          "description": "Resource preset name."
-        },
-        {
+      "type": "object",
+      "description": "Container resource requests/limits. Must be an object with requests and/or limits.",
+      "additionalProperties": true,
+      "properties": {
+        "requests": {
           "type": "object",
           "additionalProperties": true,
           "properties": {
-            "requests": {
-              "type": "object",
-              "additionalProperties": true,
-              "properties": {
-                "cpu": { "type": ["string", "number"] },
-                "memory": { "type": "string" }
-              }
-            },
-            "limits": {
-              "type": "object",
-              "additionalProperties": true,
-              "properties": {
-                "cpu": { "type": ["string", "number"] },
-                "memory": { "type": "string" }
-              }
-            }
+            "cpu": { "type": ["string", "number"] },
+            "memory": { "type": "string" }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "cpu": { "type": ["string", "number"] },
+            "memory": { "type": "string" }
           }
         }
-      ]
+      }
     },
     "podSecurityContext": {
       "type": "object",
@@ -501,7 +490,7 @@
     "pvc": {
       "type": "object",
       "additionalProperties": true,
-      "description": "PersistentVolumeClaim instance.",
+      "description": "PersistentVolumeClaim instance. Set mountPath to auto-mount into workload containers.",
       "properties": {
         "disabled": { "type": "boolean" },
         "accessModes": {
@@ -517,7 +506,198 @@
           "type": "string",
           "enum": ["Filesystem", "Block"]
         },
-        "volumeName": { "type": "string" }
+        "volumeName": { "type": "string" },
+        "mountPath": { "type": "string", "description": "Auto-mount path in workload containers. Omit to skip auto-mounting." },
+        "subPath": { "type": "string", "description": "Sub-path within the volume to mount." },
+        "readOnly": { "type": "boolean", "description": "Mount the volume read-only." }
+      }
+    },
+    "hpa": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "HorizontalPodAutoscaler instance.",
+      "properties": {
+        "disabled": { "type": "boolean" },
+        "scaleTargetRef": {
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string" },
+            "kind": { "type": "string", "enum": ["Deployment", "StatefulSet", "DaemonSet"] }
+          }
+        },
+        "minReplicas": { "type": "integer", "minimum": 0 },
+        "maxReplicas": { "type": "integer", "minimum": 1 },
+        "targetCPU": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "targetMemory": { "type": "integer", "minimum": 1, "maximum": 100 }
+      },
+      "if": {
+        "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
+      },
+      "then": {
+        "required": ["scaleTargetRef", "minReplicas", "maxReplicas"]
+      }
+    },
+    "pdb": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "PodDisruptionBudget instance.",
+      "properties": {
+        "disabled": { "type": "boolean" },
+        "minAvailable": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "string", "pattern": "^(\\d+%|\\d+)$" }
+          ]
+        },
+        "maxUnavailable": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "string", "pattern": "^(\\d+%|\\d+)$" }
+          ]
+        },
+        "unhealthyPodEvictionPolicy": {
+          "type": "string",
+          "enum": ["IfHealthyBudget", "AlwaysAllow"]
+        },
+        "extraSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" } }
+      },
+      "anyOf": [
+        { "required": ["minAvailable"] },
+        { "required": ["maxUnavailable"] }
+      ]
+    },
+    "envEntry": {
+      "type": "object",
+      "description": "Individual environment variable with support for valueFrom.",
+      "properties": {
+        "name": { "type": "string" },
+        "value": { "type": ["string", "number", "boolean"] },
+        "valueFrom": {
+          "type": "object",
+          "properties": {
+            "configMapKeyRef": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "key": { "type": "string" },
+                "optional": { "type": "boolean" }
+              },
+              "required": ["name", "key"]
+            },
+            "secretKeyRef": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "key": { "type": "string" },
+                "optional": { "type": "boolean" }
+              },
+              "required": ["name", "key"]
+            },
+            "resourceFieldRef": {
+              "type": "object",
+              "properties": {
+                "containerName": { "type": "string" },
+                "resource": { "type": "string" },
+                "divisor": { "type": ["string", "number"] }
+              },
+              "required": ["resource"]
+            },
+            "fieldRef": {
+              "type": "object",
+              "properties": {
+                "apiVersion": { "type": "string" },
+                "fieldPath": { "type": "string" }
+              },
+              "required": ["fieldPath"]
+            }
+          }
+        }
+      },
+      "required": ["name"]
+    },
+    "envMap": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number", "boolean"] }
+    },
+    "envFromConfigmap": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "keys": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } },
+            {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          ]
+        }
+      },
+      "required": ["name"]
+    },
+    "envFromSecret": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "keys": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } },
+            {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          ]
+        }
+      },
+      "required": ["name"]
+    },
+    "envConfigmaps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/envFromConfigmap" }
+    },
+    "envSecrets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/envFromSecret" }
+    },
+    "imageUpdater": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Argo CD Image Updater instance.",
+      "properties": {
+        "disabled": { "type": "boolean" },
+        "applicationName": { "type": "string", "description": "Argo CD Application name to target." },
+        "namespace": { "type": "string", "description": "Namespace where the Argo CD Application lives (default: argocd)." },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "alias": { "type": "string" },
+              "imageName": { "type": "string" },
+              "updateStrategy": { "type": "string", "enum": ["latest", "newest-build", "alphabetical", "digest"] },
+              "allowTags": { "type": "string" },
+              "ignoreTags": { "type": "array", "items": { "type": "string" } },
+              "manifestTargets": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+            },
+            "required": ["alias", "imageName"]
+          }
+        },
+        "writeBackConfig": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "method": { "type": "string" }
+          }
+        }
+      },
+      "if": {
+        "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
+      },
+      "then": {
+        "required": ["applicationName", "images"]
       }
     }
   }

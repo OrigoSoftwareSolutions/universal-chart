@@ -1,0 +1,6 @@
+imageUpdaters:
+  simple:
+    applicationName: "test"
+    images:
+      - alias: app
+        imageName: nginx

@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.1.8](https://img.shields.io/badge/Version-1.1.8-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.2.0](https://img.shields.io/badge/Version-1.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 A single, opinionated Helm chart that can deploy **any** standard Kubernetes workload and popular CRD resources. Instead of maintaining dozens of per-service charts, define all your resources declaratively under one release.
 
@@ -13,7 +13,7 @@ A single, opinionated Helm chart that can deploy **any** standard Kubernetes wor
 | DaemonSet | Istio VirtualService | PersistentVolumeClaim | Certificate / Issuer / ClusterIssuer |
 | CronJob / Job | Istio Gateway | ServiceAccount | Istio PeerAuthentication |
 | Helm Hooks | Istio DestinationRule | | Istio AuthorizationPolicy |
-| HPA / PDB | ServiceMonitor | | |
+| HPA / PDB | ServiceMonitor | | ImageUpdater (Argo CD) |
 
 ## Quick Start
 
@@ -21,7 +21,7 @@ A single, opinionated Helm chart that can deploy **any** standard Kubernetes wor
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.1.8 \
+  --version 1.2.0 \
   -f my-values.yaml
 ```
 
@@ -51,27 +51,23 @@ This creates a Deployment, a matching ClusterIP Service, liveness/readiness prob
 
 ### Auto-generated Services
 
-When a workload uses the single-container shorthand with a `ports:` map, a matching ClusterIP Service is created automatically — no separate `services:` block needed. Suppress it with `service: false` or customize with `service: { type: NodePort }`.
+When a workload (Deployment, StatefulSet, or DaemonSet) uses the single-container shorthand with a `ports:` map, a matching ClusterIP Service is created automatically — no separate `services:` block needed. Suppress it with `service: false` or customize with `service: { type: NodePort, clusterIP: None, labels: {...}, annotations: {...} }`.
 
 ### Single-Container Shorthand
 
-Instead of a full `containers:` list, set `image:`, `ports:`, `resources:`, `healthCheck:` directly on the workload. The chart synthesizes the container spec for you.
+Instead of a full `containers:` list, set `image:`, `ports:`, `resources:`, `healthCheck:` directly on the workload. The chart synthesizes the container spec for you. `command` can be a string (`command: "python app.py"`) — it is automatically split into an array.
 
 ### Health Check Shorthand
 
 A single `healthCheck: { path: /healthz }` generates startup, liveness, **and** readiness probes simultaneously (HTTP GET, port 8080, 10s period by default).
 
-### Resource Presets
-
-Set `resources: small` (or `nano`, `medium`, `large`, `xlarge`) instead of writing full requests/limits blocks. The chart expands presets into concrete CPU/memory values.
-
 ### Typed Volumes
 
-Volumes use a simplified format — `{ type: configMap, name: my-cm }` — instead of raw Kubernetes volume specs. Supports `configMap`, `secret`, `pvc`, `emptyDir`, and more.
+Volumes use a simplified format — `{ type: configMap, name: my-cm }` — instead of raw Kubernetes volume specs. Supports `configMap`, `secret`, `pvc`, `emptyDir`.
 
 ### PVCs Auto-Mounted
 
-PVCs defined in `pvcs:` are automatically added to workload volume lists — no manual `volumes:` wiring required.
+PVCs defined under `pvcs:` are automatically added as volumes to every Deployment, StatefulSet, and DaemonSet. Add a `mountPath` to also inject a `volumeMount` into every container. Optional `subPath` and `readOnly` fields are supported. Hooks, Jobs, and CronJobs are excluded. Disabled PVCs (`disabled: true`) are skipped entirely.
 
 ### Template Expressions in Values
 
@@ -79,19 +75,35 @@ Go template expressions work anywhere in values. Write `"{{ .Release.Name }}-suf
 
 ### Environment Variable Shorthand
 
-Top-level `envs:` and `secretEnvs:` maps auto-create ConfigMaps/Secrets and inject them via `envFrom`. Use `envsFromConfigmap` / `envsFromSecret` to cherry-pick individual keys from existing resources.
+Top-level `envs:` and `secretEnvs:` maps auto-create ConfigMaps/Secrets and inject them via `envFrom`. For multiline or special characters, use `envsString:` / `secretEnvsString:` as raw YAML strings. Use `envsFromConfigmap` / `envsFromSecret` to cherry-pick individual keys from existing resources.
 
-### Base64 Auto-Decode
+### Per-Workload Env Injection
 
-ConfigMap values prefixed with `b64:` are automatically decoded from base64 before rendering.
+Beyond top-level `envs:`, each workload (or its `*General` block) can inject environment variables from existing resources. `envConfigmaps: [my-cm]` and `envSecrets: [my-secret]` inject entire ConfigMaps/Secrets via `envFrom`. `envsFromConfigmap` / `envsFromSecret` cherry-pick individual keys into `env`. Raw `env:` entries are also supported for inline variable definitions.
+
+### Base64 Shorthand
+
+Values prefixed with `b64:` are handled automatically — in ConfigMaps the prefix is stripped and the value is decoded, while in Secrets it is passed through as raw base64 (skipping double-encoding).
 
 ### 3-Tier Defaults Cascade
 
 `defaults` (global) → `deploymentsGeneral` (kind-level) → per-instance values. Set shared config once, override where needed.
 
+### Security Defaults
+
+Every pod and container gets hardened security contexts out of the box: `runAsNonRoot`, `readOnlyRootFilesystem`, and `drop: ALL` capabilities. Override per-workload or globally via `defaults.podSecurityContext` / `defaults.containerSecurityContext`.
+
+### Affinity Presets
+
+Built-in pod affinity (`soft`), anti-affinity (`soft`), and node affinity presets. Control via `podAffinityPreset`, `podAntiAffinityPreset`, and `nodeAffinityPreset`. Disable per-workload with `usePredefinedAffinity: false` or supply a custom `affinity:` block.
+
 ### Diagnostic Mode
 
-Set `diagnosticMode.enabled: true` to override all containers with `sleep infinity` — useful for debugging pods that crash-loop.
+Set `diagnosticMode.enabled: true` to override all containers with `sleep infinity` and suppress all health probes — useful for debugging pods that crash-loop.
+
+### Graceful Shutdown
+
+Set `defaults.preStopSleep: 5` to inject a `sleep N` preStop lifecycle hook into every container, allowing in-flight requests to drain before SIGTERM.
 
 ### Disable Without Deleting
 
@@ -100,6 +112,31 @@ Any resource instance accepts `disabled: true` to suppress rendering without rem
 ### Escape Hatch
 
 `extraDeploy:` accepts raw Kubernetes manifests (with template support) for anything the chart doesn't natively cover.
+
+### ServiceAccount Auto-RBAC
+
+Define `role:` or `clusterRole:` inside a `serviceAccount:` entry to auto-create the corresponding Role/ClusterRole and RoleBinding/ClusterRoleBinding. Provide `rules:` to create both the role and binding; omit `rules:` to bind to a pre-existing role by name.
+
+```yaml
+serviceAccount:
+  my-sa:
+    role:
+      name: my-role
+      rules:
+        - apiGroups: [""]
+          resources: ["pods"]
+          verbs: ["get", "list"]
+    clusterRole:
+      name: my-cluster-role  # binds to existing ClusterRole (no rules = binding only)
+```
+
+### Job / CronJob Duration Alerts
+
+Set `commandDurationAlert: <seconds>` on a Job or CronJob to auto-create a PrometheusRule that fires a warning when execution exceeds the threshold.
+
+### CronJob Single Execution
+
+Set `singleOnly: true` on a CronJob as a shorthand for `concurrencyPolicy: Forbid` — ensures only one instance runs at a time.
 
 ## Values
 
@@ -145,6 +182,7 @@ Any resource instance accepts `disabled: true` to suppress rendering without rem
 | hooksGeneral | object | `{}` | Shared defaults for all hook Jobs. |
 | hpas | object | `{}` | Kubernetes HorizontalPodAutoscaler resources (autoscaling/v2). Each key becomes the resource name. |
 | httpRoutes | object | `{}` | Gateway API HTTPRoute resources. Each key becomes the resource name. |
+| imageUpdaters | object | `{}` | Argo CD Image Updater resources. Each key becomes the resource name. Configures automatic image updates for Argo CD applications. |
 | issuers | object | `{}` | cert-manager Issuer resources (namespace-scoped). Each key becomes the resource name. |
 | istioAuthorizationPolicies | object | `{}` | Istio AuthorizationPolicy resources. Each key becomes the resource name. |
 | istioPeerAuthentications | object | `{}` | Istio PeerAuthentication resources (mTLS policy). Each key becomes the resource name. |
@@ -160,7 +198,7 @@ Any resource instance accepts `disabled: true` to suppress rendering without rem
 | pdbs | object | `{}` | Kubernetes PodDisruptionBudget resources. Each key becomes the resource name. |
 | podAffinityPreset | string | `"soft"` | Pod affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
-| pvcs | object | `{}` | Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name. PVCs are automatically added to the `volumes` block in each workload (excluding hooks). |
+| pvcs | object | `{}` | Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name. PVCs are automatically added to the `volumes` block in each workload (excluding hooks). Set `mountPath` on a PVC to also auto-mount it into every container. |
 | releasePrefix | string | `""` | Prefix prepended to all resource names. Leave empty to disable. |
 | secretEnvs | object | `{}` | Secret environment variables injected via Secret envFrom. |
 | secretEnvsString | string | `""` | Secret environment variables as a raw YAML string. |

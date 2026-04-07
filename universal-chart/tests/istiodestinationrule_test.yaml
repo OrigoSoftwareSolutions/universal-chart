@@ -1,0 +1,49 @@
+suite: istiodestinationrule template
+templates:
+  - istiodestinationrule.yml
+tests:
+  - it: renders a destinationrule with api version name and namespace
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istiodestinationrules.my-dr.host: my-svc.default.svc.cluster.local
+      istiodestinationrules.my-dr.trafficPolicy.connectionPool.tcp.maxConnections: 100
+    asserts:
+      - isKind:
+          of: DestinationRule
+      - equal:
+          path: apiVersion
+          value: networking.istio.io/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -my-dr$
+      - isNotEmpty:
+          path: metadata.namespace
+  - it: omits destinationrule documents when disabled
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istiodestinationrules.my-dr.disabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: renders destinationrule host and trafficpolicy
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istiodestinationrules.my-dr.host: my-svc.default.svc.cluster.local
+      istiodestinationrules.my-dr.trafficPolicy.connectionPool.tcp.maxConnections: 100
+      istiodestinationrules.my-dr.trafficPolicy.tls.mode: ISTIO_MUTUAL
+    asserts:
+      - equal:
+          path: spec.host
+          value: my-svc.default.svc.cluster.local
+      - equal:
+          path: spec.trafficPolicy.connectionPool.tcp.maxConnections
+          value: 100
+      - equal:
+          path: spec.trafficPolicy.tls.mode
+          value: ISTIO_MUTUAL

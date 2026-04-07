@@ -3,6 +3,9 @@ templates:
   - clusterissuers.yaml
 tests:
   - it: renders a ClusterIssuer without namespace
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1
     set:
       clusterIssuers.letsencrypt.spec.acme.server: https://acme-v02.api.letsencrypt.org/directory
       clusterIssuers.letsencrypt.spec.acme.email: admin@example.com
@@ -14,3 +17,11 @@ tests:
           value: cert-manager.io/v1
       - notExists:
           path: metadata.namespace
+
+  - it: falls back to v1alpha2 without cert-manager v1
+    set:
+      clusterIssuers.letsencrypt.spec.acme.server: https://acme-v02.api.letsencrypt.org/directory
+    asserts:
+      - equal:
+          path: apiVersion
+          value: cert-manager.io/v1alpha2
