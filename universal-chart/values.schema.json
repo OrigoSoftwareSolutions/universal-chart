@@ -311,9 +311,14 @@
           "items": { "type": "string" },
           "description": "External IPs that route to Service endpoints."
         },
+        "selector": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Explicit Service selector labels. Used verbatim when set. ExternalName services omit selectors."
+        },
         "workload": {
           "type": "string",
-          "description": "Target workload name for component-level pod selection. When set, selector uses app.kubernetes.io/component label."
+          "description": "Target workload name for component-level pod selection. Defaults to the service key name when selector is not explicitly set."
         },
         "extraSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" } }
       }

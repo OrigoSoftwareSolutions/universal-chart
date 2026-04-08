@@ -260,13 +260,15 @@ hooks: {}
 # @section Networking
 # =============================================================================
 
-# -- Kubernetes Service resources. Each key becomes the resource name.
+# -- Kubernetes Service resources. Each key becomes the resource name. If `workload` is omitted, the selector defaults to the service key name. Set `selector` to override the selector verbatim. ExternalName services omit selectors.
 services: {}
 #   nginx:
 #     ports:
 #       - name: http
 #         port: 8080
-#     # workload: nginx
+#     # workload: nginx # optional; defaults to the service key name
+#     # selector:
+#     #   app.kubernetes.io/component: nginx
 
 # -- Gateway API HTTPRoute resources. Each key becomes the resource name.
 httpRoutes: {}

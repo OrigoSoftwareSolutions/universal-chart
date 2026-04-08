@@ -1,5 +1,6 @@
 {{- range $name, $s := $.Values.services }}
   {{- if not ($s.disabled | default false) }}
+    {{- $workloadName := $s.workload | default $name }}
 ---
 kind: Service
 apiVersion: v1
@@ -72,12 +73,12 @@ spec:
     {{- end }}
     {{- if ne ($s.type | default "") "ExternalName" }}
   selector:
-      {{- if $s.workload }}
-        {{- include "helpers.app.workloadSelectorLabels" (dict "name" $s.workload "context" $) | nindent 4 }}
+      {{- if $s.selector }}
+        {{- include "helpers.tplvalues.render" (dict "value" $s.selector "context" $) | nindent 4 }}
       {{- else }}
-        {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
+        {{- include "helpers.app.workloadSelectorLabels" (dict "name" $workloadName "context" $) | nindent 4 }}
+        {{- with $s.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
       {{- end }}
-      {{- with $s.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- end }}
   {{- end }}
 {{- end }}
