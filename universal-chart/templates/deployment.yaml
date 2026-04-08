@@ -12,14 +12,14 @@ metadata:
 spec:
   replicas: {{ dig "replicas" (dig "replicas" 1 $general) $d | int }}
     {{- $rhl := dig "revisionHistoryLimit" (dig "revisionHistoryLimit" $.Values.defaults.revisionHistoryLimit $general) $d }}
-    {{- with $rhl }}
-  revisionHistoryLimit: {{ . | int }}
+    {{- if ne $rhl nil }}
+  revisionHistoryLimit: {{ $rhl | int }}
     {{- end }}
     {{- with .strategy }}
   strategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}
-    {{- with $merged.minReadySeconds }}
-  minReadySeconds: {{ . }}
+    {{- if ne $merged.minReadySeconds nil }}
+  minReadySeconds: {{ $merged.minReadySeconds }}
     {{- end }}
   progressDeadlineSeconds: {{ dig "progressDeadlineSeconds" (dig "progressDeadlineSeconds" 600 $general) $d }}
   selector:

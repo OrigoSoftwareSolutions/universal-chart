@@ -12,15 +12,15 @@ metadata:
 spec:
   replicas: {{ dig "replicas" (dig "replicas" 1 $general) $sts | int }}
     {{- $rhl := dig "revisionHistoryLimit" (dig "revisionHistoryLimit" $.Values.defaults.revisionHistoryLimit $general) $sts }}
-    {{- with $rhl }}
-  revisionHistoryLimit: {{ . | int }}
+    {{- if ne $rhl nil }}
+  revisionHistoryLimit: {{ $rhl | int }}
     {{- end }}
     {{- with .updateStrategy }}
   updateStrategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}
   serviceName: {{ include "helpers.app.fullname" (dict "name" (.serviceName | default $name) "context" $) }}
-    {{- with $merged.minReadySeconds }}
-  minReadySeconds: {{ . }}
+    {{- if ne $merged.minReadySeconds nil }}
+  minReadySeconds: {{ $merged.minReadySeconds }}
     {{- end }}
     {{- with .podManagementPolicy }}
   podManagementPolicy: {{ . }}

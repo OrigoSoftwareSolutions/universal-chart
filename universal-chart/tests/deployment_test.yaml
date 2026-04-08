@@ -713,3 +713,54 @@ tests:
           value: 512Mi
       - notExists:
           path: spec.template.spec.containers[0].resources.requests.cpu
+
+  - it: revisionHistoryLimit 0 is rendered not silently dropped
+    set:
+      deployments:
+        web:
+          image: nginx
+          revisionHistoryLimit: 0
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 0
+
+  - it: minReadySeconds 0 is rendered not silently dropped
+    set:
+      deployments:
+        web:
+          image: nginx
+          minReadySeconds: 0
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 0
+
+  - it: preStopSleep cascades from deploymentsGeneral when not set on instance
+    set:
+      deploymentsGeneral:
+        preStopSleep: 10
+      deployments.web.image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command
+          value:
+            - sh
+            - -c
+            - sleep 10
+
+  - it: instance preStopSleep overrides deploymentsGeneral and defaults
+    set:
+      defaults.preStopSleep: 5
+      deploymentsGeneral.preStopSleep: 10
+      deployments:
+        web:
+          image: nginx
+          preStopSleep: 15
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command
+          value:
+            - sh
+            - -c
+            - sleep 15
