@@ -109,3 +109,26 @@ tests:
       - equal:
           path: spec.selector.matchLabels["app.kubernetes.io/component"]
           value: web
+
+  - it: instance extraSelectorLabels are included in selector
+    set:
+      pdbs.web.minAvailable: 1
+      pdbs.web.extraSelectorLabels:
+        tier: frontend
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels.tier
+          value: frontend
+
+  - it: defaults.extraSelectorLabels appear exactly once in pdb selector (no duplication)
+    set:
+      pdbs.web.minAvailable: 1
+      defaults.extraSelectorLabels:
+        env: prod
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels.env
+          value: prod
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: web

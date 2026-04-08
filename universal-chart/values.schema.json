@@ -82,6 +82,10 @@
         "containerSecurityContext": { "$ref": "#/$defs/containerSecurityContext" },
         "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
         "preStopSleep": { "type": "integer", "minimum": 0 },
+        "hostNetwork": { "type": "boolean" },
+        "hostPID": { "type": "boolean" },
+        "hostIPC": { "type": "boolean" },
+        "shareProcessNamespace": { "type": "boolean" },
         "autoChecksum": { "type": "boolean", "description": "Enable/disable automatic checksum annotations globally." },
         "topologySpreadConstraints": {
           "type": "array",
@@ -853,7 +857,11 @@
           "additionalProperties": true,
           "description": "Custom readiness probe (overrides healthCheck shorthand)."
         },
-        "preStopSleep": { "type": "integer", "minimum": 0, "description": "Seconds to sleep in preStop hook. Overrides defaults.preStopSleep for this workload." }
+        "preStopSleep": { "type": "integer", "minimum": 0, "description": "Seconds to sleep in preStop hook. Overrides defaults.preStopSleep for this workload." },
+        "hostNetwork": { "type": "boolean", "description": "Use the host network namespace for this pod. Required for DaemonSets that sniff host traffic." },
+        "hostPID": { "type": "boolean", "description": "Use the host PID namespace. Allows processes to see host-level PIDs." },
+        "hostIPC": { "type": "boolean", "description": "Use the host IPC namespace." },
+        "shareProcessNamespace": { "type": "boolean", "description": "Share a single process namespace between all containers in the pod." }
       }
     },
     "workloadGeneral": {
@@ -953,7 +961,11 @@
         },
         "minReadySeconds": { "type": "integer", "minimum": 0 },
         "extraImagePullSecrets": { "type": "array", "items": { "type": "string" } },
-        "preStopSleep": { "type": "integer", "minimum": 0 }
+        "preStopSleep": { "type": "integer", "minimum": 0 },
+        "hostNetwork": { "type": "boolean" },
+        "hostPID": { "type": "boolean" },
+        "hostIPC": { "type": "boolean" },
+        "shareProcessNamespace": { "type": "boolean" }
       }
     },
     "pvc": {
