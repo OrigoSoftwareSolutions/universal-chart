@@ -128,13 +128,26 @@ tests:
           path: spec.serviceName
           pattern: -my-custom-svc$
 
-  - it: omits revisionHistoryLimit when not set
+  - it: uses defaults.revisionHistoryLimit when neither instance nor general set it
     set:
+      defaults.revisionHistoryLimit: 3
       statefulSets.db.image: postgres
       statefulSets.db.imageTag: "16"
     asserts:
-      - notExists:
+      - equal:
           path: spec.revisionHistoryLimit
+          value: 3
+
+  - it: defaults.revisionHistoryLimit is overridden by statefulSetsGeneral
+    set:
+      defaults.revisionHistoryLimit: 3
+      statefulSetsGeneral.revisionHistoryLimit: 7
+      statefulSets.db.image: postgres
+      statefulSets.db.imageTag: "16"
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 7
 
   - it: sets revisionHistoryLimit from instance
     set:

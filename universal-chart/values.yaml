@@ -137,6 +137,10 @@ defaults:
   #       matchLabels: {}
   # -- Default terminationGracePeriodSeconds for all pods. Omit to use Kubernetes default (30s).
   # terminationGracePeriodSeconds: 60
+  # -- Default revisionHistoryLimit for Deployments and StatefulSets. Controls how many old
+  # ReplicaSets/ControllerRevisions are retained for rollback. Lower values reduce etcd/API-server
+  # load; set to 0 to disable rollback history entirely.
+  revisionHistoryLimit: 3
   # -- Default preStop sleep duration (seconds). When set, adds a `sleep N` preStop lifecycle hook
   # to every container that does not define an explicit `lifecycle` block. Useful for graceful
   # shutdown to allow in-flight requests to drain before SIGTERM.

@@ -22,8 +22,8 @@ spec:
     kind: {{ .kind | default "Deployment" }}
     name: {{ include "helpers.app.fullname" (dict "name" .name "context" $) }}
     {{- end }}
-  minReplicas: {{ .minReplicas | default "2" }}
-  maxReplicas: {{ .maxReplicas | default "3" }}
+  minReplicas: {{ .minReplicas | default 2 | int }}
+  maxReplicas: {{ .maxReplicas | default 3 | int }}
   metrics:
     {{- if not (empty .targetCPU) }}
     - type: Resource

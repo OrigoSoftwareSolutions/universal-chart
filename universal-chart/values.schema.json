@@ -944,7 +944,12 @@
         },
         "startingDeadlineSeconds": { "type": "integer", "minimum": 0 },
         "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0 },
-        "failedJobsHistoryLimit": { "type": "integer", "minimum": 0 }
+        "failedJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+        "dnsConfig": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Pod DNS configuration (options, searches, nameservers)."
+        }
       }
     },
     "pvc": {

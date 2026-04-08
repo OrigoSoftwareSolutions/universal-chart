@@ -84,6 +84,12 @@ dnsPolicy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) |
     {{- with .dnsConfig }}
 dnsConfig:
   {{- toYaml . | nindent 2 }}
+    {{- else with $general.dnsConfig }}
+dnsConfig:
+  {{- toYaml . | nindent 2 }}
+    {{- else with $.Values.defaults.dnsConfig }}
+dnsConfig:
+  {{- toYaml . | nindent 2 }}
     {{- end }}
     {{- if (ne .nodeSelector nil) }}
       {{- with .nodeSelector }}
@@ -143,18 +149,10 @@ securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context
 securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
     {{- end }}
-    {{- if or $.Values.imagePullSecrets $.Values.defaults.extraImagePullSecrets .extraImagePullSecrets .imagePullSecrets }}
+    {{- $pullSecrets := concat ($.Values.imagePullSecrets | default list) ($.Values.defaults.extraImagePullSecrets | default list) (.imagePullSecrets | default list) (.extraImagePullSecrets | default list) | uniq -}}
+    {{- if $pullSecrets }}
 imagePullSecrets:
-      {{- range $.Values.imagePullSecrets }}
-- name: {{ . }}
-      {{- end }}
-      {{- range $.Values.defaults.extraImagePullSecrets }}
-- name: {{ . }}
-      {{- end }}
-      {{- range .imagePullSecrets }}
-- name: {{ . }}
-      {{- end }}
-      {{- range .extraImagePullSecrets }}
+      {{- range $pullSecrets }}
 - name: {{ . }}
       {{- end }}
     {{- end }}

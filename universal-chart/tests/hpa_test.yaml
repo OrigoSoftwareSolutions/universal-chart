@@ -93,3 +93,29 @@ tests:
       - equal:
           path: spec.scaleTargetRef.kind
           value: Deployment
+
+  - it: default minReplicas and maxReplicas are integers not strings
+    set:
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.minReplicas: 2
+      hpas.web.maxReplicas: 3
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 3
+
+  - it: explicit minReplicas and maxReplicas render as integers
+    set:
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.minReplicas: 1
+      hpas.web.maxReplicas: 10
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 1
+      - equal:
+          path: spec.maxReplicas
+          value: 10
