@@ -44,6 +44,9 @@ metadata:
       {{- end }}
     {{- end }}
     {{- if and $val.data $val.binaryData }}{{- fail "Cannot set both data and binaryData in single ConfigMap" }} {{- end }}
+    {{- with $val.immutable }}
+immutable: {{ . }}
+    {{- end }}
     {{- if $val.data }}
 data:
       {{- include "helpers.configmaps.renderConfigMap" ( dict "value" $val.data "context" $ ) | trim | nindent 2 }}
