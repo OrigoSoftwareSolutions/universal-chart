@@ -11,7 +11,7 @@ metadata:
     {{- include "helpers.workload.metadata" (dict "name" $name "value" $sts "general" $general "context" $) | nindent 2 }}
 spec:
   replicas: {{ dig "replicas" (dig "replicas" 1 $general) $sts | int }}
-    {{- $rhl := dig "revisionHistoryLimit" (dig "revisionHistoryLimit" nil $general) $sts }}
+    {{- $rhl := dig "revisionHistoryLimit" (dig "revisionHistoryLimit" $.Values.defaults.revisionHistoryLimit $general) $sts }}
     {{- with $rhl }}
   revisionHistoryLimit: {{ . | int }}
     {{- end }}
