@@ -179,3 +179,34 @@ tests:
           path: spec.selector["app.kubernetes.io/component"]
           value: worker
         documentIndex: 1
+
+  - it: allocateLoadBalancerNodePorts true renders in spec
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+      deployments.api.service.type: LoadBalancer
+      deployments.api.service.allocateLoadBalancerNodePorts: true
+    asserts:
+      - equal:
+          path: spec.allocateLoadBalancerNodePorts
+          value: true
+
+  - it: allocateLoadBalancerNodePorts false renders in spec
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+      deployments.api.service.type: LoadBalancer
+      deployments.api.service.allocateLoadBalancerNodePorts: false
+    asserts:
+      - equal:
+          path: spec.allocateLoadBalancerNodePorts
+          value: false
+
+  - it: allocateLoadBalancerNodePorts is absent when not set
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+      deployments.api.service.type: LoadBalancer
+    asserts:
+      - notExists:
+          path: spec.allocateLoadBalancerNodePorts

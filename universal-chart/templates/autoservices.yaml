@@ -55,8 +55,8 @@ spec:
       {{- with (index $val.service "loadBalancerClass") }}
   loadBalancerClass: {{ . }}
       {{- end }}
-      {{- if not (or (index $val.service "allocateLoadBalancerNodePorts") (eq ((index $val.service "allocateLoadBalancerNodePorts") | toString) "<nil>")) }}
-  allocateLoadBalancerNodePorts: false
+      {{- if hasKey $val.service "allocateLoadBalancerNodePorts" }}
+  allocateLoadBalancerNodePorts: {{ index $val.service "allocateLoadBalancerNodePorts" }}
       {{- end }}
       {{- with (index $val.service "sessionAffinity") }}
   sessionAffinity: {{ . }}
