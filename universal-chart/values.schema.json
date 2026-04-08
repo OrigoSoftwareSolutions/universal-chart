@@ -64,7 +64,18 @@
         },
         "tolerations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
         "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
-        "volumes": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "volumes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "configMapName": { "type": "string" },
+              "secretName": { "type": "string" },
+              "claimName": { "type": "string" }
+            }
+          }
+        },
         "volumeMounts": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
         "resources": { "$ref": "#/$defs/resources" },
         "podSecurityContext": { "$ref": "#/$defs/podSecurityContext" },
@@ -640,7 +651,15 @@
         },
         "volumes": {
           "type": "array",
-          "items": { "type": "object", "additionalProperties": true },
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "configMapName": { "type": "string" },
+              "secretName": { "type": "string" },
+              "claimName": { "type": "string" }
+            }
+          },
           "description": "Typed volumes (configMap, secret, pvc, emptyDir, hostPath)."
         },
         "extraVolumes": {
@@ -829,7 +848,15 @@
         },
         "volumes": {
           "type": "array",
-          "items": { "type": "object", "additionalProperties": true },
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "configMapName": { "type": "string" },
+              "secretName": { "type": "string" },
+              "claimName": { "type": "string" }
+            }
+          },
           "description": "Default typed volumes."
         },
         "extraVolumes": { "type": "array", "description": "Default extra raw volumes." },

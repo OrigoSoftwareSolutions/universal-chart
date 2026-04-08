@@ -227,6 +227,65 @@ tests:
             mountPath: /var/log
             readOnly: true
 
+  - it: renders configMap typed volume with explicit configMapName
+    set:
+      deployments.web.image: nginx
+      deployments.web.volumes:
+        - name: config
+          type: configMap
+          configMapName: app-config
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            configMap:
+              name: app-config
+
+  - it: renders secret typed volume with explicit secretName
+    set:
+      deployments.web.image: nginx
+      deployments.web.volumes:
+        - name: certs
+          type: secret
+          secretName: tls-certs
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: certs
+            secret:
+              secretName: tls-certs
+
+  - it: renders pvc typed volume with explicit claimName
+    set:
+      deployments.web.image: nginx
+      deployments.web.volumes:
+        - name: data
+          type: pvc
+          claimName: my-pvc
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            persistentVolumeClaim:
+              claimName: my-pvc
+
+  - it: keeps backward-compatible secret typed volume naming without secretName
+    set:
+      deployments.web.image: nginx
+      deployments.web.volumes:
+        - name: certs
+          type: secret
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: certs
+            secret:
+              secretName: "RELEASE-NAME-certs"
+
   - it: mounts PVCs scoped to the matching workload
     set:
       deployments.web.image: nginx

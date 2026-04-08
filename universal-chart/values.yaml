@@ -87,12 +87,26 @@ defaults:
   # priorityClassName: ""
   # -- Default DNS policy for pods. One of: `ClusterFirst`, `Default`, `ClusterFirstWithHostNet`, `None`.
   # dnsPolicy: ""
+  # -- Default pod DNS configuration applied to every pod spec.
+  # dnsConfig:
+  #   options:
+  #     - name: ndots
+  #       value: "2"
   # -- Default nodeSelector applied to every pod spec.
   # nodeSelector: {}
   # -- Default tolerations applied to every pod spec.
   # tolerations: []
   # -- Default volumes (typed format) added to every pod spec (see `_volumes.tpl`).
   # volumes: []
+  #   - name: app-config
+  #     type: configMap
+  #     configMapName: my-configmap
+  #   - name: app-secret
+  #     type: secret
+  #     secretName: my-secret
+  #   - name: app-data
+  #     type: pvc
+  #     claimName: my-pvc
   # -- Default volumeMounts added to every container.
   # volumeMounts: []
   # -- Default resource requests/limits applied to containers when not overridden.
