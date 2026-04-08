@@ -1,0 +1,94 @@
+suite: envsFrom cherry-pick
+templates:
+  - deployment.yaml
+tests:
+  - it: envsFromSecret renders correct env var name, secret name, and key
+    set:
+      deployments.api.image: nginx
+      deployments.api.envsFromSecret:
+        DB_PASSWORD:
+          name: db-secret
+          key: password
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-db-secret
+                key: password
+
+  - it: envsFromConfigmap renders correct env var name, configmap name, and key
+    set:
+      deployments.api.image: nginx
+      deployments.api.envsFromConfigmap:
+        DATABASE_URL:
+          name: db-config
+          key: url
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: RELEASE-NAME-db-config
+                key: url
+
+  - it: multiple envsFromSecret entries render independently
+    set:
+      deployments.api.image: nginx
+      deployments.api.envsFromSecret:
+        DB_PASSWORD:
+          name: db-secret
+          key: password
+        API_KEY:
+          name: api-secret
+          key: token
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-db-secret
+                key: password
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-api-secret
+                key: token
+
+  - it: envsFromSecret and envsFromConfigmap can coexist
+    set:
+      deployments.api.image: nginx
+      deployments.api.envsFromSecret:
+        SECRET_VAR:
+          name: my-secret
+          key: secret-key
+      deployments.api.envsFromConfigmap:
+        CONFIG_VAR:
+          name: my-config
+          key: config-key
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SECRET_VAR
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-my-secret
+                key: secret-key
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONFIG_VAR
+            valueFrom:
+              configMapKeyRef:
+                name: RELEASE-NAME-my-config
+                key: config-key

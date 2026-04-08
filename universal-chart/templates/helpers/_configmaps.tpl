@@ -27,27 +27,17 @@
   {{- $ctx := .context -}}
   {{- $s := dict -}}
   {{- if typeIs "string" .value -}}
-{{- $s = fromYaml .value -}}
+    {{- $s = fromYaml .value -}}
   {{- else if kindIs "map" .value -}}
-{{- $s = .value -}}
+    {{- $s = .value -}}
   {{- end -}}
-  {{- range $sName, $envKeys := $s -}}
-    {{- range $i, $envKey := $envKeys }}
-      {{- if kindIs "string" $envKey }}
-- name: {{ $envKey }}
+  {{- range $envVarName, $ref := $s -}}
+    {{- if kindIs "map" $ref }}
+- name: {{ $envVarName }}
   valueFrom:
     configMapKeyRef:
-      name: {{ include "helpers.app.fullname" (dict "name" $sName "context" $ctx) }}
-      key: {{ $envKey }}
-      {{- else if kindIs "map" $envKey -}}
-        {{- range $keyName, $key := $envKey }}
-- name: {{ $keyName }}
-  valueFrom:
-    configMapKeyRef:
-      name: {{ include "helpers.app.fullname" (dict "name" $sName "context" $ctx) }}
-      key: {{ $key }}
-        {{- end -}}
-      {{- end -}}
+      name: {{ include "helpers.app.fullname" (dict "name" $ref.name "context" $ctx) }}
+      key: {{ $ref.key }}
     {{- end -}}
   {{- end -}}
 {{- end -}}
