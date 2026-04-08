@@ -630,9 +630,22 @@
         "imageTag": { "type": ["string", "number"] },
         "imagePullPolicy": { "$ref": "#/$defs/imagePullPolicy" },
         "ports": {
-          "description": "Single-container shorthand: map of name→port. Creates containerPorts and a Service.",
+          "description": "Single-container shorthand: map of name→port or name→{port, protocol}. Creates containerPorts and a Service.",
           "type": "object",
-          "additionalProperties": { "type": "integer" }
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "integer" },
+              {
+                "type": "object",
+                "properties": {
+                  "port": { "type": "integer" },
+                  "protocol": { "type": "string", "enum": ["TCP", "UDP", "SCTP"] }
+                },
+                "required": ["port"],
+                "additionalProperties": false
+              }
+            ]
+          }
         },
         "resources": { "$ref": "#/$defs/resources" },
         "healthCheck": { "$ref": "#/$defs/healthCheck" },
