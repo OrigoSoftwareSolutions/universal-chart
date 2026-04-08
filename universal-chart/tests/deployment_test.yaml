@@ -764,3 +764,48 @@ tests:
             - sh
             - -c
             - sleep 15
+
+  - it: strategy cascades from deploymentsGeneral
+    set:
+      deploymentsGeneral:
+        strategy:
+          type: Recreate
+      deployments:
+        web:
+          image: nginx
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: instance strategy overrides deploymentsGeneral
+    set:
+      deploymentsGeneral:
+        strategy:
+          type: Recreate
+      deployments:
+        web:
+          image: nginx
+          strategy:
+            type: RollingUpdate
+            rollingUpdate:
+              maxUnavailable: 0
+              maxSurge: 1
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+
+  - it: replicas zero renders correctly
+    set:
+      deployments:
+        web:
+          image: nginx
+          replicas: 0
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
