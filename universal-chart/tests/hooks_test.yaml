@@ -172,3 +172,65 @@ tests:
       - equal:
           path: metadata.annotations["helm.sh/hook-delete-policy"]
           value: hook-failed
+
+  - it: hooksGeneral.kind overrides the default hook phase
+    set:
+      hooksGeneral:
+        kind: post-upgrade
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-upgrade
+
+  - it: instance kind overrides hooksGeneral
+    set:
+      hooksGeneral:
+        kind: post-upgrade
+      hooks:
+        migration:
+          kind: pre-install
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-install
+
+  - it: hooksGeneral.weight overrides the default hook weight
+    set:
+      hooksGeneral:
+        weight: "-10"
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "-10"
+
+  - it: instance weight overrides hooksGeneral
+    set:
+      hooksGeneral:
+        weight: "-10"
+      hooks:
+        migration:
+          weight: "99"
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "99"
