@@ -4,9 +4,12 @@ templates:
 tests:
   - it: renders a Deployment with correct kind and apiVersion
     set:
-      deployments.web.containers[0].name: web
-      deployments.web.containers[0].image: nginx
-      deployments.web.containers[0].imageTag: "1.25"
+      deployments:
+        web:
+          containers:
+            - name: web
+              image: nginx
+              imageTag: "1.25"
     asserts:
       - isKind:
           of: Deployment
@@ -21,10 +24,13 @@ tests:
 
   - it: respects the disabled flag
     set:
-      deployments.web.disabled: true
-      deployments.web.containers[0].name: web
-      deployments.web.containers[0].image: nginx
-      deployments.web.containers[0].imageTag: "1.25"
+      deployments:
+        web:
+          disabled: true
+          containers:
+            - name: web
+              image: nginx
+              imageTag: "1.25"
     asserts:
       - hasDocuments:
           count: 0
@@ -156,11 +162,14 @@ tests:
   - it: init container does not get preStopSleep lifecycle
     set:
       defaults.preStopSleep: 5
-      deployments.test.image: nginx
-      deployments.test.imageTag: latest
-      deployments.test.initContainers[0].name: init
-      deployments.test.initContainers[0].image: busybox
-      deployments.test.initContainers[0].imageTag: latest
+      deployments:
+        test:
+          image: nginx
+          imageTag: latest
+          initContainers:
+            - name: init
+              image: busybox
+              imageTag: latest
     asserts:
       - notExists:
           path: spec.template.spec.initContainers[0].lifecycle
@@ -358,7 +367,7 @@ tests:
           path: spec.template.spec.containers[0].image
           value: "nginx:1.20"
 
-  - it: appends default tag to registry-with-port image without embedded tag
+  - it: does not append default tag to explicit container image without imageTag
     set:
       deployments:
         web:
@@ -368,7 +377,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: "registry.example.com:5000/myapp:v0.0.1"
+          value: "registry.example.com:5000/myapp"
 
   - it: uses explicit imageTag even when image has no embedded tag
     set:
@@ -382,6 +391,16 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "nginx:1.25"
+
+  - it: appends default tag to single-container shorthand image without imageTag
+    set:
+      deployments:
+        web:
+          image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "nginx:v0.0.1"
 
   - it: merges imagePullSecrets from all sources (top-level + defaults + workload)
     set:

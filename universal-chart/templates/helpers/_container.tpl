@@ -21,7 +21,15 @@
   image: {{ $image }}:{{ $imageTag }}
       {{- end }}
     {{- else }}
-  image: {{ include "helpers.tplvalues.render" (dict "value" .image "context" $) }}
+      {{- $image := include "helpers.tplvalues.render" (dict "value" (required "Explicit containers[] and initContainers[] entries must set image" .image) "context" $) -}}
+      {{- $hasEmbeddedTag := regexMatch "^([^/]+/)*[^/:]+:[^/]+$" $image -}}
+      {{- if and (not .imageTag) $hasEmbeddedTag }}
+  image: {{ $image }}
+      {{- else if .imageTag }}
+  image: {{ $image }}:{{ include "helpers.tplvalues.render" (dict "value" .imageTag "context" $) }}
+      {{- else }}
+  image: {{ $image }}
+      {{- end }}
     {{- end }}
   imagePullPolicy: {{ include "helpers.tplvalues.render" (dict "value" (.imagePullPolicy | default $.Values.defaultImagePullPolicy) "context" $) }}
     {{- if .securityContext }}
