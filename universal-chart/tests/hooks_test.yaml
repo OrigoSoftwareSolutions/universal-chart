@@ -128,3 +128,47 @@ tests:
       - equal:
           path: spec.parallelism
           value: 0
+
+  - it: default deletePolicy is before-hook-creation,hook-succeeded
+    set:
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook-delete-policy"]
+          value: "before-hook-creation,hook-succeeded"
+
+  - it: hooksGeneral.deletePolicy overrides the default
+    set:
+      hooksGeneral:
+        deletePolicy: before-hook-creation
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook-delete-policy"]
+          value: before-hook-creation
+
+  - it: instance deletePolicy overrides hooksGeneral
+    set:
+      hooksGeneral:
+        deletePolicy: before-hook-creation
+      hooks:
+        migration:
+          deletePolicy: hook-failed
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook-delete-policy"]
+          value: hook-failed

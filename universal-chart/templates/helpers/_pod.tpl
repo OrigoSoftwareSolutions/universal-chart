@@ -192,6 +192,40 @@ shareProcessNamespace: {{ $general.shareProcessNamespace }}
     {{- else if (ne $.Values.defaults.shareProcessNamespace nil) }}
 shareProcessNamespace: {{ $.Values.defaults.shareProcessNamespace }}
     {{- end }}
+    {{- if (ne .automountServiceAccountToken nil) }}
+automountServiceAccountToken: {{ .automountServiceAccountToken }}
+    {{- else if (ne $general.automountServiceAccountToken nil) }}
+automountServiceAccountToken: {{ $general.automountServiceAccountToken }}
+    {{- else if (ne $.Values.defaults.automountServiceAccountToken nil) }}
+automountServiceAccountToken: {{ $.Values.defaults.automountServiceAccountToken }}
+    {{- end }}
+    {{- if (ne .runtimeClassName nil) }}
+runtimeClassName: {{ .runtimeClassName }}
+    {{- else if (ne $general.runtimeClassName nil) }}
+runtimeClassName: {{ $general.runtimeClassName }}
+    {{- else if (ne $.Values.defaults.runtimeClassName nil) }}
+runtimeClassName: {{ $.Values.defaults.runtimeClassName }}
+    {{- end }}
+    {{- if (ne .overhead nil) }}
+overhead: {{- include "helpers.tplvalues.render" (dict "value" .overhead "context" $) | nindent 2 }}
+    {{- else if (ne $general.overhead nil) }}
+overhead: {{- include "helpers.tplvalues.render" (dict "value" $general.overhead "context" $) | nindent 2 }}
+    {{- end }}
+    {{- if (ne .readinessGates nil) }}
+readinessGates: {{- include "helpers.tplvalues.render" (dict "value" .readinessGates "context" $) | nindent 2 }}
+    {{- else if (ne $general.readinessGates nil) }}
+readinessGates: {{- include "helpers.tplvalues.render" (dict "value" $general.readinessGates "context" $) | nindent 2 }}
+    {{- end }}
+    {{- if (ne .schedulingGates nil) }}
+schedulingGates: {{- include "helpers.tplvalues.render" (dict "value" .schedulingGates "context" $) | nindent 2 }}
+    {{- else if (ne $general.schedulingGates nil) }}
+schedulingGates: {{- include "helpers.tplvalues.render" (dict "value" $general.schedulingGates "context" $) | nindent 2 }}
+    {{- end }}
+    {{- if (ne .os nil) }}
+os: {{- include "helpers.tplvalues.render" (dict "value" .os "context" $) | nindent 2 }}
+    {{- else if (ne $general.os nil) }}
+os: {{- include "helpers.tplvalues.render" (dict "value" $general.os "context" $) | nindent 2 }}
+    {{- end }}
     {{- $workloadContainerSecCtx := .containerSecurityContext -}}
     {{- with .initContainers}}
 initContainers:

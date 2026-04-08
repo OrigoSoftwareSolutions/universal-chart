@@ -24,6 +24,7 @@ spec:
     {{- end }}
   minReplicas: {{ .minReplicas | default 2 | int }}
   maxReplicas: {{ .maxReplicas | default 3 | int }}
+  {{- if or (not (empty .targetCPU)) (not (empty .targetMemory)) .metrics }}
   metrics:
     {{- if not (empty .targetCPU) }}
     - type: Resource
@@ -44,6 +45,7 @@ spec:
     {{- if .metrics }}
       {{- toYaml .metrics | nindent 4 }}
     {{- end }}
+  {{- end }}
     {{- with .behavior }}
   behavior:
       {{- toYaml . | nindent 4 }}

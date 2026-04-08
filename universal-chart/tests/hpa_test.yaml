@@ -119,3 +119,34 @@ tests:
       - equal:
           path: spec.maxReplicas
           value: 10
+
+  - it: omits metrics key entirely when no targetCPU targetMemory or custom metrics are set
+    set:
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.minReplicas: 2
+      hpas.web.maxReplicas: 5
+    asserts:
+      - notExists:
+          path: spec.metrics
+
+  - it: renders metrics key when only targetCPU is set
+    set:
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.minReplicas: 2
+      hpas.web.maxReplicas: 5
+      hpas.web.targetCPU: 70
+    asserts:
+      - isNotEmpty:
+          path: spec.metrics
+
+  - it: renders behavior block when set
+    set:
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.minReplicas: 2
+      hpas.web.maxReplicas: 5
+      hpas.web.targetCPU: 70
+      hpas.web.behavior.scaleDown.stabilizationWindowSeconds: 300
+    asserts:
+      - equal:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 300
