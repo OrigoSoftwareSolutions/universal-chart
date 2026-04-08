@@ -124,6 +124,41 @@ tests:
             team: platform
             env: prod
 
+  - it: renders dnsConfig in the pod spec
+    set:
+      deployments:
+        web:
+          image: nginx
+          dnsConfig:
+            options:
+              - name: ndots
+                value: "2"
+            searches:
+              - svc.cluster.local
+    asserts:
+      - equal:
+          path: spec.template.spec.dnsConfig.options[0].name
+          value: ndots
+      - equal:
+          path: spec.template.spec.dnsConfig.options[0].value
+          value: "2"
+      - equal:
+          path: spec.template.spec.dnsConfig.searches[0]
+          value: svc.cluster.local
+
+  - it: renders minReadySeconds in deployment spec only
+    set:
+      deployments:
+        web:
+          image: nginx
+          minReadySeconds: 30
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 30
+      - notExists:
+          path: spec.template.spec.minReadySeconds
+
   - it: diagnosticMode overrides command and args and suppresses probes
     set:
       diagnosticMode:
@@ -145,6 +180,43 @@ tests:
           path: spec.template.spec.containers[0].livenessProbe
       - notExists:
           path: spec.template.spec.containers[0].readinessProbe
+
+  - it: renders HTTPS scheme for shorthand liveness and readiness probes
+    set:
+      deployments:
+        web:
+          image: nginx
+          healthCheck:
+            path: /healthz
+            scheme: HTTPS
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.scheme
+          value: HTTPS
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.scheme
+          value: HTTPS
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.scheme
+          value: HTTPS
+
+  - it: renders successThreshold for shorthand liveness and readiness probes only
+    set:
+      deployments:
+        web:
+          image: nginx
+          healthCheck:
+            path: /healthz
+            successThreshold: 3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.successThreshold
+          value: 3
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.successThreshold
+          value: 3
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe.successThreshold
 
   - it: injects preStopSleep lifecycle hook from defaults
     set:

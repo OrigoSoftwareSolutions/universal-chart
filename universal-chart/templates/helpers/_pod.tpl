@@ -81,6 +81,10 @@ dnsPolicy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) |
 dnsPolicy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
     {{- end }}
+    {{- with .dnsConfig }}
+dnsConfig:
+  {{- toYaml . | nindent 2 }}
+    {{- end }}
     {{- if (ne .nodeSelector nil) }}
       {{- with .nodeSelector }}
 nodeSelector: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}

@@ -82,3 +82,14 @@ tests:
               target:
                 type: Utilization
                 averageUtilization: 80
+
+  - it: keeps deployment as an allowed hpa target kind
+    set:
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.scaleTargetRef.kind: Deployment
+      hpas.web.minReplicas: 2
+      hpas.web.maxReplicas: 5
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef.kind
+          value: Deployment

@@ -4,9 +4,12 @@ templates:
 tests:
   - it: renders a StatefulSet with correct kind and apiVersion
     set:
-      statefulSets.db.containers[0].name: db
-      statefulSets.db.containers[0].image: postgres
-      statefulSets.db.containers[0].imageTag: "16"
+      statefulSets:
+        db:
+          containers:
+            - name: db
+              image: postgres
+              imageTag: "16"
     asserts:
       - isKind:
           of: StatefulSet
@@ -21,10 +24,13 @@ tests:
 
   - it: respects the disabled flag
     set:
-      statefulSets.db.disabled: true
-      statefulSets.db.containers[0].name: db
-      statefulSets.db.containers[0].image: postgres
-      statefulSets.db.containers[0].imageTag: "16"
+      statefulSets:
+        db:
+          disabled: true
+          containers:
+            - name: db
+              image: postgres
+              imageTag: "16"
     asserts:
       - hasDocuments:
           count: 0

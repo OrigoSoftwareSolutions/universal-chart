@@ -190,8 +190,16 @@ checksum/secret-{{ $refName }}: {{ . | toJson | sha256sum }}
 httpGet:
   path: {{ .healthCheck.path | default "/healthz" }}
   port: {{ .healthCheck.port | default 8080 }}
+  {{- with .healthCheck.scheme }}
+  scheme: {{ . }}
+  {{- end }}
 initialDelaySeconds: {{ .healthCheck.initialDelaySeconds | default $defaultDelay }}
 periodSeconds: {{ .healthCheck.periodSeconds | default 10 }}
 timeoutSeconds: {{ .healthCheck.timeoutSeconds | default 1 }}
+{{- if ne $probeType "startup" }}
+  {{- with .healthCheck.successThreshold }}
+successThreshold: {{ . }}
+  {{- end }}
+{{- end }}
 failureThreshold: {{ .healthCheck.failureThreshold | default 3 }}
 {{- end }}

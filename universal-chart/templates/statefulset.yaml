@@ -1,6 +1,7 @@
 {{- $general := $.Values.statefulSetsGeneral -}}
 {{- range $name, $sts := .Values.statefulSets }}
   {{- if not (.disabled | default false) }}
+    {{- $merged := mustMergeOverwrite (deepCopy $general) $sts }}
 ---
 apiVersion: {{ include "helpers.capabilities.statefulSet.apiVersion" $ }}
 kind: StatefulSet
@@ -18,8 +19,12 @@ spec:
   updateStrategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}
   serviceName: {{ include "helpers.app.fullname" (dict "name" (.serviceName | default $name) "context" $) }}
-    {{- with .minReadySeconds }}minReadySeconds: {{ . }}{{- end }}
-    {{- with .podManagementPolicy }}podManagementPolicy: {{ . }}{{- end }}
+    {{- with $merged.minReadySeconds }}
+  minReadySeconds: {{ . }}
+    {{- end }}
+    {{- with .podManagementPolicy }}
+  podManagementPolicy: {{ . }}
+    {{- end }}
   selector:
     matchLabels:
     {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}
