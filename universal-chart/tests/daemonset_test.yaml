@@ -1,6 +1,6 @@
 suite: DaemonSet template
 templates:
-  - daemonset.yml
+  - daemonset.yaml
 tests:
   - it: renders a DaemonSet with correct apiVersion and kind
     set:

@@ -1,4 +1,4 @@
-{{- range $host, $virtualservice := .Values.istiovirtualservices }}
+{{- range $host, $virtualservice := .Values.istioVirtualServices }}
   {{- if not ($virtualservice.disabled | default false) }}
 ---
 apiVersion: {{ include "helpers.capabilities.istiovirtualservice.apiVersion" $ }}

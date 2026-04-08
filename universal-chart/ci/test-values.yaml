@@ -196,7 +196,7 @@ serviceMonitors:
         path: /metrics
 
 # --- IstioVirtualService ---
-istiovirtualservices:
+istioVirtualServices:
   web:
     hosts:
       - app.origo.is
@@ -211,7 +211,7 @@ istiovirtualservices:
                 number: 80
 
 # --- IstioDestinationRule ---
-istiodestinationrules:
+istioDestinationRules:
   web:
     host: web.default.svc.cluster.local
     trafficPolicy:
@@ -220,7 +220,7 @@ istiodestinationrules:
           maxConnections: 100
 
 # --- IstioGateway ---
-istiogateways:
+istioGateways:
   main:
     selector:
       istio: ingressgateway

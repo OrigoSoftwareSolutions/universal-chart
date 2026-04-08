@@ -1,6 +1,6 @@
 suite: defaults and general merge cascade
 templates:
-  - deployment.yml
+  - deployment.yaml
 tests:
   # ── Pod securityContext: 3-tier cascade ────────────────────────────────────
   - it: applies defaults.podSecurityContext when nothing else is set

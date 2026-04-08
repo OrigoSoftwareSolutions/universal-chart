@@ -1,6 +1,6 @@
 suite: statefulset
 templates:
-  - statefulset.yml
+  - statefulset.yaml
 tests:
   - it: renders a StatefulSet with correct kind and apiVersion
     set:

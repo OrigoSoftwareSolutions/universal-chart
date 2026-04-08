@@ -1,6 +1,6 @@
 suite: auto-service generation
 templates:
-  - autoservices.yml
+  - autoservices.yaml
 
 tests:
   - it: ports map auto-generates a ClusterIP Service

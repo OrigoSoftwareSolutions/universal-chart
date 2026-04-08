@@ -1,6 +1,6 @@
 suite: bugfix regressions
 templates:
-  - deployment.yml
+  - deployment.yaml
 tests:
   # ── Fix #1: diagnosticMode suppresses all probes ─────────────────────────
   - it: diagnosticMode suppresses healthCheck shorthand probes

@@ -83,6 +83,6 @@ Merge the user defined annotations and the common hook annotations
   {{- $defaultHookValues := include "helpers.app.defaultHookAnnotations" .context | fromYaml }}
   {{- $defaultAnnotations := include "helpers.app.defaultAnnotations" .context | fromYaml }}
   {{- $userValues := .value | fromYaml }}
-  {{- $mergedValues := mustMergeOverwrite  $defaultHookValues $userValues $defaultAnnotations }}
+  {{- $mergedValues := mustMergeOverwrite  $defaultHookValues $defaultAnnotations $userValues }}
 {{- $mergedValues | toYaml -}}
 {{- end -}}

@@ -1,5 +1,5 @@
 {{- range $name, $s := $.Values.services }}
-  {{- if not (.disabled | default false) }}
+  {{- if not ($s.disabled | default false) }}
 ---
 kind: Service
 apiVersion: v1
@@ -59,7 +59,7 @@ spec:
       {{- end }}
     {{- end }}
   ports:
-    {{- range .ports }}
+    {{- range $s.ports }}
   - name: {{ .name | default $name}}
     protocol: {{ .protocol | default "TCP"}}
     port: {{ .port }}
@@ -70,10 +70,14 @@ spec:
     nodePort: {{ .nodePort }}
       {{- end }}
     {{- end }}
-    {{- if ne (.type | default "") "ExternalName" }}
+    {{- if ne ($s.type | default "") "ExternalName" }}
   selector:
-      {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
-      {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+      {{- if $s.workload }}
+        {{- include "helpers.app.workloadSelectorLabels" (dict "name" $s.workload "context" $) | nindent 4 }}
+      {{- else }}
+        {{- include "helpers.app.selectorLabels" $ | nindent 4 }}
+      {{- end }}
+      {{- with $s.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- end }}
   {{- end }}
 {{- end }}

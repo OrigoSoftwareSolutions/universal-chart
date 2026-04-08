@@ -1,6 +1,6 @@
 suite: configmap
 templates:
-  - configmap.yml
+  - configmap.yaml
 tests:
   # ── Auto-generated envs ConfigMap ──────────────────────────────────────────
   - it: renders envs ConfigMap when envs is set

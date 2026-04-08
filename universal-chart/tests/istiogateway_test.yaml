@@ -1,6 +1,6 @@
 suite: istiogateway template
 templates:
-  - istiogateway.yml
+  - istiogateway.yaml
 tests:
   - it: renders a gateway with correct kind apiversion and namespace
     capabilities:
@@ -24,7 +24,7 @@ tests:
       apiVersions:
         - networking.istio.io/v1
     set:
-      istiogateways.my-gw.disabled: true
+      istioGateways.my-gw.disabled: true
     asserts:
       - hasDocuments:
           count: 0
@@ -54,7 +54,7 @@ tests:
     values:
       - values/istiogateway.yaml
     set:
-      istiogateways.my-gw.name: custom-gateway
+      istioGateways.my-gw.name: custom-gateway
     asserts:
       - matchRegex:
           path: metadata.name

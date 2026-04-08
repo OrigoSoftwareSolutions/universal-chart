@@ -1,6 +1,6 @@
 suite: istiovirtualservice template
 templates:
-  - istiovirtualservice.yml
+  - istiovirtualservice.yaml
 tests:
   - it: renders a virtualservice with correct kind apiversion and namespace
     capabilities:
@@ -24,7 +24,7 @@ tests:
       apiVersions:
         - networking.istio.io/v1
     set:
-      istiovirtualservices.my-vs.disabled: true
+      istioVirtualServices.my-vs.disabled: true
     asserts:
       - hasDocuments:
           count: 0
@@ -72,7 +72,7 @@ tests:
       apiVersions:
         - networking.istio.io/v1
     set:
-      istiovirtualservices:
+      istioVirtualServices:
         my-vs:
           hosts:
             - '{{ .Release.Name }}.example.com'

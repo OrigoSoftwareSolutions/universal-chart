@@ -2,7 +2,6 @@
   "indent_size": 2,
   "extensions": [
     ".yaml",
-    ".yml",
     ".tpl"
   ],
   "rules": {

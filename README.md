@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.3.2](https://img.shields.io/badge/Version-1.3.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.4.0](https://img.shields.io/badge/Version-1.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -21,7 +21,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.3.2 \
+  --version 1.4.0 \
   -f my-values.yaml
 ```
 
@@ -82,7 +82,7 @@ cronJobs:
     schedule: "0 3 * * *"
     image: registry.example.com/my-api
     imageTag: "1.4.2"
-    command: "python manage.py cleanup --older-than 30d"
+    command: ["python", "manage.py", "cleanup", "--older-than", "30d"]
 
 # ── Secrets from AWS Secrets Manager ──
 secretStores:
@@ -148,7 +148,7 @@ services:
 | `deployments.api.ports: {http: 8080}` | A matching ClusterIP **Service** with port `http:8080` |
 | `deployments.api.healthCheck: {path: /healthz}` | **Startup**, **liveness**, and **readiness** probes |
 | `pvcs.data.mountPath: /data` | A **PVC**, a pod **volume**, and a **volumeMount** in every container |
-| `serviceAccount.sa.role: {…}` | A **Role** + **RoleBinding** (or ClusterRole + ClusterRoleBinding) |
+| `serviceAccounts.sa.role: {…}` | A **Role** + **RoleBinding** (or ClusterRole + ClusterRoleBinding) |
 | `cronJobs.etl.commandDurationAlert: 1800` | A **PrometheusRule** that fires if the job exceeds 30 min |
 
 ### The 3-tier defaults cascade
@@ -163,7 +163,7 @@ defaults:              ← applied to ALL workloads
 
 Example: `defaults.resources` sets baseline CPU/memory → `deploymentsGeneral.replicas` sets replica count for all Deployments → `deployments.api.replicas` overrides it for just `api`.
 
-Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountGeneral`.
+Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountsGeneral`.
 
 ### Single-container shorthand vs full form
 
@@ -241,7 +241,7 @@ deployments:
     healthCheck:
       path: /healthz
       port: 8080            # default: 8080
-    command: "node server.js"  # string is auto-split into array
+    command: ["node", "server.js"]
 ```
 
 This creates:
@@ -387,7 +387,7 @@ cronJobs:
     schedule: "0 2 * * *"
     image: registry.example.com/reporter
     imageTag: "1.0.0"
-    command: "python generate_report.py"
+    command: ["python", "generate_report.py"]
     resources:
       requests:
         cpu: 100m
@@ -398,7 +398,7 @@ cronJobs:
     singleOnly: true          # shorthand for concurrencyPolicy: Forbid
     image: postgres
     imageTag: "16"
-    command: "pg_dump -h $DB_HOST mydb | gzip > /backup/dump.sql.gz"
+    command: ["pg_dump", "-h", "$DB_HOST", "mydb", "|", "gzip", ">", "/backup/dump.sql.gz"]
     commandDurationAlert: 3600  # PrometheusRule fires if job runs > 1 hour
 ```
 
@@ -409,7 +409,7 @@ jobs:
   seed-data:
     image: registry.example.com/my-api
     imageTag: "1.0.0"
-    command: "python manage.py seed"
+    command: ["python", "manage.py", "seed"]
     backoffLimit: 3
 ```
 
@@ -476,7 +476,7 @@ httpRoutes:
 ### Istio VirtualService
 
 ```yaml
-istiovirtualservices:
+istioVirtualServices:
   api:
     gateways:
       - main-gateway
@@ -496,7 +496,7 @@ istiovirtualservices:
 ### Istio Gateway
 
 ```yaml
-istiogateways:
+istioGateways:
   main:
     selector:
       istio: ingressgateway
@@ -515,7 +515,7 @@ istiogateways:
 ### Istio DestinationRule
 
 ```yaml
-istiodestinationrules:
+istioDestinationRules:
   api:
     host: api.default.svc.cluster.local
     trafficPolicy:
@@ -758,7 +758,7 @@ pdbs:
 Define `role:` or `clusterRole:` inside a ServiceAccount to auto-create Role/ClusterRole and their bindings:
 
 ```yaml
-serviceAccount:
+serviceAccounts:
   app-sa:
     # Create a Role + RoleBinding
     role:
@@ -816,7 +816,7 @@ cronJobs:
     schedule: "0 * * * *"
     image: my-etl
     imageTag: "1.0.0"
-    command: "python etl.py"
+    command: ["python", "etl.py"]
     commandDurationAlert: 1800  # fires warning if job runs > 30 minutes
 ```
 
@@ -969,7 +969,7 @@ deployments:
         memory: 2Gi  # overrides defaults
 ```
 
-Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountGeneral`.
+Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountsGeneral`.
 
 ### Security Defaults
 
@@ -1261,7 +1261,7 @@ deployments:
     imageTag: "1.3.0"
     replicas: 2
     service: false            # suppress auto-generated Service
-    command: "celery -A app worker --loglevel=info"
+    command: ["celery", "-A", "app", "worker", "--loglevel=info"]
     resources:
       requests:
         cpu: 500m
@@ -1275,13 +1275,13 @@ cronJobs:
     schedule: "0 3 * * *"
     image: registry.example.com/worker
     imageTag: "1.3.0"
-    command: "python manage.py cleanup --older-than 30d"
+    command: ["python", "manage.py", "cleanup", "--older-than", "30d"]
 
   daily-report:
     schedule: "0 8 * * 1-5"
     image: registry.example.com/worker
     imageTag: "1.3.0"
-    command: "python manage.py send_report"
+    command: ["python", "manage.py", "send_report"]
     commandDurationAlert: 1800  # alert if > 30 min
 
   db-backup:
@@ -1289,7 +1289,7 @@ cronJobs:
     singleOnly: true           # concurrencyPolicy: Forbid
     image: postgres
     imageTag: "16"
-    command: "pg_dump -h $DB_HOST mydb | gzip > /backup/dump.sql.gz"
+    command: ["pg_dump", "-h", "$DB_HOST", "mydb", "|", "gzip", ">", "/backup/dump.sql.gz"]
     volumes:
       - name: backup
         type: pvc
@@ -1398,7 +1398,7 @@ deployments:
     image: registry.example.com/worker
     imageTag: "2.1.0"
     service: false
-    command: "celery -A app worker"
+    command: ["celery", "-A", "app", "worker"]
     resources:               # override defaults
       requests:
         cpu: 500m
@@ -1765,7 +1765,7 @@ cronJobs:
     schedule: "0 * * * *"
     image: my-etl
     imageTag: "1.0.0"
-    command: "python etl.py"
+    command: ["python", "etl.py"]
     singleOnly: true                   # concurrencyPolicy: Forbid
     suspend: false                     # pause scheduling without deleting
     startingDeadlineSeconds: 300       # max seconds late before skip
@@ -1823,12 +1823,12 @@ Community charts wrap a single application with extensive `values.yaml` options.
 | `image.repository` + `image.tag` | `image` + `imageTag` |
 | `replicaCount` | `replicas` |
 | `service.type` + `service.port` | `ports: {http: 8080}` (auto-Service) or `services:` block |
-| `ingress.enabled` + `ingress.hosts` | `httpRoutes:` or `istiovirtualservices:` |
+| `ingress.enabled` + `ingress.hosts` | `httpRoutes:` or `istioVirtualServices:` |
 | `resources.requests` | `resources.requests` (same) |
 | `env` / `extraEnvVars` | `env:` / `envs:` / `envConfigmaps:` |
 | `persistence.enabled` + `persistence.size` | `pvcs:` block with `mountPath` |
 | `podSecurityContext` | `podSecurityContext` (same) |
-| `serviceAccount.create` | `serviceAccount:` block |
+| `serviceAccount.create` | `serviceAccounts:` block |
 
 ### Migration checklist
 
@@ -1938,7 +1938,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | defaultImage | string | `"nginx"` | Fallback container image used when a workload omits `image`. |
 | defaultImagePullPolicy | string | `"IfNotPresent"` | Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`. |
 | defaultImageTag | string | `"v0.0.1"` | Fallback container image tag. |
-| defaults | object | `{"annotations":{},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"podSecurityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"resources":{"requests":{"cpu":"100m","memory":"128Mi"}},"usePredefinedAffinity":true}` | Default settings applied to all workload templates (labels, annotations, pod metadata, volumes, etc.) |
+| defaults | object | `{"annotations":{},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"podSecurityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"resources":{"limits":{"memory":"128Mi"},"requests":{"cpu":"100m","memory":"128Mi"}},"usePredefinedAffinity":true}` | Default settings applied to all workload templates (labels, annotations, pod metadata, volumes, etc.) |
 | defaults.annotations | object | `{}` | Annotations added to every resource's `metadata.annotations`. |
 | defaults.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Default container-level securityContext applied to every container. |
 | defaults.extraImagePullSecrets | list | `[]` | Additional image pull secrets appended to every pod spec. |
@@ -1950,7 +1950,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | defaults.podAnnotations | object | `{}` | Annotations added to pod templates. |
 | defaults.podLabels | object | `{}` | Labels added to pod templates. |
 | defaults.podSecurityContext | object | `{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Default pod-level securityContext applied to every pod spec. |
-| defaults.resources | object | `{"requests":{"cpu":"100m","memory":"128Mi"}}` | Default resource requests/limits applied to containers when not overridden. |
+| defaults.resources | object | `{"limits":{"memory":"128Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Default resource requests/limits applied to containers when not overridden. |
 | defaults.usePredefinedAffinity | bool | `true` | Use the chart's built-in pod affinity/anti-affinity rules. |
 | deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form `{name: port}`) auto-creates containerPorts AND a matching ClusterIP Service. `resources:` raw requests/limits map. `healthCheck:` sets liveness, readiness, and startup probes. Override service behaviour with `service: false` (suppress) or `service: {type: NodePort}`. The full `containers:` list still works for multi-container workloads. |
 | deploymentsGeneral | object | `{}` | Shared defaults for all Deployments (merged with per-instance values). |
@@ -1970,10 +1970,10 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | imageUpdaters | object | `{}` | Argo CD Image Updater resources. Each key becomes the resource name. Configures automatic image updates for Argo CD applications. |
 | issuers | object | `{}` | cert-manager Issuer resources (namespace-scoped). Each key becomes the resource name. |
 | istioAuthorizationPolicies | object | `{}` | Istio AuthorizationPolicy resources. Each key becomes the resource name. |
+| istioDestinationRules | object | `{}` | Istio DestinationRule resources. Each key becomes the resource name. |
+| istioGateways | object | `{}` | Istio Gateway resources. Each key becomes the resource name. |
 | istioPeerAuthentications | object | `{}` | Istio PeerAuthentication resources (mTLS policy). Each key becomes the resource name. |
-| istiodestinationrules | object | `{}` | Istio DestinationRule resources. Each key becomes the resource name. |
-| istiogateways | object | `{}` | Istio Gateway resources. Each key becomes the resource name. |
-| istiovirtualservices | object | `{}` | Istio VirtualService resources. Each key becomes the resource name. |
+| istioVirtualServices | object | `{}` | Istio VirtualService resources. Each key becomes the resource name. |
 | jobs | object | `{}` | Kubernetes Job resources (non-hook). Each key becomes the resource name. |
 | jobsGeneral | object | `{"usePredefinedAffinity":false}` | Shared defaults for all Jobs. |
 | nodeAffinityPreset | object | `{"key":"","type":"","values":[]}` | Node affinity preset configuration. |
@@ -1984,14 +1984,14 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | persistentVolumes | object | `{}` | Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name. Thin passthrough — `spec:` goes directly to the Kubernetes resource unchanged. |
 | podAffinityPreset | string | `"soft"` | Pod affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
-| pvcs | object | `{}` | Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name. PVCs are automatically added to the `volumes` block in each workload (excluding hooks). Set `mountPath` on a PVC to also auto-mount it into every container. |
+| pvcs | object | `{}` | Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name. PVCs are automatically added to the `volumes` block in each workload (excluding hooks). Set `mountPath` on a PVC to also auto-mount it into every container. Set `workloads` to limit auto-mounting to specific workload names. Set `keepOnDelete` to retain the PVC on uninstall. |
 | releasePrefix | string | `""` | Prefix prepended to all resource names. Leave empty to disable. |
 | secretEnvs | object | `{}` | Secret environment variables injected via Secret envFrom. |
 | secretEnvsString | string | `""` | Secret environment variables as a raw YAML string. |
 | secretStores | object | `{}` | External Secrets Operator SecretStore resources (namespace-scoped). Each key becomes the resource name. |
 | secrets | object | `{}` | Kubernetes Secret resources. Each key becomes the resource name. |
-| serviceAccount | object | `{}` | Kubernetes ServiceAccount resources. Each key becomes the resource name. |
-| serviceAccountGeneral | object | `{}` | Shared defaults for all ServiceAccounts. |
+| serviceAccounts | object | `{}` | Kubernetes ServiceAccount resources. Each key becomes the resource name. |
+| serviceAccountsGeneral | object | `{}` | Shared defaults for all ServiceAccounts. |
 | serviceMonitors | object | `{}` | Prometheus ServiceMonitor resources. Each key becomes the resource name. |
 | services | object | `{}` | Kubernetes Service resources. Each key becomes the resource name. |
 | statefulSets | object | `{}` | Kubernetes StatefulSet resources. Each key becomes the resource name. Uses `updateStrategy` instead of `strategy`. Adds `volumeClaimTemplates` support. |
@@ -2094,3 +2094,9 @@ No manual tagging required. The `Chart.yaml` version is the single source of tru
 ## License
 
 Maintained by [Origo Software Solutions](https://github.com/OrigoSoftwareSolutions).
+
+---
+
+## Acknowledgements
+
+This chart grew out of [nixys/universal-chart](https://github.com/nixys/universal-chart), an open-source Helm chart by Nixys Ltd. Thank you for the foundation.

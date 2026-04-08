@@ -1,14 +1,14 @@
 suite: istiodestinationrule template
 templates:
-  - istiodestinationrule.yml
+  - istiodestinationrule.yaml
 tests:
   - it: renders a destinationrule with api version name and namespace
     capabilities:
       apiVersions:
         - networking.istio.io/v1
     set:
-      istiodestinationrules.my-dr.host: my-svc.default.svc.cluster.local
-      istiodestinationrules.my-dr.trafficPolicy.connectionPool.tcp.maxConnections: 100
+      istioDestinationRules.my-dr.host: my-svc.default.svc.cluster.local
+      istioDestinationRules.my-dr.trafficPolicy.connectionPool.tcp.maxConnections: 100
     asserts:
       - isKind:
           of: DestinationRule
@@ -25,7 +25,7 @@ tests:
       apiVersions:
         - networking.istio.io/v1
     set:
-      istiodestinationrules.my-dr.disabled: true
+      istioDestinationRules.my-dr.disabled: true
     asserts:
       - hasDocuments:
           count: 0
@@ -34,9 +34,9 @@ tests:
       apiVersions:
         - networking.istio.io/v1
     set:
-      istiodestinationrules.my-dr.host: my-svc.default.svc.cluster.local
-      istiodestinationrules.my-dr.trafficPolicy.connectionPool.tcp.maxConnections: 100
-      istiodestinationrules.my-dr.trafficPolicy.tls.mode: ISTIO_MUTUAL
+      istioDestinationRules.my-dr.host: my-svc.default.svc.cluster.local
+      istioDestinationRules.my-dr.trafficPolicy.connectionPool.tcp.maxConnections: 100
+      istioDestinationRules.my-dr.trafficPolicy.tls.mode: ISTIO_MUTUAL
     asserts:
       - equal:
           path: spec.host
@@ -53,8 +53,8 @@ tests:
       apiVersions:
         - networking.istio.io/v1
     set:
-      istiodestinationrules.my-dr.host: '{{ .Release.Name }}-svc.default.svc.cluster.local'
-      istiodestinationrules.my-dr.trafficPolicy.connectionPool.tcp.maxConnections: 50
+      istioDestinationRules.my-dr.host: '{{ .Release.Name }}-svc.default.svc.cluster.local'
+      istioDestinationRules.my-dr.trafficPolicy.connectionPool.tcp.maxConnections: 50
     asserts:
       - equal:
           path: spec.host

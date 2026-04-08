@@ -1,12 +1,6 @@
 {{- if .Values.cronJobs -}}
   {{- $general := $.Values.cronJobsGeneral -}}
-  {{- $cronJobs := list -}}
-  {{- if kindIs "string" .Values.cronJobs -}}
-{{- $cronJobs = fromYaml .Values.cronJobs -}}
-  {{- else if kindIs "map" .Values.cronJobs -}}
-{{- $cronJobs = .Values.cronJobs -}}
-  {{- end -}}
-  {{- range $name, $job := $cronJobs }}
+  {{- range $name, $job := .Values.cronJobs }}
     {{- if not (.disabled | default false) }}
       {{- $cjName := include "helpers.app.fullname" (dict "name" $name "context" $) }}
 ---
@@ -15,17 +9,7 @@ kind: CronJob
 metadata:
   name: {{ $cjName }}
   namespace: {{ $.Release.Namespace | quote }}
-  labels:
-      {{- include "helpers.app.labels" $ | nindent 4 }}
-      {{- with $general.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-      {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-      {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
-      {{- if or $annots $general.annotations .annotations }}
-  annotations:
-        {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
-        {{- with $general.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-        {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-      {{- end }}
+      {{- include "helpers.workload.metadata" (dict "name" $name "value" $job "general" $general "context" $) | nindent 2 }}
 spec:
   suspend: {{ default false .suspend }}
   schedule: {{ include "helpers.tplvalues.render" (dict "value" .schedule "context" $) | quote }}
@@ -67,22 +51,10 @@ spec:
       ttlSecondsAfterFinished: {{ $ttl }}
       {{- end }}
       template:
-      {{- $autoChecksums := include "helpers.workload.autoChecksums" (dict "value" $job "general" $general "context" $) | trim }}
-      {{- if or $.Values.defaults.podLabels $general.podLabels .podLabels $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations $autoChecksums }}
+      {{- $podTemplateMetadata := include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $job "general" $general "context" $) | trim }}
+      {{- if $podTemplateMetadata }}
         metadata:
-        {{- if or $.Values.defaults.podLabels $general.podLabels .podLabels }}
-          labels:
-          {{- with $.Values.defaults.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
-          {{- with $general.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
-          {{- with .podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
-        {{- end }}
-        {{- if or $.Values.defaults.podAnnotations $general.podAnnotations .podAnnotations $autoChecksums }}
-          annotations:
-          {{- with $.Values.defaults.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
-          {{- with $general.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
-          {{- with .podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}{{- end }}
-          {{- if $autoChecksums }}{{ $autoChecksums | nindent 12 }}{{- end }}
-        {{- end }}
+        {{- $podTemplateMetadata | nindent 10 }}
       {{- else }}
         metadata: {}
       {{- end }}
