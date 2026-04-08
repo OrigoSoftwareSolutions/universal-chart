@@ -82,6 +82,42 @@ tests:
       - notExists:
           path: spec.template.spec.securityContext
 
+  - it: defaults.securityContext alias is respected at defaults tier (F3 fix)
+    values:
+      - values/empty_defaults.yaml
+    set:
+      defaults:
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 999
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 999
+
+  - it: defaults.podSecurityContext takes precedence over defaults.securityContext (F3 fix)
+    values:
+      - values/empty_defaults.yaml
+    set:
+      defaults:
+        securityContext:
+          runAsUser: 1000
+        podSecurityContext:
+          runAsUser: 2000
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 2000
+
   # ── Container securityContext: 2-tier cascade ──────────────────────────────
   - it: applies defaults.containerSecurityContext to container
     set:
@@ -578,6 +614,21 @@ tests:
       - notExists:
           path: spec.template.spec.affinity
 
+  - it: empty podAffinityPreset does not render empty podAffinity object (B4 fix)
+    set:
+      podAffinityPreset: ""
+      podAntiAffinityPreset: ""
+      defaults:
+        usePredefinedAffinity: true
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - notExists:
+          path: spec.template.spec.affinity.podAffinity
+      - notExists:
+          path: spec.template.spec.affinity.podAntiAffinity
+
   - it: instance usePredefinedAffinity overrides general
     set:
       defaults:
@@ -833,8 +884,19 @@ tests:
 
   # --- progressDeadlineSeconds cascade ---
 
-  - it: progressDeadlineSeconds defaults to 600
+  - it: progressDeadlineSeconds is omitted when not set
     set:
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - notExists:
+          path: spec.progressDeadlineSeconds
+
+  - it: progressDeadlineSeconds from defaults tier is emitted
+    set:
+      defaults:
+        progressDeadlineSeconds: 600
       deployments:
         web:
           image: myapp:1.0

@@ -67,7 +67,28 @@ tests:
           path: spec.http[0].route[0].destination.port.number
           value: 8080
 
-  - it: renders template expressions in hosts and gateways
+  - it: omits http route name when not set (M3 fix)
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istioVirtualServices:
+        my-vs:
+          hosts:
+            - example.com
+          gateways:
+            - my-gw
+          http:
+            - route:
+                - destination:
+                    host: my-svc
+                    port:
+                      number: 8080
+    asserts:
+      - notExists:
+          path: spec.http[0].name
+
+  - it: renders tplvalues expressions in hosts and gateways
     capabilities:
       apiVersions:
         - networking.istio.io/v1

@@ -48,6 +48,16 @@ tests:
           path: spec.trafficPolicy.tls.mode
           value: ISTIO_MUTUAL
 
+  - it: omits trafficPolicy when not set (M4 fix)
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istioDestinationRules.my-dr.host: my-svc.default.svc.cluster.local
+    asserts:
+      - notExists:
+          path: spec.trafficPolicy
+
   - it: renders template expressions in host field
     capabilities:
       apiVersions:
