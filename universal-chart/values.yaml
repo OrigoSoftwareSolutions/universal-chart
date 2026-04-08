@@ -267,7 +267,9 @@ hooks: {}
 # @section Networking
 # =============================================================================
 
-# -- Kubernetes Service resources. Each key becomes the resource name. If `workload` is omitted, the selector defaults to the service key name. Set `selector` to override the selector verbatim. ExternalName services omit selectors.
+# -- Kubernetes Service resources. Each key becomes the resource name.
+# If `workload` is omitted, the selector defaults to the service key name.
+# Set `selector` to override the selector verbatim. ExternalName services omit selectors.
 services: {}
 #   nginx:
 #     ports:
