@@ -1,0 +1,94 @@
+suite: pod extra fields - runtimeClassName automountServiceAccountToken os readinessGates schedulingGates
+templates:
+  - deployment.yaml
+tests:
+  - it: renders runtimeClassName when set on instance
+    set:
+      deployments.api.image: nginx
+      deployments.api.runtimeClassName: gvisor
+    asserts:
+      - equal:
+          path: spec.template.spec.runtimeClassName
+          value: gvisor
+
+  - it: renders runtimeClassName from deploymentsGeneral
+    set:
+      deploymentsGeneral.runtimeClassName: kata-containers
+      deployments.api.image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.runtimeClassName
+          value: kata-containers
+
+  - it: instance runtimeClassName overrides general
+    set:
+      deploymentsGeneral.runtimeClassName: kata-containers
+      deployments.api.image: nginx
+      deployments.api.runtimeClassName: gvisor
+    asserts:
+      - equal:
+          path: spec.template.spec.runtimeClassName
+          value: gvisor
+
+  - it: renders automountServiceAccountToken false on pod spec
+    set:
+      deployments.api.image: nginx
+      deployments.api.automountServiceAccountToken: false
+    asserts:
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: renders automountServiceAccountToken true on pod spec
+    set:
+      deployments.api.image: nginx
+      deployments.api.automountServiceAccountToken: true
+    asserts:
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: true
+
+  - it: automountServiceAccountToken cascades from deploymentsGeneral
+    set:
+      deploymentsGeneral.automountServiceAccountToken: false
+      deployments.api.image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: does not render automountServiceAccountToken when not set
+    set:
+      deployments.api.image: nginx
+    asserts:
+      - notExists:
+          path: spec.template.spec.automountServiceAccountToken
+
+  - it: renders os field when set
+    set:
+      deployments.api.image: nginx
+      deployments.api.os.name: linux
+    asserts:
+      - equal:
+          path: spec.template.spec.os.name
+          value: linux
+
+  - it: renders readinessGates when set
+    set:
+      deployments.api.image: nginx
+      deployments.api.readinessGates[0].conditionType: feature-1/ready
+    asserts:
+      - contains:
+          path: spec.template.spec.readinessGates
+          content:
+            conditionType: feature-1/ready
+
+  - it: renders schedulingGates when set
+    set:
+      deployments.api.image: nginx
+      deployments.api.schedulingGates[0].name: example.com/ready
+    asserts:
+      - contains:
+          path: spec.template.spec.schedulingGates
+          content:
+            name: example.com/ready

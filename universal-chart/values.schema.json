@@ -977,7 +977,10 @@
         "overhead": { "type": "object", "additionalProperties": true, "description": "Resource overhead for pods of this kind (used by RuntimeClass)." },
         "readinessGates": { "type": "array", "items": { "type": "object", "additionalProperties": true }, "description": "Additional pod readiness conditions." },
         "schedulingGates": { "type": "array", "items": { "type": "object", "additionalProperties": true }, "description": "Scheduling gates for pods of this kind." },
-        "os": { "type": "object", "additionalProperties": true, "description": "OS-specific settings for pods of this kind." }
+        "os": { "type": "object", "additionalProperties": true, "description": "OS-specific settings for pods of this kind." },
+        "deletePolicy": { "type": "string", "description": "Default Helm hook delete policy for all hooks in this release (e.g. before-hook-creation,hook-succeeded)." },
+        "kind": { "type": "string", "description": "Default Helm hook kind for all hooks (e.g. pre-install,pre-upgrade)." },
+        "weight": { "type": ["string", "integer"], "description": "Default Helm hook weight for all hooks." }
       }
     },
     "pvc": {

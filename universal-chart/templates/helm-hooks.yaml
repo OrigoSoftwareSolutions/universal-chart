@@ -3,13 +3,14 @@
   {{- range $name, $hook := .Values.hooks }}
     {{- if not (.disabled | default false) }}
       {{- $hookName := include "helpers.app.fullname" (dict "name" $name "context" $) }}
+      {{- $deletePolicy := dig "deletePolicy" (dig "deletePolicy" "before-hook-creation,hook-succeeded" $general) $hook }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ $hookName }}
   namespace: {{ $.Release.Namespace | quote }}
-      {{- include "helpers.workload.metadata" (dict "name" $name "value" $hook "general" $general "context" $ "extraAnnotations" (dict "helm.sh/hook" ($hook.kind | default "pre-install,pre-upgrade") "helm.sh/hook-weight" ($hook.weight | default "5") "helm.sh/hook-delete-policy" ($hook.deletePolicy | default "before-hook-creation"))) | nindent 2 }}
+      {{- include "helpers.workload.metadata" (dict "name" $name "value" $hook "general" $general "context" $ "extraAnnotations" (dict "helm.sh/hook" ($hook.kind | default "pre-install,pre-upgrade") "helm.sh/hook-weight" ($hook.weight | default "5") "helm.sh/hook-delete-policy" $deletePolicy)) | nindent 2 }}
 spec:
       {{- $par := dig "parallelism" (dig "parallelism" nil $general) $hook -}}
       {{- if ne $par nil }}
