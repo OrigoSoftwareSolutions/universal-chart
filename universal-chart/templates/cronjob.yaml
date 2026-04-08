@@ -15,6 +15,10 @@ spec:
   suspend: {{ .suspend }}
       {{- end }}
   schedule: {{ include "helpers.tplvalues.render" (dict "value" .schedule "context" $) | quote }}
+      {{- $tz := dig "timeZone" (dig "timeZone" nil $general) $job }}
+      {{- with $tz }}
+  timeZone: {{ . | quote }}
+      {{- end }}
       {{- $cp := dig "concurrencyPolicy" (dig "concurrencyPolicy" nil $general) $job -}}
       {{- if $cp }}
   concurrencyPolicy: {{ $cp }}
