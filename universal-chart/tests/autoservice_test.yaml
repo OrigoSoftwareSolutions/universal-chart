@@ -210,3 +210,31 @@ tests:
     asserts:
       - notExists:
           path: spec.allocateLoadBalancerNodePorts
+
+  - it: publishNotReadyAddresses false is rendered not silently dropped
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+      deployments.api.service.publishNotReadyAddresses: false
+    asserts:
+      - equal:
+          path: spec.publishNotReadyAddresses
+          value: false
+
+  - it: publishNotReadyAddresses true is rendered
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+      deployments.api.service.publishNotReadyAddresses: true
+    asserts:
+      - equal:
+          path: spec.publishNotReadyAddresses
+          value: true
+
+  - it: publishNotReadyAddresses is absent when not set
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+    asserts:
+      - notExists:
+          path: spec.publishNotReadyAddresses

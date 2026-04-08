@@ -10,15 +10,15 @@ metadata:
   namespace: {{ $.Release.Namespace | quote }}
     {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "general" $general "context" $) | nindent 2 }}
 spec:
-    {{- $rhl := dig "revisionHistoryLimit" (dig "revisionHistoryLimit" nil $general) $d }}
-    {{- with $rhl }}
-  revisionHistoryLimit: {{ . | int }}
+    {{- $rhl := dig "revisionHistoryLimit" (dig "revisionHistoryLimit" $.Values.defaults.revisionHistoryLimit $general) $d }}
+    {{- if ne $rhl nil }}
+  revisionHistoryLimit: {{ $rhl | int }}
     {{- end }}
     {{- with .updateStrategy }}
   updateStrategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}
-    {{- with $merged.minReadySeconds }}
-  minReadySeconds: {{ . }}
+    {{- if ne $merged.minReadySeconds nil }}
+  minReadySeconds: {{ $merged.minReadySeconds }}
     {{- end }}
   selector:
     matchLabels:

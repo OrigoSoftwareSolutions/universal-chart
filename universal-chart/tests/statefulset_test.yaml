@@ -187,3 +187,27 @@ tests:
       - equal:
           path: spec.revisionHistoryLimit
           value: 10
+
+  - it: revisionHistoryLimit 0 is rendered not silently dropped
+    set:
+      statefulSets:
+        db:
+          image: postgres
+          imageTag: "16"
+          revisionHistoryLimit: 0
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 0
+
+  - it: minReadySeconds 0 is rendered not silently dropped
+    set:
+      statefulSets:
+        db:
+          image: postgres
+          imageTag: "16"
+          minReadySeconds: 0
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 0

@@ -72,8 +72,8 @@ spec:
   externalIPs:
         {{- toYaml . | nindent 4 }}
       {{- end }}
-      {{- with (index $val.service "publishNotReadyAddresses") }}
-  publishNotReadyAddresses: {{ . }}
+      {{- if hasKey $val.service "publishNotReadyAddresses" }}
+  publishNotReadyAddresses: {{ index $val.service "publishNotReadyAddresses" }}
       {{- end }}
       {{- with (index $val.service "ipFamilies") }}
   ipFamilies:
