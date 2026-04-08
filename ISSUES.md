@@ -158,15 +158,17 @@ tier, consistent with instance and general tiers.
 
 ### F4 — Auto-generated Service ports hardcoded to TCP
 
-**Status**: Known limitation, documented
+**Status**: Fixed in 1.5.6
 **File**: `templates/autoservices.yaml` (auto-generated Service from workload `ports:` map)  
 **File**: `templates/helpers/_workloads.tpl` (container port rendering)
 
 **Problem**: The `ports:` map shorthand (`{http: 8080}`) always renders `protocol: TCP`.
 UDP services are impossible to create via the shorthand.
 
-**Fix**: For now, document the limitation. Full fix requires adding a `protocol` field
-to the ports map schema, which is a minor feature addition for a future minor release.
+**Fix**: Extended the ports map to accept either `{name: port}` (simple form, defaults
+to TCP) or `{name: {port: N, protocol: P}}` (extended form with explicit protocol).
+Both auto-generated Service ports and container ports honour the new format.
+Schema updated to accept `oneOf` integer or `{port, protocol}` object.
 
 ---
 
@@ -249,25 +251,28 @@ render the `immutable:` field.
 
 ### M1 — `overhead`, `readinessGates`, `schedulingGates`, `os` cascade missing defaults tier
 
-**Status**: Known gap, low priority
+**Status**: Fixed in 1.5.6
 **File**: `templates/helpers/_pod.tpl` lines 209–228
 
 **Problem**: These four fields (added in 1.5.5) have instance → general cascade but
 no defaults tier. Rarely set globally, but breaks the 3-tier consistency guarantee.
 
-**Fix (future)**: Add the defaults tier check for each field, matching the pattern
+**Fix**: Added the defaults tier check for each field, matching the pattern
 of all other 3-tier fields.
 
 ---
 
 ### M2 — `issuer.yaml` line 3: `$_` variable assigned but result discarded
 
-**Status**: Known harmless, low priority
+**Status**: Fixed in 1.5.6
 **File**: `templates/issuer.yaml` line 3
 
 **Problem**: `{{- $_ := include "helpers.tplvalues.render" ... }}` stores the result
 in `$_` but it's never used — the same expression is evaluated again on line 4. The
 `$_` assignment is wasted work but produces no incorrect output.
+
+**Fix**: Inlined the `include` call directly into the `ternary` expression,
+removing the unnecessary intermediate variable.
 
 ---
 
@@ -300,11 +305,11 @@ under it — an empty scalar that Istio may reject or misinterpret.
 
 ### M5 — Port protocol hardcoded to TCP in `helpers.workload.singleContainerPorts`
 
-**Status**: Known limitation, same root cause as F4
+**Status**: Fixed in 1.5.6 (see F4 above)
 **File**: `templates/helpers/_workloads.tpl`
 
 **Problem**: Container port rendering from map-form `ports:` always sets
-`protocol: TCP`. Same as F4 — documented limitation for now.
+`protocol: TCP`. Same root cause as F4 — fixed together.
 
 ---
 

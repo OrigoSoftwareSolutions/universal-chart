@@ -85,11 +85,18 @@ spec:
     {{- end }}
   ports:
     {{- range $portName := keys $val.ports | sortAlpha }}
-      {{- $portNum := index $val.ports $portName }}
+      {{- $portVal := index $val.ports $portName }}
+      {{- if kindIs "map" $portVal }}
   - name: {{ $portName }}
-    port: {{ $portNum | int }}
+    port: {{ $portVal.port | int }}
+    targetPort: {{ $portName }}
+    protocol: {{ $portVal.protocol | default "TCP" }}
+      {{- else }}
+  - name: {{ $portName }}
+    port: {{ $portVal | int }}
     targetPort: {{ $portName }}
     protocol: TCP
+      {{- end }}
     {{- end }}
   selector:
     {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 4 }}

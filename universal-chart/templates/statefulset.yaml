@@ -15,14 +15,14 @@ spec:
     {{- if ne $rhl nil }}
   revisionHistoryLimit: {{ $rhl | int }}
     {{- end }}
-    {{- with .updateStrategy }}
+    {{- with $merged.updateStrategy }}
   updateStrategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}
   serviceName: {{ include "helpers.app.fullname" (dict "name" (.serviceName | default $name) "context" $) }}
     {{- if ne $merged.minReadySeconds nil }}
   minReadySeconds: {{ $merged.minReadySeconds }}
     {{- end }}
-    {{- with .podManagementPolicy }}
+    {{- with $merged.podManagementPolicy }}
   podManagementPolicy: {{ . }}
     {{- end }}
   selector:

@@ -224,21 +224,29 @@ runtimeClassName: {{ $.Values.defaults.runtimeClassName }}
 overhead: {{- include "helpers.tplvalues.render" (dict "value" .overhead "context" $) | nindent 2 }}
     {{- else if (ne $general.overhead nil) }}
 overhead: {{- include "helpers.tplvalues.render" (dict "value" $general.overhead "context" $) | nindent 2 }}
+    {{- else if (ne $.Values.defaults.overhead nil) }}
+overhead: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.overhead "context" $) | nindent 2 }}
     {{- end }}
     {{- if (ne .readinessGates nil) }}
 readinessGates: {{- include "helpers.tplvalues.render" (dict "value" .readinessGates "context" $) | nindent 2 }}
     {{- else if (ne $general.readinessGates nil) }}
 readinessGates: {{- include "helpers.tplvalues.render" (dict "value" $general.readinessGates "context" $) | nindent 2 }}
+    {{- else if (ne $.Values.defaults.readinessGates nil) }}
+readinessGates: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.readinessGates "context" $) | nindent 2 }}
     {{- end }}
     {{- if (ne .schedulingGates nil) }}
 schedulingGates: {{- include "helpers.tplvalues.render" (dict "value" .schedulingGates "context" $) | nindent 2 }}
     {{- else if (ne $general.schedulingGates nil) }}
 schedulingGates: {{- include "helpers.tplvalues.render" (dict "value" $general.schedulingGates "context" $) | nindent 2 }}
+    {{- else if (ne $.Values.defaults.schedulingGates nil) }}
+schedulingGates: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.schedulingGates "context" $) | nindent 2 }}
     {{- end }}
     {{- if (ne .os nil) }}
 os: {{- include "helpers.tplvalues.render" (dict "value" .os "context" $) | nindent 2 }}
     {{- else if (ne $general.os nil) }}
 os: {{- include "helpers.tplvalues.render" (dict "value" $general.os "context" $) | nindent 2 }}
+    {{- else if (ne $.Values.defaults.os nil) }}
+os: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.os "context" $) | nindent 2 }}
     {{- end }}
     {{- $workloadContainerSecCtx := .containerSecurityContext -}}
     {{- with .initContainers}}

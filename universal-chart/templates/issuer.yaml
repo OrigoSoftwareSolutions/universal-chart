@@ -1,7 +1,6 @@
 {{- range $name, $iss := .Values.issuers }}
   {{- if not (.disabled | default false) }}
-    {{- $_ := include "helpers.tplvalues.render" (dict "value" .kind "context" $) }}
-    {{- $kind := ternary "ClusterIssuer" "Issuer" (eq $_ "ClusterIssuer") }}
+    {{- $kind := ternary "ClusterIssuer" "Issuer" (eq (include "helpers.tplvalues.render" (dict "value" .kind "context" $)) "ClusterIssuer") }}
 
 ---
 kind: {{ $kind }}

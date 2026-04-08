@@ -168,14 +168,20 @@ checksum/secret-{{ $refName }}: {{ . | toJson | sha256sum }}
   {{- end -}}
 {{- end -}}
 
-{{- /* Converts a ports map {name: port} to a containerPorts list */}}
+{{- /* Converts a ports map {name: port} or {name: {port: N, protocol: P}} to a containerPorts list */}}
 {{- define "helpers.workload.singleContainerPorts" -}}
   {{- $ports := . -}}
   {{- range $portName := keys $ports | sortAlpha }}
-    {{- $portNum := index $ports $portName }}
+    {{- $portVal := index $ports $portName }}
+    {{- if kindIs "map" $portVal }}
 - name: {{ $portName }}
-  containerPort: {{ $portNum | int }}
+  containerPort: {{ $portVal.port | int }}
+  protocol: {{ $portVal.protocol | default "TCP" }}
+    {{- else }}
+- name: {{ $portName }}
+  containerPort: {{ $portVal | int }}
   protocol: TCP
+    {{- end }}
   {{- end }}
 {{- end }}
 

@@ -6,6 +6,54 @@ Format: [Semantic Versioning](https://semver.org). Dates are approximate (branch
 
 ---
 
+## [1.5.7] — 2026-04-09
+
+### Fixed
+
+#### `allocateLoadBalancerNodePorts` forced `false` on standalone Services
+The standalone Service template (`svc.yaml`) incorrectly set
+`allocateLoadBalancerNodePorts: false` whenever the field was not explicitly
+provided, overriding the Kubernetes default of `true`. Now uses a `hasKey`
+guard — the field is rendered only when explicitly set, matching the
+autoservices.yaml pattern.
+
+#### Standalone Services rendered empty `ports:` when no ports defined
+If a Service had an empty or missing `ports` list, the template emitted
+`ports:` with no entries — invalid Kubernetes YAML. Now guarded with
+`{{- if $s.ports }}`.
+
+#### `externalTrafficPolicy` hardcoded `"Cluster"` default
+Both NodePort and LoadBalancer branches explicitly set
+`externalTrafficPolicy: "Cluster"` when the field was unset, adding noise
+to rendered manifests. Now only rendered when explicitly set, letting
+Kubernetes apply its own default.
+
+### Added
+
+#### Standalone Services: `publishNotReadyAddresses`, `sessionAffinity`, `sessionAffinityConfig`, `ipFamilies`, `ipFamilyPolicy`
+These fields were supported in auto-generated Services but missing from
+standalone `services:` definitions. All five are now rendered in `svc.yaml`
+and validated in the `$defs.service` schema definition.
+
+#### `strategy`/`updateStrategy`/`podManagementPolicy` cascade via `*General`
+Deployment `strategy`, StatefulSet/DaemonSet `updateStrategy`, and
+StatefulSet `podManagementPolicy` were instance-only — values set in
+`deploymentsGeneral`, `statefulSetsGeneral`, or `daemonSetsGeneral`
+were silently ignored. All three now cascade via the existing `$merged`
+pattern. Schema updated to allow these fields in `workloadGeneral`.
+
+#### CronJob `timeZone` field
+CronJobs now support the `timeZone` field (Kubernetes 1.27+), cascading
+instance → `cronJobsGeneral`. Schema updated in both `$defs.cronJob`
+and `$defs.workloadGeneral`.
+
+#### `daemonSetsGeneral.extraVolumeMounts` deprecation warning
+The deprecation helper for `extraVolumeMounts` checked all `*General`
+sections except `daemonSetsGeneral`. Users setting this deprecated field
+on DaemonSets now receive the expected migration warning.
+
+---
+
 ## [1.5.6] — 2026-04-08
 
 ### Fixed
@@ -101,9 +149,41 @@ When no `trafficPolicy` was configured, DestinationRule emitted
 validation warnings and causes unnecessary diff noise. The key is now only
 emitted when the value is non-empty.
 
+#### `overhead`, `readinessGates`, `schedulingGates`, `os` missing defaults tier cascade (M1)
+These four fields (added in 1.5.5) only cascaded instance → general, missing the
+defaults tier entirely. Setting `defaults.overhead`, `defaults.readinessGates`,
+`defaults.schedulingGates`, or `defaults.os` was silently ignored.
+
+All four now support the full 3-tier cascade: instance → general → defaults.
+
+#### Wasted `$_` assignment in `issuer.yaml` (M2)
+`issuer.yaml` stored the result of `helpers.tplvalues.render` in `$_` then
+immediately re-evaluated the same expression. The intermediate variable was
+removed by inlining the call directly into the `ternary` expression.
+
+### Added
+
+#### Port protocol support in ports map shorthand (F4, M5)
+The `ports:` map shorthand previously hardcoded `protocol: TCP` on both container
+ports and auto-generated Service ports. UDP and SCTP services were impossible to
+create via the shorthand — users had to switch to the full `containers:` list form.
+
+The ports map now supports an extended form alongside the existing simple form:
+
+```yaml
+ports:
+  http: 8080              # simple form → TCP (backward compatible)
+  dns:
+    port: 53
+    protocol: UDP         # extended form → specify protocol
+```
+
+Both auto-generated Service ports and container ports honour the new format.
+Schema updated to accept either integer or `{port, protocol}` object values.
+
 ### Tests
 
-490 tests passing (up from 477 in 1.5.5). New and updated suites:
+501 tests passing (up from 477 in 1.5.5). New and updated suites:
 
 - `cronjob_test.yaml` — B1 (concurrencyPolicy), F2 (suspend nil-guard)
 - `general_merge_test.yaml` — B3 (progressDeadlineSeconds), B4 (empty affinity), F3 (securityContext alias)
@@ -111,6 +191,9 @@ emitted when the value is non-empty.
 - `secret_test.yaml` — S5 (immutable passthrough)
 - `istiovirtualservice_test.yaml` — M3 (name nil-guard)
 - `istiodestinationrule_test.yaml` — M4 (trafficPolicy nil-guard)
+- `pod_extra_fields_test.yaml` — M1 (defaults tier cascade for overhead, readinessGates, schedulingGates, os)
+- `autoservice_test.yaml` — F4 (UDP/SCTP protocol on auto-generated Service)
+- `workload_shorthand_test.yaml` — M5 (UDP/SCTP protocol on container ports)
 
 ---
 
