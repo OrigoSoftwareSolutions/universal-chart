@@ -105,6 +105,12 @@ You use deprecated option `cronJobsGeneral.extraVolumeMounts`. Please use `cronJ
 
 You use deprecated option `jobsGeneral.extraVolumeMounts`. Please use `jobsGeneral.volumeMounts` instead.
   {{- end }}
+  {{- if .Values.daemonSetsGeneral.extraVolumeMounts }}
+
+** WARNING **
+
+You use deprecated option `daemonSetsGeneral.extraVolumeMounts`. Please use `daemonSetsGeneral.volumeMounts` instead.
+  {{- end }}
 {{ end }}
 
 {{- define "helpers.deprecation.securityContext" -}}
