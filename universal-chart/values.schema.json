@@ -393,7 +393,34 @@
           "type": "string",
           "description": "Target workload name for component-level pod selection. Defaults to the service key name when selector is not explicitly set."
         },
-        "extraSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" } }
+        "extraSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "publishNotReadyAddresses": {
+          "type": "boolean",
+          "description": "Publish not-ready pod addresses in the Service."
+        },
+        "sessionAffinity": {
+          "type": "string",
+          "enum": ["None", "ClientIP"],
+          "description": "Session affinity mode for the Service."
+        },
+        "sessionAffinityConfig": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Session affinity configuration for the Service."
+        },
+        "ipFamilies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["IPv4", "IPv6"]
+          },
+          "description": "IP families for the Service."
+        },
+        "ipFamilyPolicy": {
+          "type": "string",
+          "enum": ["SingleStack", "PreferDualStack", "RequireDualStack"],
+          "description": "IP family policy for the Service."
+        }
       }
     },
     "cronJob": {
@@ -410,6 +437,7 @@
       ],
       "properties": {
         "schedule": { "type": "string", "description": "Cron schedule expression (required)." },
+        "timeZone": { "type": "string", "description": "Time zone for the CronJob schedule (e.g. America/New_York). Requires K8s 1.27+." },
         "startingDeadlineSeconds": { "type": "integer", "minimum": 0, "description": "Deadline in seconds for starting the job if it misses its scheduled time." },
         "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0, "description": "Number of successful finished jobs to retain." },
         "failedJobsHistoryLimit": { "type": "integer", "minimum": 0, "description": "Number of failed finished jobs to retain." },
@@ -932,6 +960,7 @@
         "progressDeadlineSeconds": { "type": "integer", "minimum": 0 },
         "replicas": { "type": "integer", "minimum": 0 },
         "revisionHistoryLimit": { "type": "integer", "minimum": 0 },
+        "timeZone": { "type": "string", "description": "Default time zone for CronJob schedules." },
         "env": {
           "type": "array",
           "items": { "$ref": "#/$defs/envEntry" },
@@ -1014,7 +1043,17 @@
         "livenessProbe": { "type": "object", "additionalProperties": true, "description": "Default custom liveness probe." },
         "readinessProbe": { "type": "object", "additionalProperties": true, "description": "Default custom readiness probe." },
         "healthCheck": { "$ref": "#/$defs/healthCheck", "description": "Default health check shorthand for all workloads of this kind." },
-        "concurrencyPolicy": { "type": "string", "enum": ["Allow", "Forbid", "Replace"], "description": "Default concurrency policy for CronJobs of this kind." }
+        "concurrencyPolicy": { "type": "string", "enum": ["Allow", "Forbid", "Replace"], "description": "Default concurrency policy for CronJobs of this kind." },
+        "strategy": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Default Deployment update strategy for workloads of this kind."
+        },
+        "updateStrategy": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Default StatefulSet/DaemonSet update strategy for workloads of this kind."
+        }
       }
     },
     "pvc": {

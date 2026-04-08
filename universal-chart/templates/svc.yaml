@@ -33,42 +33,57 @@ spec:
         {{- if not (empty .loadBalancerClass) }}
   loadBalancerClass: {{ .loadBalancerClass }}
         {{- end }}
-        {{- if not ( or (.allocateLoadBalancerNodePorts) (eq (.allocateLoadBalancerNodePorts | toString) "<nil>") ) }}
-  allocateLoadBalancerNodePorts: false
+        {{- if hasKey $s "allocateLoadBalancerNodePorts" }}
+  allocateLoadBalancerNodePorts: {{ $s.allocateLoadBalancerNodePorts }}
         {{- end }}
-        {{- if empty .externalTrafficPolicy }}
-  externalTrafficPolicy: "Cluster"
-        {{- else }}
-  externalTrafficPolicy: {{ .externalTrafficPolicy }}
+        {{- with .externalTrafficPolicy }}
+  externalTrafficPolicy: {{ . }}
         {{- end }}
         {{- if .loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
           {{- toYaml .loadBalancerSourceRanges | nindent 4 }}
         {{- end }}
       {{- else if (eq .type "NodePort") }}
-        {{- if empty .externalTrafficPolicy }}
-  externalTrafficPolicy: "Cluster"
-        {{- else }}
-  externalTrafficPolicy: {{ .externalTrafficPolicy }}
+        {{- with .externalTrafficPolicy }}
+  externalTrafficPolicy: {{ . }}
         {{- end }}
         {{- if not (empty .healthCheckNodePort) }}
   healthCheckNodePort: {{ .healthCheckNodePort }}
         {{- end }}
       {{- end }}
+      {{- if hasKey $s "publishNotReadyAddresses" }}
+  publishNotReadyAddresses: {{ $s.publishNotReadyAddresses }}
+      {{- end }}
+      {{- with $s.sessionAffinity }}
+  sessionAffinity: {{ . }}
+      {{- end }}
+      {{- with $s.sessionAffinityConfig }}
+  sessionAffinityConfig:
+        {{- toYaml . | nindent 4 }}
+      {{- end }}
+      {{- if $s.ipFamilies }}
+  ipFamilies:
+        {{- toYaml $s.ipFamilies | nindent 4 }}
+      {{- end }}
+      {{- with $s.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ . }}
+      {{- end }}
       {{- if .externalIPs }}
   externalIPs: {{- toYaml .externalIPs | nindent 4 }}
       {{- end }}
     {{- end }}
+    {{- if $s.ports }}
   ports:
-    {{- range $s.ports }}
+      {{- range $s.ports }}
   - name: {{ .name | default $name}}
     protocol: {{ .protocol | default "TCP"}}
     port: {{ .port }}
-      {{- if not (empty .targetPort) }}
+        {{- if not (empty .targetPort) }}
     targetPort: {{ .targetPort }}
-      {{- end }}
-      {{- if not (empty .nodePort) }}
+        {{- end }}
+        {{- if not (empty .nodePort) }}
     nodePort: {{ .nodePort }}
+        {{- end }}
       {{- end }}
     {{- end }}
     {{- if ne ($s.type | default "") "ExternalName" }}
