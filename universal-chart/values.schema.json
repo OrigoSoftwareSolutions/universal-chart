@@ -861,7 +861,13 @@
         "hostNetwork": { "type": "boolean", "description": "Use the host network namespace for this pod. Required for DaemonSets that sniff host traffic." },
         "hostPID": { "type": "boolean", "description": "Use the host PID namespace. Allows processes to see host-level PIDs." },
         "hostIPC": { "type": "boolean", "description": "Use the host IPC namespace." },
-        "shareProcessNamespace": { "type": "boolean", "description": "Share a single process namespace between all containers in the pod." }
+        "shareProcessNamespace": { "type": "boolean", "description": "Share a single process namespace between all containers in the pod." },
+        "automountServiceAccountToken": { "type": "boolean", "description": "Controls whether a service account token is automatically mounted into the pod. Overrides the ServiceAccount-level default." },
+        "runtimeClassName": { "type": "string", "description": "Name of the RuntimeClass object to use. Required for gVisor, Kata Containers, WASM runtimes, etc." },
+        "overhead": { "type": "object", "additionalProperties": true, "description": "Resource overhead associated with running a pod (used by RuntimeClass)." },
+        "readinessGates": { "type": "array", "items": { "type": "object", "additionalProperties": true }, "description": "Additional conditions to be evaluated for pod readiness." },
+        "schedulingGates": { "type": "array", "items": { "type": "object", "additionalProperties": true }, "description": "Scheduling gates that must be cleared before the pod is eligible for scheduling." },
+        "os": { "type": "object", "additionalProperties": true, "description": "OS-specific settings for the pod (e.g. {name: linux} or {name: windows})." }
       }
     },
     "workloadGeneral": {
@@ -965,7 +971,13 @@
         "hostNetwork": { "type": "boolean" },
         "hostPID": { "type": "boolean" },
         "hostIPC": { "type": "boolean" },
-        "shareProcessNamespace": { "type": "boolean" }
+        "shareProcessNamespace": { "type": "boolean" },
+        "automountServiceAccountToken": { "type": "boolean", "description": "Controls whether a service account token is automatically mounted into pods of this kind." },
+        "runtimeClassName": { "type": "string", "description": "Name of the RuntimeClass object to use." },
+        "overhead": { "type": "object", "additionalProperties": true, "description": "Resource overhead for pods of this kind (used by RuntimeClass)." },
+        "readinessGates": { "type": "array", "items": { "type": "object", "additionalProperties": true }, "description": "Additional pod readiness conditions." },
+        "schedulingGates": { "type": "array", "items": { "type": "object", "additionalProperties": true }, "description": "Scheduling gates for pods of this kind." },
+        "os": { "type": "object", "additionalProperties": true, "description": "OS-specific settings for pods of this kind." }
       }
     },
     "pvc": {
