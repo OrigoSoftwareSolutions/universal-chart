@@ -852,7 +852,8 @@
           "type": "object",
           "additionalProperties": true,
           "description": "Custom readiness probe (overrides healthCheck shorthand)."
-        }
+        },
+        "preStopSleep": { "type": "integer", "minimum": 0, "description": "Seconds to sleep in preStop hook. Overrides defaults.preStopSleep for this workload." }
       }
     },
     "workloadGeneral": {
@@ -949,7 +950,10 @@
           "type": "object",
           "additionalProperties": true,
           "description": "Pod DNS configuration (options, searches, nameservers)."
-        }
+        },
+        "minReadySeconds": { "type": "integer", "minimum": 0 },
+        "extraImagePullSecrets": { "type": "array", "items": { "type": "string" } },
+        "preStopSleep": { "type": "integer", "minimum": 0 }
       }
     },
     "pvc": {
