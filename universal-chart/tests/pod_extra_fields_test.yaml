@@ -92,3 +92,81 @@ tests:
           path: spec.template.spec.schedulingGates
           content:
             name: example.com/ready
+
+  # ── M1: defaults tier cascade for overhead, readinessGates, schedulingGates, os ──
+
+  - it: renders overhead from defaults tier
+    set:
+      defaults:
+        overhead:
+          cpu: 250m
+          memory: 128Mi
+      deployments.api.image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.overhead.cpu
+          value: 250m
+      - equal:
+          path: spec.template.spec.overhead.memory
+          value: 128Mi
+
+  - it: instance overhead overrides defaults tier
+    set:
+      defaults:
+        overhead:
+          cpu: 250m
+      deployments.api.image: nginx
+      deployments.api.overhead:
+        cpu: 500m
+    asserts:
+      - equal:
+          path: spec.template.spec.overhead.cpu
+          value: 500m
+
+  - it: renders readinessGates from defaults tier
+    set:
+      defaults:
+        readinessGates:
+          - conditionType: default-gate/ready
+      deployments.api.image: nginx
+    asserts:
+      - contains:
+          path: spec.template.spec.readinessGates
+          content:
+            conditionType: default-gate/ready
+
+  - it: renders schedulingGates from defaults tier
+    set:
+      defaults:
+        schedulingGates:
+          - name: default.example.com/ready
+      deployments.api.image: nginx
+    asserts:
+      - contains:
+          path: spec.template.spec.schedulingGates
+          content:
+            name: default.example.com/ready
+
+  - it: renders os from defaults tier
+    set:
+      defaults:
+        os:
+          name: linux
+      deployments.api.image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.os.name
+          value: linux
+
+  - it: instance os overrides defaults tier
+    set:
+      defaults:
+        os:
+          name: linux
+      deployments.api.image: nginx
+      deployments.api.os:
+        name: windows
+    asserts:
+      - equal:
+          path: spec.template.spec.os.name
+          value: windows

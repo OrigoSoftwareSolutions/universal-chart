@@ -123,3 +123,40 @@ tests:
       - equal:
           path: spec.template.spec.dnsPolicy
           value: RELEASE-NAME-dns
+
+  - it: ports map extended form renders UDP containerPort
+    set:
+      deployments.dns.image: coredns:1.11
+      deployments.dns.ports:
+        dns:
+          port: 53
+          protocol: UDP
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: dns
+            containerPort: 53
+            protocol: UDP
+
+  - it: ports map mixed simple and extended form renders containerPorts
+    set:
+      deployments.dns.image: coredns:1.11
+      deployments.dns.ports:
+        dns:
+          port: 53
+          protocol: UDP
+        http: 8080
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: dns
+            containerPort: 53
+            protocol: UDP
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: http
+            containerPort: 8080
+            protocol: TCP

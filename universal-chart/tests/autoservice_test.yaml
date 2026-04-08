@@ -238,3 +238,58 @@ tests:
     asserts:
       - notExists:
           path: spec.publishNotReadyAddresses
+
+  - it: ports map extended form renders custom protocol on auto-service
+    set:
+      deployments.dns.image: coredns:1.11
+      deployments.dns.ports:
+        dns:
+          port: 53
+          protocol: UDP
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            name: dns
+            port: 53
+            targetPort: dns
+            protocol: UDP
+
+  - it: ports map mixed simple and extended form renders correctly
+    set:
+      deployments.dns.image: coredns:1.11
+      deployments.dns.ports:
+        dns:
+          port: 53
+          protocol: UDP
+        http: 8080
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            name: dns
+            port: 53
+            targetPort: dns
+            protocol: UDP
+      - contains:
+          path: spec.ports
+          content:
+            name: http
+            port: 8080
+            targetPort: http
+            protocol: TCP
+
+  - it: ports map extended form without protocol defaults to TCP
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports:
+        http:
+          port: 8080
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            name: http
+            port: 8080
+            targetPort: http
+            protocol: TCP
