@@ -195,7 +195,10 @@ deploymentsGeneral: {}
 # Single-container shorthand: set `image:` at workload level instead of a `containers:` list.
 # `ports:` (map form `{name: port}`) auto-creates containerPorts AND a matching ClusterIP Service.
 # `resources:` raw requests/limits map. `healthCheck:` sets liveness, readiness, and startup probes.
-# Override service behaviour with `service: false` (suppress) or `service: {type: NodePort}`.
+# Override service behaviour with `service: false` (suppress) or `service:` fields such as
+# `type`, `clusterIP`, `externalTrafficPolicy`, `loadBalancerSourceRanges`, `loadBalancerIP`,
+# `sessionAffinity`, `sessionAffinityConfig`, `healthCheckNodePort`, `publishNotReadyAddresses`,
+# `ipFamilies`, and `ipFamilyPolicy`.
 # The full `containers:` list still works for multi-container workloads.
 deployments: {}
 #   # ── Single-container shorthand ──
@@ -204,6 +207,10 @@ deployments: {}
 #     replicas: 2
 #     ports:
 #       http: 8080
+#     service:
+#       type: LoadBalancer
+#       externalTrafficPolicy: Local
+#       loadBalancerSourceRanges: [10.0.0.0/8]
 #     resources:
 #       requests: { cpu: 100m, memory: 128Mi }
 #       limits: { memory: 256Mi }
