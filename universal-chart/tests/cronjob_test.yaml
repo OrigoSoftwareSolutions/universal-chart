@@ -69,6 +69,93 @@ tests:
           path: spec.concurrencyPolicy
           value: Forbid
 
+  - it: explicit concurrencyPolicy overrides singleOnly (B1 fix)
+    set:
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          singleOnly: true
+          concurrencyPolicy: Replace
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Replace
+
+  - it: concurrencyPolicy Allow can be set explicitly (B1 fix)
+    set:
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          concurrencyPolicy: Allow
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Allow
+
+  - it: omits concurrencyPolicy when neither singleOnly nor concurrencyPolicy set (F2 suspend nil fix)
+    set:
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - notExists:
+          path: spec.concurrencyPolicy
+
+  - it: omits suspend when not set (F2 fix)
+    set:
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - notExists:
+          path: spec.suspend
+
+  - it: emits suspend false when explicitly set (F2 fix)
+    set:
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          suspend: false
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.suspend
+          value: false
+
+  - it: emits suspend true when set (F2 fix)
+    set:
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          suspend: true
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.suspend
+          value: true
+
   - it: cronJobsGeneral.podLabels appears in pod template
     set:
       cronJobsGeneral:

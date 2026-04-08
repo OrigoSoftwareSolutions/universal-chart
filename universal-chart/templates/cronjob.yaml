@@ -11,9 +11,14 @@ metadata:
   namespace: {{ $.Release.Namespace | quote }}
       {{- include "helpers.workload.metadata" (dict "name" $name "value" $job "general" $general "context" $) | nindent 2 }}
 spec:
-  suspend: {{ default false .suspend }}
+      {{- if not (eq .suspend nil) }}
+  suspend: {{ .suspend }}
+      {{- end }}
   schedule: {{ include "helpers.tplvalues.render" (dict "value" .schedule "context" $) | quote }}
-      {{- if .singleOnly }}
+      {{- $cp := dig "concurrencyPolicy" (dig "concurrencyPolicy" nil $general) $job -}}
+      {{- if $cp }}
+  concurrencyPolicy: {{ $cp }}
+      {{- else if .singleOnly }}
   concurrencyPolicy: Forbid
       {{- end }}
       {{- $sds := dig "startingDeadlineSeconds" (dig "startingDeadlineSeconds" nil $general) $job -}}

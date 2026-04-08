@@ -49,11 +49,21 @@ affinity: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) |
       {{- end }}
     {{- else if $usePredefinedAffinity }}
 affinity:
-      {{- if $.Values.nodeAffinityPreset.type }}
-  nodeAffinity: {{- include "helpers.affinities.nodes" (dict "type" $.Values.nodeAffinityPreset.type "key" $.Values.nodeAffinityPreset.key "values" $.Values.nodeAffinityPreset.values "context" $) | nindent 4 }}
+      {{- $nodeAffStr := "" -}}
+      {{- if $.Values.nodeAffinityPreset.type -}}
+        {{- $nodeAffStr = include "helpers.affinities.nodes" (dict "type" $.Values.nodeAffinityPreset.type "key" $.Values.nodeAffinityPreset.key "values" $.Values.nodeAffinityPreset.values "context" $) | trim -}}
+      {{- end -}}
+      {{- if $nodeAffStr }}
+  nodeAffinity: {{- $nodeAffStr | nindent 4 }}
       {{- end }}
-  podAffinity: {{- include "helpers.affinities.pods" (dict "type" $.Values.podAffinityPreset "extraLabels" $extraLabels "context" $) | nindent 4 }}
-  podAntiAffinity: {{- include "helpers.affinities.pods" (dict "type" $.Values.podAntiAffinityPreset "extraLabels" $extraLabels "context" $) | nindent 4 }}
+      {{- $podAffStr := include "helpers.affinities.pods" (dict "type" $.Values.podAffinityPreset "extraLabels" $extraLabels "context" $) | trim -}}
+      {{- if $podAffStr }}
+  podAffinity: {{- $podAffStr | nindent 4 }}
+      {{- end }}
+      {{- $podAntiAffStr := include "helpers.affinities.pods" (dict "type" $.Values.podAntiAffinityPreset "extraLabels" $extraLabels "context" $) | trim -}}
+      {{- if $podAntiAffStr }}
+  podAntiAffinity: {{- $podAntiAffStr | nindent 4 }}
+      {{- end }}
     {{- end }}
     {{- if (ne .priorityClassName nil) }}
       {{- with .priorityClassName }}
@@ -146,6 +156,10 @@ securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context
       {{- end }}
     {{- else if (ne $.Values.defaults.podSecurityContext nil) }}
       {{- with $.Values.defaults.podSecurityContext }}
+securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+      {{- end }}
+    {{- else if (ne $.Values.defaults.securityContext nil) }}
+      {{- with $.Values.defaults.securityContext }}
 securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
     {{- end }}

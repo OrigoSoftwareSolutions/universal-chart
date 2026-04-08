@@ -21,7 +21,10 @@ spec:
     {{- if ne $merged.minReadySeconds nil }}
   minReadySeconds: {{ $merged.minReadySeconds }}
     {{- end }}
-  progressDeadlineSeconds: {{ dig "progressDeadlineSeconds" (dig "progressDeadlineSeconds" 600 $general) $d }}
+    {{- $pds := dig "progressDeadlineSeconds" (dig "progressDeadlineSeconds" (dig "progressDeadlineSeconds" nil $.Values.defaults) $general) $d -}}
+    {{- if ne $pds nil }}
+  progressDeadlineSeconds: {{ $pds }}
+    {{- end }}
   selector:
     matchLabels:
     {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}

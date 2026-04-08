@@ -66,7 +66,10 @@ tests:
       - notExists:
           path: spec.minAvailable
 
-  - it: renders unhealthyPodEvictionPolicy when set
+  - it: renders unhealthyPodEvictionPolicy when set on K8s >= 1.27
+    capabilities:
+      majorVersion: 1
+      minorVersion: 27
     set:
       pdbs.web.minAvailable: 1
       pdbs.web.unhealthyPodEvictionPolicy: IfHealthyBudget
@@ -74,6 +77,17 @@ tests:
       - equal:
           path: spec.unhealthyPodEvictionPolicy
           value: IfHealthyBudget
+
+  - it: omits unhealthyPodEvictionPolicy on K8s < 1.27 even when set
+    capabilities:
+      majorVersion: 1
+      minorVersion: 26
+    set:
+      pdbs.web.minAvailable: 1
+      pdbs.web.unhealthyPodEvictionPolicy: IfHealthyBudget
+    asserts:
+      - notExists:
+          path: spec.unhealthyPodEvictionPolicy
 
   - it: omits unhealthyPodEvictionPolicy when not set
     set:

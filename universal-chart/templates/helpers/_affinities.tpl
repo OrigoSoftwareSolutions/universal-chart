@@ -40,8 +40,6 @@ requiredDuringSchedulingIgnoredDuringExecution:
     {{- else if eq . "hard" }}
       {{- include "helpers.affinities.nodes.hard" $ -}}
     {{- end -}}
-  {{- else -}}
-{}
   {{- end -}}
 {{- end -}}
 
@@ -52,8 +50,6 @@ requiredDuringSchedulingIgnoredDuringExecution:
     {{- else if eq . "hard" }}
       {{- include "helpers.affinities.pods.hard" $ -}}
     {{- end -}}
-  {{- else -}}
-{}
   {{- end -}}
 {{- end -}}
 

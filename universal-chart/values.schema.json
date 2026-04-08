@@ -90,7 +90,9 @@
         "topologySpreadConstraints": {
           "type": "array",
           "items": { "$ref": "#/$defs/topologySpreadConstraint" }
-        }
+        },
+        "revisionHistoryLimit": { "type": "integer", "minimum": 0, "description": "Default revisionHistoryLimit for Deployments and StatefulSets." },
+        "dnsConfig": { "type": "object", "additionalProperties": true, "description": "Default pod DNS configuration." }
       }
     },
     "podAffinityPreset": {
@@ -412,6 +414,11 @@
         "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0, "description": "Number of successful finished jobs to retain." },
         "failedJobsHistoryLimit": { "type": "integer", "minimum": 0, "description": "Number of failed finished jobs to retain." },
         "singleOnly": { "type": "boolean", "description": "Shorthand for concurrencyPolicy: Forbid." },
+        "concurrencyPolicy": {
+          "type": "string",
+          "enum": ["Allow", "Forbid", "Replace"],
+          "description": "Concurrency policy for CronJob. Overrides singleOnly when set."
+        },
         "suspend": { "type": "boolean", "description": "Suspend the CronJob." },
         "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Seconds threshold — creates a PrometheusRule that fires when CronJob execution exceeds this duration." }
       }
@@ -779,6 +786,11 @@
           "type": "boolean",
           "description": "Shorthand for concurrencyPolicy: Forbid (CronJobs)."
         },
+        "concurrencyPolicy": {
+          "type": "string",
+          "enum": ["Allow", "Forbid", "Replace"],
+          "description": "Concurrency policy for CronJob. Overrides singleOnly when set."
+        },
         "suspend": {
           "type": "boolean",
           "description": "Suspend scheduling (CronJobs)."
@@ -980,7 +992,16 @@
         "os": { "type": "object", "additionalProperties": true, "description": "OS-specific settings for pods of this kind." },
         "deletePolicy": { "type": "string", "description": "Default Helm hook delete policy for all hooks in this release (e.g. before-hook-creation,hook-succeeded)." },
         "kind": { "type": "string", "description": "Default Helm hook kind for all hooks (e.g. pre-install,pre-upgrade)." },
-        "weight": { "type": ["string", "integer"], "description": "Default Helm hook weight for all hooks." }
+        "weight": { "type": ["string", "integer"], "description": "Default Helm hook weight for all hooks." },
+        "restartPolicy": { "type": "string", "description": "Default restart policy for Job/CronJob/Hook pods." },
+        "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Default seconds threshold for PrometheusRule alert on long-running jobs." },
+        "podManagementPolicy": { "type": "string", "description": "Default pod management policy for StatefulSets (OrderedReady or Parallel)." },
+        "lifecycle": { "type": "object", "additionalProperties": true, "description": "Default container lifecycle hooks (preStop, postStart)." },
+        "startupProbe": { "type": "object", "additionalProperties": true, "description": "Default custom startup probe." },
+        "livenessProbe": { "type": "object", "additionalProperties": true, "description": "Default custom liveness probe." },
+        "readinessProbe": { "type": "object", "additionalProperties": true, "description": "Default custom readiness probe." },
+        "healthCheck": { "$ref": "#/$defs/healthCheck", "description": "Default health check shorthand for all workloads of this kind." },
+        "concurrencyPolicy": { "type": "string", "enum": ["Allow", "Forbid", "Replace"], "description": "Default concurrency policy for CronJobs of this kind." }
       }
     },
     "pvc": {
@@ -1039,6 +1060,10 @@
         "keepOnDelete": {
           "type": "boolean",
           "description": "Add helm.sh/resource-policy: keep to prevent deletion on helm uninstall."
+        },
+        "immutable": {
+          "type": "boolean",
+          "description": "Mark the Secret as immutable. Prevents data changes and improves kubelet performance at scale."
         }
       }
     },
