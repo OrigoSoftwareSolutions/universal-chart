@@ -1,5 +1,8 @@
 {{- range $name, $pdb := .Values.pdbs }}
   {{- if not (.disabled | default false) }}
+    {{- if not (or (hasKey $pdb "minAvailable") (hasKey $pdb "maxUnavailable")) }}
+      {{- fail (printf "pdbs.%s: must set either minAvailable or maxUnavailable" $name) }}
+    {{- end }}
 ---
 kind: PodDisruptionBudget
 apiVersion: {{ include "helpers.capabilities.pdb.apiVersion" $ }}
@@ -22,7 +25,9 @@ spec:
   maxUnavailable: {{ .maxUnavailable }}
     {{- end }}
     {{- with .unhealthyPodEvictionPolicy }}
+      {{- if semverCompare ">=1.27-0" $.Capabilities.KubeVersion.GitVersion }}
   unhealthyPodEvictionPolicy: {{ . }}
+      {{- end }}
     {{- end }}
   selector:
     matchLabels:
