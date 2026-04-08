@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.4.0](https://img.shields.io/badge/Version-1.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.5.0](https://img.shields.io/badge/Version-1.5.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -21,7 +21,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.4.0 \
+  --version 1.5.0 \
   -f my-values.yaml
 ```
 
@@ -1952,7 +1952,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | defaults.podSecurityContext | object | `{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Default pod-level securityContext applied to every pod spec. |
 | defaults.resources | object | `{"limits":{"memory":"128Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Default resource requests/limits applied to containers when not overridden. |
 | defaults.usePredefinedAffinity | bool | `true` | Use the chart's built-in pod affinity/anti-affinity rules. |
-| deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form `{name: port}`) auto-creates containerPorts AND a matching ClusterIP Service. `resources:` raw requests/limits map. `healthCheck:` sets liveness, readiness, and startup probes. Override service behaviour with `service: false` (suppress) or `service: {type: NodePort}`. The full `containers:` list still works for multi-container workloads. |
+| deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form `{name: port}`) auto-creates containerPorts AND a matching ClusterIP Service. `resources:` raw requests/limits map. `healthCheck:` sets liveness, readiness, and startup probes. Override service behaviour with `service: false` (suppress) or `service:` fields such as `type`, `clusterIP`, `externalTrafficPolicy`, `loadBalancerSourceRanges`, `loadBalancerIP`, `sessionAffinity`, `sessionAffinityConfig`, `healthCheckNodePort`, `publishNotReadyAddresses`, `ipFamilies`, and `ipFamilyPolicy`. The full `containers:` list still works for multi-container workloads. |
 | deploymentsGeneral | object | `{}` | Shared defaults for all Deployments (merged with per-instance values). |
 | diagnosticMode | object | `{"args":["infinity"],"command":["sleep"],"enabled":false}` | Diagnostic mode — overrides command/args on ALL containers (useful for debugging). |
 | diagnosticMode.args | list | `["infinity"]` | Args override applied to every container. |
@@ -1993,7 +1993,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | serviceAccounts | object | `{}` | Kubernetes ServiceAccount resources. Each key becomes the resource name. |
 | serviceAccountsGeneral | object | `{}` | Shared defaults for all ServiceAccounts. |
 | serviceMonitors | object | `{}` | Prometheus ServiceMonitor resources. Each key becomes the resource name. |
-| services | object | `{}` | Kubernetes Service resources. Each key becomes the resource name. |
+| services | object | `{}` | Kubernetes Service resources. Each key becomes the resource name. If `workload` is omitted, the selector defaults to the service key name. Set `selector` to override the selector verbatim. ExternalName services omit selectors. |
 | statefulSets | object | `{}` | Kubernetes StatefulSet resources. Each key becomes the resource name. Uses `updateStrategy` instead of `strategy`. Adds `volumeClaimTemplates` support. |
 | statefulSetsGeneral | object | `{}` | Shared defaults for all StatefulSets. |
 
