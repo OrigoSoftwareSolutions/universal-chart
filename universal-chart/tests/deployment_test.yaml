@@ -146,6 +146,62 @@ tests:
           path: spec.template.spec.dnsConfig.searches[0]
           value: svc.cluster.local
 
+  - it: dnsConfig cascades from deploymentsGeneral when not set on instance
+    set:
+      deploymentsGeneral:
+        dnsConfig:
+          options:
+            - name: ndots
+              value: "5"
+      deployments.web.image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.dnsConfig.options[0].name
+          value: ndots
+      - equal:
+          path: spec.template.spec.dnsConfig.options[0].value
+          value: "5"
+
+  - it: dnsConfig cascades from defaults when not set on instance or general
+    set:
+      defaults:
+        dnsConfig:
+          options:
+            - name: ndots
+              value: "1"
+      deployments.web.image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.dnsConfig.options[0].name
+          value: ndots
+      - equal:
+          path: spec.template.spec.dnsConfig.options[0].value
+          value: "1"
+
+  - it: instance dnsConfig overrides defaults and general
+    set:
+      defaults:
+        dnsConfig:
+          options:
+            - name: ndots
+              value: "1"
+      deploymentsGeneral:
+        dnsConfig:
+          options:
+            - name: ndots
+              value: "5"
+      deployments:
+        web:
+          image: nginx
+          dnsConfig:
+            options:
+              - name: ndots
+                value: "2"
+    asserts:
+      - equal:
+          path: spec.template.spec.dnsConfig.options[0].value
+          value: "2"
+
   - it: renders minReadySeconds in deployment spec only
     set:
       deployments:
@@ -519,6 +575,27 @@ tests:
           content:
             name: extra-secret
 
+  - it: deduplicates imagePullSecrets that appear in multiple sources
+    set:
+      imagePullSecrets:
+        - shared-secret
+      defaults:
+        extraImagePullSecrets:
+          - shared-secret
+      deployments:
+        web:
+          image: nginx
+          extraImagePullSecrets:
+            - shared-secret
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.imagePullSecrets
+          count: 1
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: shared-secret
+
   - it: initContainers inherit workload containerSecurityContext
     set:
       deployments:
@@ -554,12 +631,24 @@ tests:
           path: spec.template.spec.initContainers[0].securityContext.runAsUser
           value: 2000
 
-  - it: omits revisionHistoryLimit when not set
+  - it: uses defaults.revisionHistoryLimit when neither instance nor general set it
     set:
       deployments.web.image: nginx
+      defaults.revisionHistoryLimit: 3
     asserts:
-      - notExists:
+      - equal:
           path: spec.revisionHistoryLimit
+          value: 3
+
+  - it: defaults.revisionHistoryLimit is overridden by deploymentsGeneral
+    set:
+      defaults.revisionHistoryLimit: 3
+      deploymentsGeneral.revisionHistoryLimit: 7
+      deployments.web.image: nginx
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 7
 
   - it: sets revisionHistoryLimit from instance
     set:
