@@ -1,6 +1,6 @@
 suite: hooks
 templates:
-  - helm-hooks.yml
+  - helm-hooks.yaml
 tests:
   - it: renders a hook Job with correct kind and apiVersion
     set:

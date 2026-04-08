@@ -1,4 +1,4 @@
-istiovirtualservices:
+istioVirtualServices:
   my-vs:
     hosts:
       - example.com

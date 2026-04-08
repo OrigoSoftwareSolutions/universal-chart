@@ -100,6 +100,8 @@ defaults:
     requests:
       cpu: 100m
       memory: 128Mi
+    limits:
+      memory: 128Mi
   # -- Default pod-level securityContext applied to every pod spec.
   podSecurityContext:
     runAsNonRoot: true
@@ -220,7 +222,10 @@ cronJobsGeneral:
 cronJobs: {}
 #   generate-data:
 #     schedule: "*/5 * * * *"
-#     command: "php yii crontab/generate-data"
+#     command:
+#       - php
+#       - yii
+#       - crontab/generate-data
 
 # -- Shared defaults for all Jobs.
 jobsGeneral:
@@ -247,6 +252,7 @@ services: {}
 #     ports:
 #       - name: http
 #         port: 8080
+#     # workload: nginx
 
 # -- Gateway API HTTPRoute resources. Each key becomes the resource name.
 httpRoutes: {}
@@ -273,6 +279,7 @@ secrets: {}
 #   my-secret:
 #     data:
 #       api.key: supersecret
+#     # keepOnDelete: true
 
 # -- Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name.
 # Thin passthrough — `spec:` goes directly to the Kubernetes resource unchanged.
@@ -292,11 +299,16 @@ persistentVolumes: {}
 # -- Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name.
 # PVCs are automatically added to the `volumes` block in each workload (excluding hooks).
 # Set `mountPath` on a PVC to also auto-mount it into every container.
+# Set `workloads` to limit auto-mounting to specific workload names.
+# Set `keepOnDelete` to retain the PVC on uninstall.
 pvcs: {}
 #   app-data:
 #     accessModes: [ReadWriteOnce]
 #     size: 8Gi
 #     mountPath: /data           # auto-mounts this PVC into every container
+#     # keepOnDelete: true
+#     # workloads: [web]         # optional: mount only into these workloads
+#     # workloads: []            # optional: mount into no workloads
 #     # subPath: ""              # optional: mount a sub-path of the volume
 #     # readOnly: false          # optional: mount read-only
 
@@ -329,9 +341,9 @@ pdbs: {}
 # =============================================================================
 
 # -- Shared defaults for all ServiceAccounts.
-serviceAccountGeneral: {}
+serviceAccountsGeneral: {}
 # -- Kubernetes ServiceAccount resources. Each key becomes the resource name.
-serviceAccount: {}
+serviceAccounts: {}
 #   deployer:
 #     role:
 #       name: deployer-role
@@ -357,7 +369,7 @@ serviceMonitors: {}
 # =============================================================================
 
 # -- Istio Gateway resources. Each key becomes the resource name.
-istiogateways: {}
+istioGateways: {}
 #   nginx:
 #     name: nginx-gateway
 #     selector: { istio: ingress }
@@ -366,7 +378,7 @@ istiogateways: {}
 #         hosts: ["nginx.example.com"]
 
 # -- Istio VirtualService resources. Each key becomes the resource name.
-istiovirtualservices: {}
+istioVirtualServices: {}
 #   nginx:
 #     name: nginx-vs
 #     gateways: [nginx-gateway]
@@ -379,7 +391,7 @@ istiovirtualservices: {}
 #               port: { number: 80 }
 
 # -- Istio DestinationRule resources. Each key becomes the resource name.
-istiodestinationrules: {}
+istioDestinationRules: {}
 #   nginx:
 #     name: nginx-dr
 #     host: nginx-svc.default.svc.cluster.local

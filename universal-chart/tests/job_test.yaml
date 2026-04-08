@@ -1,6 +1,6 @@
 suite: job
 templates:
-  - job.yml
+  - job.yaml
 tests:
   - it: renders a Job with correct kind and apiVersion
     set:

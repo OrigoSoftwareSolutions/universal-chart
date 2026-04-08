@@ -1,6 +1,6 @@
 suite: servicemonitor
 templates:
-  - servicemonitor.yml
+  - servicemonitor.yaml
 tests:
   - it: renders a ServiceMonitor with correct kind and apiVersion
     set:

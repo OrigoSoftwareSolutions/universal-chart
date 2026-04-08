@@ -1,6 +1,6 @@
 suite: certificate template
 templates:
-  - certificate.yml
+  - certificate.yaml
 tests:
   - it: renders a certificate when cert-manager is available
     capabilities:

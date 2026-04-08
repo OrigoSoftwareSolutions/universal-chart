@@ -1,6 +1,6 @@
 suite: deployment
 templates:
-  - deployment.yml
+  - deployment.yaml
 tests:
   - it: renders a Deployment with correct kind and apiVersion
     set:
@@ -70,7 +70,9 @@ tests:
       diagnosticMode:
         enabled: true
       deployments.web.image: nginx
-      deployments.web.command: "python app.py"
+      deployments.web.command:
+        - python
+        - app.py
       deployments.web.healthCheck:
         path: /healthz
     asserts:
@@ -98,6 +100,53 @@ tests:
             - -c
             - sleep 5
 
+  - it: init container does not get preStopSleep lifecycle
+    set:
+      defaults.preStopSleep: 5
+      deployments.test.image: nginx
+      deployments.test.imageTag: latest
+      deployments.test.initContainers[0].name: init
+      deployments.test.initContainers[0].image: busybox
+      deployments.test.initContainers[0].imageTag: latest
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers[0].lifecycle
+
+  - it: regular container gets preStopSleep lifecycle
+    set:
+      defaults.preStopSleep: 5
+      deployments.test.image: nginx
+      deployments.test.imageTag: latest
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[0].lifecycle
+
+  - it: init container respects explicit lifecycle
+    set:
+      defaults.preStopSleep: 5
+      deployments:
+        test:
+          image: nginx
+          imageTag: latest
+          initContainers:
+            - name: init
+              image: busybox
+              imageTag: latest
+              lifecycle:
+                preStop:
+                  exec:
+                    command:
+                      - sh
+                      - -c
+                      - echo done
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].lifecycle.preStop.exec.command
+          value:
+            - sh
+            - -c
+            - echo done
+
   - it: renders hostPath typed volume
     set:
       deployments.web.image: nginx
@@ -124,6 +173,66 @@ tests:
             name: varlog
             mountPath: /var/log
             readOnly: true
+
+  - it: mounts PVCs scoped to the matching workload
+    set:
+      deployments.web.image: nginx
+      deployments.web.imageTag: "1.25"
+      deployments.web.ports.http: 8080
+      pvcs.shared.accessModes[0]: ReadWriteOnce
+      pvcs.shared.size: 8Gi
+      pvcs.shared.mountPath: /data
+      pvcs.shared.workloads[0]: web
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: shared
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-shared
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: shared
+            mountPath: /data
+
+  - it: skips PVCs scoped to other workloads
+    set:
+      deployments.web.image: nginx
+      deployments.web.imageTag: "1.25"
+      deployments.web.ports.http: 8080
+      pvcs.shared.accessModes[0]: ReadWriteOnce
+      pvcs.shared.size: 8Gi
+      pvcs.shared.mountPath: /data
+      pvcs.shared.workloads[0]: api
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes
+          value: []
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts
+          value: []
+
+  - it: mounts PVCs without workloads field into all matching workloads
+    set:
+      deployments.web.image: nginx
+      deployments.web.imageTag: "1.25"
+      deployments.web.ports.http: 8080
+      pvcs.shared.accessModes[0]: ReadWriteOnce
+      pvcs.shared.size: 8Gi
+      pvcs.shared.mountPath: /data
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: shared
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-shared
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: shared
+            mountPath: /data
 
   - it: does not double-tag when container image has embedded tag
     set:
@@ -284,3 +393,31 @@ tests:
       - equal:
           path: spec.revisionHistoryLimit
           value: 10
+
+  - it: default resources include memory limit 128Mi
+    set:
+      deployments.test.image: nginx
+      deployments.test.imageTag: latest
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: 128Mi
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 128Mi
+
+  - it: custom resources override defaults entirely
+    set:
+      deployments.test.image: nginx
+      deployments.test.imageTag: latest
+      deployments.test.resources.requests.memory: 512Mi
+      deployments.test.resources.limits.memory: 1Gi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: 1Gi
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 512Mi
+      - notExists:
+          path: spec.template.spec.containers[0].resources.requests.cpu

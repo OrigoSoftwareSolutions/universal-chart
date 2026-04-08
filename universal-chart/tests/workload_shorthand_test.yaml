@@ -1,6 +1,6 @@
 suite: workload shorthand - deployment features
 templates:
-  - deployment.yml
+  - deployment.yaml
 
 tests:
   # ── Single-container shorthand ────────────────────────────────────────────
@@ -65,20 +65,27 @@ tests:
       - isNotNull:
           path: spec.template.spec.containers[0].startupProbe
 
-  # ── command / args string auto-split ─────────────────────────────────────
-  - it: command string is auto-split into array
+  # ── command / args arrays ────────────────────────────────────────────────
+  - it: command array renders unchanged
     set:
       deployments.api.image: myapp:1.0
-      deployments.api.command: "node server.js --port 8080"
+      deployments.api.command:
+        - node
+        - server.js
+        - --port
+        - "8080"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].command
           value: ["node", "server.js", "--port", "8080"]
 
-  - it: args string is auto-split into array
+  - it: args array renders unchanged
     set:
       deployments.api.image: myapp:1.0
-      deployments.api.args: "--port 8080 --verbose"
+      deployments.api.args:
+        - --port
+        - "8080"
+        - --verbose
     asserts:
       - equal:
           path: spec.template.spec.containers[0].args

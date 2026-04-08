@@ -36,6 +36,17 @@ pre-commit run --all-files
 
 **Verification before declaring done**: `helm lint --strict` + `helm unittest --strict` must pass. If values.yaml changed, regenerate README.md.
 
+## Recent Chart Notes (T1–T11)
+
+- **T5 defaults**: `defaults.resources.limits.memory` defaults to `128Mi`.
+- **T6 command/args**: workload `command` and `args` fields are arrays only; do not document or use scalar forms.
+- **T7 renames**: use the current plural keys `istioVirtualServices`, `istioGateways`, `istioDestinationRules`, `serviceAccounts`, and `serviceAccountsGeneral`.
+- **T9 services**: Services may set `workload` to target `app.kubernetes.io/component` for selector matching.
+- **T10 PVC scoping**: PVCs may set `workloads` to restrict auto-mount injection to specific workload names.
+- **T11 retention**: PVCs and Secrets may set `keepOnDelete` to add `helm.sh/resource-policy: keep`.
+- **Naming rules**: templates must use `.yaml` extensions only; test suites must use `tests/*_test.yaml` and reference `.yaml` template filenames exactly.
+- **Legacy cleanup**: do not introduce or reference the old nixys category or `.yml` template conventions.
+
 ## Repository Layout
 
 ```
@@ -44,8 +55,7 @@ universal-chart/
   ci/test-values.yaml           ← CI smoke-test values
   templates/
     helpers/_*.tpl              ← named template partials
-    *.yml (nixys originals)     ← .yml = nixys, .yaml = Origo-added
-    *.yaml (Origo additions)
+    *.yaml                      ← all template files use .yaml only
   tests/*_test.yaml             ← helm-unittest suites
 .helmfmt                        ← 2-space indent, all extensions
 .yamllint                       ← max 150 chars, 2-space indent
@@ -100,7 +110,6 @@ spec:
 |---|---|---|
 | **Workload** | deployment, statefulset, cronjob, job, hooks | Full pattern: `$general`, `range`, disabled guard, `helpers.pod`, three-level merge, `tplvalues.render` |
 | **CRD / simple** | ExternalSecret, HTTPRoute, ClusterIssuer | Thin passthrough, no `$general`, no merge: `toYaml $val.spec` |
-| **Legacy nixys** (3 files) | istiogateway.yml, istiodestinationrule.yml, istiovirtualservice.yml | Have disabled guard but use `$gateway.name \| default $host` naming convention and inline spec fields (not thin passthrough). Follow their existing style — do NOT refactor |
 
 ### Named template conventions
 
@@ -108,7 +117,7 @@ All in `templates/helpers/_*.tpl`. Always `{{- define "helpers.x.y" -}}...{{- en
 
 | Namespace | Key helpers |
 |---|---|
-| `helpers.app.*` | `fullname`, `labels`, `selectorLabels`, `defaultAnnotations` |
+| `helpers.app.*` | `fullname`, `labels`, `selectorLabels`, `workloadSelectorLabels`, `defaultAnnotations` |
 | `helpers.pod` | Full pod spec (~110 lines) — used by ALL workloads |
 | `helpers.capabilities.*` | `<kind>.apiVersion` — semver-based resolution |
 | `helpers.volumes.*` | `typed`, `renderVolume`, `renderVolumeMount` |
@@ -118,6 +127,8 @@ All in `templates/helpers/_*.tpl`. Always `{{- define "helpers.x.y" -}}...{{- en
 | `helpers.tplvalues.render` | Evaluate `{{ }}` expressions inside user values |
 
 **`_pod.tpl` changes affect ALL workloads** — test with deployment, statefulset, cronjob, and hook values.
+
+- Services may set `workload` to target `app.kubernetes.io/component`; PVCs may set `workloads` to scope auto-mounting; PVCs/Secrets may set `keepOnDelete` to add `helm.sh/resource-policy: keep`.
 
 ### Checklist for new templates
 
@@ -134,7 +145,7 @@ All in `templates/helpers/_*.tpl`. Always `{{- define "helpers.x.y" -}}...{{- en
 ```yaml
 suite: <descriptive name>
 templates:
-  - <template-file>.yml   # exact filename incl. extension!
+  - <template-file>.yaml  # exact filename incl. extension!
 tests:
   - it: <lowercase sentence>
     set:
@@ -148,7 +159,7 @@ tests:
 - Disabled flag → `hasDocuments: count: 0`
 - Use `set:` with minimal values — provide at minimum a container image
 - Multi-document: use `documentIndex` to target specific instance
-- **Wrong extension** (`.yaml` vs `.yml`) → suite silently finds 0 documents
+- **Wrong extension** → suite silently finds 0 documents
 
 ## CI Pipeline (PRs to main)
 
@@ -160,7 +171,7 @@ Bump `version:` in `universal-chart/Chart.yaml` → push to `main` → GitHub Ac
 
 ## What NOT to Do
 
-- Do not add Traefik, VictoriaMetrics VMServiceScrape, or SealedSecrets (deliberately removed)
+- Do not add Traefik, VictoriaMetrics VMServiceScrape, SealedSecrets, or legacy nixys references (deliberately removed)
 - Do not add abstraction layers on CRD `spec:` blocks — use `toYaml` passthrough
 - Do not run `helm upgrade` or `kubectl apply` — this repo is chart source only
 - Do not skip `helm lint --strict` or unit tests before declaring done

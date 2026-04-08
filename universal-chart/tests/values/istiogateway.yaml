@@ -1,4 +1,4 @@
-istiogateways:
+istioGateways:
   my-gw:
     selector:
       istio: ingressgateway

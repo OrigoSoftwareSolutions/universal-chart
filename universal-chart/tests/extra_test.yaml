@@ -1,6 +1,6 @@
 suite: extra template
 templates:
-  - extra.yml
+  - extra.yaml
 tests:
   - it: renders a raw manifest from extraDeploy
     set:

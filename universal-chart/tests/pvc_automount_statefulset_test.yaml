@@ -1,6 +1,6 @@
 suite: pvc auto-mount in statefulsets
 templates:
-  - statefulset.yml
+  - statefulset.yaml
 tests:
   - it: adds PVC volume and volumeMount when mountPath is set
     values:

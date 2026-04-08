@@ -1,6 +1,6 @@
 suite: pvc auto-mount excluded from hooks
 templates:
-  - helm-hooks.yml
+  - helm-hooks.yaml
 tests:
   - it: does not add PVC volumes to hook pods
     values:

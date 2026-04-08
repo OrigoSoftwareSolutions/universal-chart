@@ -1,6 +1,6 @@
 suite: issuer template
 templates:
-  - issuer.yml
+  - issuer.yaml
 tests:
   - it: renders an issuer when cert-manager is available
     capabilities:

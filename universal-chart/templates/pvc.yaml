@@ -10,9 +10,12 @@ metadata:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
-    {{- if or $annots .annotations }}
+    {{- if or $annots (or .annotations .keepOnDelete) }}
   annotations:
       {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- if .keepOnDelete }}
+    helm.sh/resource-policy: keep
+      {{- end }}
       {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- end }}
 spec:
@@ -30,6 +33,7 @@ spec:
   storageClassName: {{ . }}
     {{- end }}
     {{- with .selector }}
+  selector:
       {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ ) | nindent 4 }}
     {{- end }}
   {{- end }}

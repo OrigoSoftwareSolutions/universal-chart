@@ -1,0 +1,30 @@
+{{- $general := $.Values.deploymentsGeneral -}}
+{{- range $name, $d := .Values.deployments }}
+  {{- if not (.disabled | default false) }}
+---
+apiVersion: {{ include "helpers.capabilities.deployment.apiVersion" $ }}
+kind: Deployment
+metadata:
+  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  namespace: {{ $.Release.Namespace | quote }}
+    {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "general" $general "context" $) | nindent 2 }}
+spec:
+  replicas: {{ dig "replicas" (dig "replicas" 1 $general) $d | int }}
+    {{- $rhl := dig "revisionHistoryLimit" (dig "revisionHistoryLimit" nil $general) $d }}
+    {{- with $rhl }}
+  revisionHistoryLimit: {{ . | int }}
+    {{- end }}
+    {{- with .strategy }}
+  strategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
+  progressDeadlineSeconds: {{ dig "progressDeadlineSeconds" (dig "progressDeadlineSeconds" 600 $general) $d }}
+  selector:
+    matchLabels:
+    {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}
+    {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end }}
+  template:
+    metadata:{{- include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $d "general" $general "context" $ "selectorLabels" true "extraSelectorLabels" $d.extraSelectorLabels) | nindent 6 }}
+    spec:
+    {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "extraLabels" .extraSelectorLabels "context" $ "autoPvcs" true) | trim | nindent 6 }}
+  {{- end }}
+{{- end }}

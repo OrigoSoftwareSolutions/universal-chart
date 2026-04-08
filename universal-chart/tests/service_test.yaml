@@ -1,6 +1,6 @@
 suite: service
 templates:
-  - svc.yml
+  - svc.yaml
 tests:
   - it: renders a Service with correct kind
     set:
@@ -82,3 +82,23 @@ tests:
           path: spec.selector
       - notExists:
           path: spec.externalName
+
+  - it: service with workload field uses component selector
+    set:
+      services.api-svc.ports[0].port: 80
+      services.api-svc.ports[0].name: http
+      services.api-svc.workload: api
+    asserts:
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: api
+
+  - it: service without workload field uses base selector
+    set:
+      services.basic.ports[0].port: 80
+      services.basic.ports[0].name: http
+    asserts:
+      - notExists:
+          path: spec.selector["app.kubernetes.io/component"]
+      - exists:
+          path: spec.selector["app.kubernetes.io/name"]

@@ -1,4 +1,4 @@
-{{- range $host, $gateway := .Values.istiogateways }}
+{{- range $host, $gateway := .Values.istioGateways }}
   {{- if not ($gateway.disabled | default false) }}
 ---
 apiVersion: {{ include "helpers.capabilities.istiogateway.apiVersion" $ }}

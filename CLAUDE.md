@@ -102,4 +102,4 @@ Cluster-scoped resources (`ClusterSecretStore`, `ClusterExternalSecret`, `Cluste
 
 ### Stripped from nixys base
 
-Traefik, VictoriaMetrics `VMServiceScrape`, and SealedSecrets (including the embedded block that was in `secret.yml`) are not present.
+Traefik, VictoriaMetrics `VMServiceScrape`, and SealedSecrets (including the embedded block that was in `secret.yaml`) are not present.

@@ -1,6 +1,6 @@
 suite: auto-checksum annotations
 templates:
-  - deployment.yml
+  - deployment.yaml
 tests:
   - it: omits checksum annotations when no envConfigmaps or envSecrets
     set:
@@ -203,7 +203,7 @@ tests:
 ---
 suite: auto-checksum on cronjobs
 templates:
-  - cronjob.yml
+  - cronjob.yaml
 tests:
   - it: adds configmap checksum annotation on cronjob pod template
     set:
@@ -232,7 +232,7 @@ tests:
 ---
 suite: auto-checksum on jobs
 templates:
-  - job.yml
+  - job.yaml
 tests:
   - it: adds configmap checksum annotation on job pod template
     set:
@@ -259,7 +259,7 @@ tests:
 ---
 suite: auto-checksum on hooks
 templates:
-  - helm-hooks.yml
+  - helm-hooks.yaml
 tests:
   - it: adds configmap checksum annotation on hook pod template
     set:
