@@ -51,6 +51,59 @@ tests:
       - notExists:
           path: spec.template.spec.imagePullSecrets
 
+  - it: injects global envs configmap into workload envFrom
+    set:
+      envs:
+        LOG_LEVEL: info
+      deployments.web.image: nginx
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: RELEASE-NAME-envs
+      - exists:
+          path: spec.template.metadata.annotations.checksum/configmap-envs
+
+  - it: injects global secret envs secret into workload envFrom
+    set:
+      secretEnvs:
+        API_KEY: super-secret
+      deployments.web.image: nginx
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: RELEASE-NAME-secret-envs
+      - exists:
+          path: spec.template.metadata.annotations.checksum/secret-secret-envs
+
+  - it: omits global envs envFrom when top-level envs are empty
+    set:
+      envs: {}
+      envsString: ""
+      deployments.web.image: nginx
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].envFrom
+
+  - it: does not duplicate global envs configmap when workload already references envs
+    set:
+      envs:
+        LOG_LEVEL: info
+      deployments:
+        web:
+          image: nginx
+          envConfigmaps:
+            - envs
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom
+          value:
+            - configMapRef:
+                name: RELEASE-NAME-envs
+
   - it: merges defaults.annotations into deployment metadata
     set:
       defaults:
