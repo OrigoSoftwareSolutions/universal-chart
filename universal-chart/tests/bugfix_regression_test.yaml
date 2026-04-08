@@ -59,7 +59,7 @@ tests:
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
-          pattern: "^.*-app$"
+          pattern: "^.*-app:v0\.0\.1$"
 
   # ── Fix #3: deterministic container names without randAlphaNum ────────────
   - it: nameless container gets deterministic index-based name

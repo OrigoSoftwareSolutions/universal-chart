@@ -4,10 +4,13 @@ templates:
 tests:
   - it: renders a CronJob with correct kind and apiVersion
     set:
-      cronJobs.cleanup.schedule: "*/5 * * * *"
-      cronJobs.cleanup.containers[0].name: cleanup
-      cronJobs.cleanup.containers[0].image: myapp
-      cronJobs.cleanup.containers[0].imageTag: "1.0"
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - isKind:
           of: CronJob
@@ -19,22 +22,28 @@ tests:
 
   - it: respects the disabled flag
     set:
-      cronJobs.cleanup.disabled: true
-      cronJobs.cleanup.schedule: "*/5 * * * *"
-      cronJobs.cleanup.containers[0].name: cleanup
-      cronJobs.cleanup.containers[0].image: myapp
-      cronJobs.cleanup.containers[0].imageTag: "1.0"
+      cronJobs:
+        cleanup:
+          disabled: true
+          schedule: "*/5 * * * *"
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - hasDocuments:
           count: 0
 
   - it: renders PrometheusRule with release namespace
     set:
-      cronJobs.cleanup.schedule: "*/5 * * * *"
-      cronJobs.cleanup.commandDurationAlert: 600
-      cronJobs.cleanup.containers[0].name: cleanup
-      cronJobs.cleanup.containers[0].image: myapp
-      cronJobs.cleanup.containers[0].imageTag: "1.0"
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          commandDurationAlert: 600
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - hasDocuments:
           count: 2
@@ -47,11 +56,14 @@ tests:
 
   - it: singleOnly sets concurrencyPolicy to Forbid
     set:
-      cronJobs.cleanup.schedule: "*/5 * * * *"
-      cronJobs.cleanup.singleOnly: true
-      cronJobs.cleanup.containers[0].name: cleanup
-      cronJobs.cleanup.containers[0].image: myapp
-      cronJobs.cleanup.containers[0].imageTag: "1.0"
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          singleOnly: true
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - equal:
           path: spec.concurrencyPolicy
@@ -138,11 +150,14 @@ tests:
 
   - it: renders PrometheusRule when commandDurationAlert is zero
     set:
-      cronJobs.cleanup.schedule: "*/5 * * * *"
-      cronJobs.cleanup.commandDurationAlert: 0
-      cronJobs.cleanup.containers[0].name: cleanup
-      cronJobs.cleanup.containers[0].image: myapp
-      cronJobs.cleanup.containers[0].imageTag: "1.0"
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          commandDurationAlert: 0
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - hasDocuments:
           count: 2

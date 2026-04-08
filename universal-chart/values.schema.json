@@ -64,7 +64,18 @@
         },
         "tolerations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
         "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
-        "volumes": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "volumes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "configMapName": { "type": "string" },
+              "secretName": { "type": "string" },
+              "claimName": { "type": "string" }
+            }
+          }
+        },
         "volumeMounts": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
         "resources": { "$ref": "#/$defs/resources" },
         "podSecurityContext": { "$ref": "#/$defs/podSecurityContext" },
@@ -252,6 +263,73 @@
         "disabled": { "type": "boolean" }
       }
     },
+    "autoService": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Auto-generated Service override for workload ports shorthand.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
+          "description": "Service type for the auto-generated Service."
+        },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "clusterIP": { "type": "string", "description": "ClusterIP to assign. Set to None for headless services." },
+        "externalTrafficPolicy": {
+          "type": "string",
+          "enum": ["Cluster", "Local"],
+          "description": "External traffic policy for NodePort/LoadBalancer auto-services."
+        },
+        "loadBalancerIP": { "type": "string", "description": "Static IP for LoadBalancer auto-services." },
+        "loadBalancerClass": { "type": "string", "description": "LoadBalancer implementation class for the auto-generated Service." },
+        "allocateLoadBalancerNodePorts": {
+          "type": "boolean",
+          "description": "Whether to allocate node ports for LoadBalancer auto-services."
+        },
+        "loadBalancerSourceRanges": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "CIDRs allowed to access LoadBalancer auto-services."
+        },
+        "healthCheckNodePort": {
+          "type": "integer",
+          "description": "Health check node port for auto-generated Services with externalTrafficPolicy: Local."
+        },
+        "externalIPs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "External IPs that route to auto-generated Service endpoints."
+        },
+        "publishNotReadyAddresses": {
+          "type": "boolean",
+          "description": "Publish not-ready pod addresses in the auto-generated Service."
+        },
+        "sessionAffinity": {
+          "type": "string",
+          "enum": ["None", "ClientIP"],
+          "description": "Session affinity mode for the auto-generated Service."
+        },
+        "sessionAffinityConfig": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Session affinity configuration for the auto-generated Service."
+        },
+        "ipFamilies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["IPv4", "IPv6"]
+          },
+          "description": "IP families for the auto-generated Service."
+        },
+        "ipFamilyPolicy": {
+          "type": "string",
+          "enum": ["SingleStack", "PreferDualStack", "RequireDualStack"],
+          "description": "IP family policy for the auto-generated Service."
+        }
+      }
+    },
     "service": {
       "type": "object",
       "additionalProperties": false,
@@ -300,9 +378,14 @@
           "items": { "type": "string" },
           "description": "External IPs that route to Service endpoints."
         },
+        "selector": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Explicit Service selector labels. Used verbatim when set. ExternalName services omit selectors."
+        },
         "workload": {
           "type": "string",
-          "description": "Target workload name for component-level pod selection. When set, selector uses app.kubernetes.io/component label."
+          "description": "Target workload name for component-level pod selection. Defaults to the service key name when selector is not explicitly set."
         },
         "extraSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" } }
       }
@@ -592,7 +675,7 @@
           "description": "Service override. Set false to suppress auto-service, or an object to customize.",
           "oneOf": [
             { "type": "boolean" },
-            { "type": "object", "additionalProperties": true }
+            { "$ref": "#/$defs/autoService" }
           ]
         },
         "serviceName": {
@@ -640,7 +723,15 @@
         },
         "volumes": {
           "type": "array",
-          "items": { "type": "object", "additionalProperties": true },
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "configMapName": { "type": "string" },
+              "secretName": { "type": "string" },
+              "claimName": { "type": "string" }
+            }
+          },
           "description": "Typed volumes (configMap, secret, pvc, emptyDir, hostPath)."
         },
         "extraVolumes": {
@@ -829,7 +920,15 @@
         },
         "volumes": {
           "type": "array",
-          "items": { "type": "object", "additionalProperties": true },
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "configMapName": { "type": "string" },
+              "secretName": { "type": "string" },
+              "claimName": { "type": "string" }
+            }
+          },
           "description": "Default typed volumes."
         },
         "extraVolumes": { "type": "array", "description": "Default extra raw volumes." },
@@ -918,7 +1017,7 @@
           "required": ["name"],
           "properties": {
             "name": { "type": "string" },
-            "kind": { "type": "string", "enum": ["Deployment", "StatefulSet", "DaemonSet"] }
+            "kind": { "type": "string", "enum": ["Deployment", "StatefulSet"] }
           }
         },
         "minReplicas": { "type": "integer", "minimum": 0 },

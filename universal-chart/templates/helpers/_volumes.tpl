@@ -1,38 +1,42 @@
 {{- define "helpers.volumes.typed" -}}
   {{- $ctx := .context -}}
   {{- range .volumes -}}
+    {{- $v := . -}}
     {{- if eq .type "configMap" }}
-- name: {{ .name }}
+- name: {{ $v.name }}
+      {{- $configMapName := $v.configMapName | default $v.originalName }}
   configMap:
-      {{- with .originalName }}
-    name: {{ . }}
+      {{- with $configMapName }}
+    name: {{ include "helpers.tplvalues.render" (dict "value" . "context" $ctx) }}
       {{- else }}
-    name: {{ include "helpers.app.fullname" (dict "name" .name "context" $ctx) }}
+    name: {{ include "helpers.app.fullname" (dict "name" $v.name "context" $ctx) }}
       {{- end }}
-      {{- with .defaultMode }}
+      {{- with $v.defaultMode }}
     defaultMode: {{ . }}
       {{- end }}
-      {{- with .items }}
+      {{- with $v.items }}
     items: {{- include "helpers.tplvalues.render" (dict "value" . "context" $ctx) | nindent 4 }}
       {{- end }}
     {{- else if eq .type "secret" }}
-- name: {{ .name }}
+- name: {{ $v.name }}
+      {{- $secretName := $v.secretName | default $v.originalName }}
   secret:
-      {{- with .originalName }}
+      {{- with $secretName }}
     secretName: {{ include "helpers.tplvalues.render" (dict "value" . "context" $ctx) }}
       {{- else }}
-    secretName: {{ include "helpers.app.fullname" (dict "name" .name "context" $ctx) }}
+    secretName: {{ include "helpers.app.fullname" (dict "name" $v.name "context" $ctx) }}
       {{- end }}
-      {{- with .items }}
+      {{- with $v.items }}
     items: {{- include "helpers.tplvalues.render" (dict "value" . "context" $ctx) | nindent 4 }}
       {{- end }}
     {{- else if eq .type "pvc" }}
-- name: {{ .name }}
+- name: {{ $v.name }}
+      {{- $claimName := $v.claimName | default $v.originalName }}
   persistentVolumeClaim:
-      {{- with .originalName }}
-    claimName: {{ . }}
+      {{- with $claimName }}
+    claimName: {{ include "helpers.tplvalues.render" (dict "value" . "context" $ctx) }}
       {{- else }}
-    claimName: {{ include "helpers.app.fullname" (dict "name" .name "context" $ctx) }}
+    claimName: {{ include "helpers.app.fullname" (dict "name" $v.name "context" $ctx) }}
       {{- end }}
     {{- else if eq .type "emptyDir" }}
 - name: {{ .name }}

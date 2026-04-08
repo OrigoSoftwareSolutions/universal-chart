@@ -93,12 +93,25 @@ tests:
           path: spec.selector["app.kubernetes.io/component"]
           value: api
 
-  - it: service without workload field uses base selector
+  - it: service without workload field defaults selector component to service key name
     set:
       services.basic.ports[0].port: 80
       services.basic.ports[0].name: http
     asserts:
-      - notExists:
+      - equal:
           path: spec.selector["app.kubernetes.io/component"]
+          value: basic
       - exists:
           path: spec.selector["app.kubernetes.io/name"]
+
+  - it: service selector is used verbatim when explicitly provided
+    set:
+      services.custom.ports[0].port: 80
+      services.custom.ports[0].name: http
+      services.custom.selector.app: bespoke
+    asserts:
+      - equal:
+          path: spec.selector.app
+          value: bespoke
+      - notExists:
+          path: spec.selector["app.kubernetes.io/component"]

@@ -4,9 +4,12 @@ templates:
 tests:
   - it: renders a hook Job with correct kind and apiVersion
     set:
-      hooks.migration.containers[0].name: migrate
-      hooks.migration.containers[0].image: myapp
-      hooks.migration.containers[0].imageTag: "1.0"
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - isKind:
           of: Job
@@ -23,23 +26,31 @@ tests:
 
   - it: skips rendering when disabled is true
     set:
-      hooks.migration.disabled: true
-      hooks.migration.containers[0].name: migrate
-      hooks.migration.containers[0].image: myapp
-      hooks.migration.containers[0].imageTag: "1.0"
+      hooks:
+        migration:
+          disabled: true
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - hasDocuments:
           count: 0
 
   - it: skips only disabled hook among multiple
     set:
-      hooks.migration.containers[0].name: migrate
-      hooks.migration.containers[0].image: myapp
-      hooks.migration.containers[0].imageTag: "1.0"
-      hooks.cleanup.disabled: true
-      hooks.cleanup.containers[0].name: clean
-      hooks.cleanup.containers[0].image: myapp
-      hooks.cleanup.containers[0].imageTag: "1.0"
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+        cleanup:
+          disabled: true
+          containers:
+            - name: clean
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - hasDocuments:
           count: 1

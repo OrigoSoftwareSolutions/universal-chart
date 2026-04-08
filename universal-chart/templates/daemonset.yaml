@@ -1,6 +1,7 @@
 {{- $general := $.Values.daemonSetsGeneral -}}
 {{- range $name, $d := .Values.daemonSets }}
   {{- if not (.disabled | default false) }}
+    {{- $merged := mustMergeOverwrite (deepCopy $general) $d }}
 ---
 apiVersion: {{ include "helpers.capabilities.daemonSet.apiVersion" $ }}
 kind: DaemonSet
@@ -15,6 +16,9 @@ spec:
     {{- end }}
     {{- with .updateStrategy }}
   updateStrategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
+    {{- with $merged.minReadySeconds }}
+  minReadySeconds: {{ . }}
     {{- end }}
   selector:
     matchLabels:

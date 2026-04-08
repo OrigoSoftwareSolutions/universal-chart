@@ -87,12 +87,26 @@ defaults:
   # priorityClassName: ""
   # -- Default DNS policy for pods. One of: `ClusterFirst`, `Default`, `ClusterFirstWithHostNet`, `None`.
   # dnsPolicy: ""
+  # -- Default pod DNS configuration applied to every pod spec.
+  # dnsConfig:
+  #   options:
+  #     - name: ndots
+  #       value: "2"
   # -- Default nodeSelector applied to every pod spec.
   # nodeSelector: {}
   # -- Default tolerations applied to every pod spec.
   # tolerations: []
   # -- Default volumes (typed format) added to every pod spec (see `_volumes.tpl`).
   # volumes: []
+  #   - name: app-config
+  #     type: configMap
+  #     configMapName: my-configmap
+  #   - name: app-secret
+  #     type: secret
+  #     secretName: my-secret
+  #   - name: app-data
+  #     type: pvc
+  #     claimName: my-pvc
   # -- Default volumeMounts added to every container.
   # volumeMounts: []
   # -- Default resource requests/limits applied to containers when not overridden.
@@ -181,7 +195,10 @@ deploymentsGeneral: {}
 # Single-container shorthand: set `image:` at workload level instead of a `containers:` list.
 # `ports:` (map form `{name: port}`) auto-creates containerPorts AND a matching ClusterIP Service.
 # `resources:` raw requests/limits map. `healthCheck:` sets liveness, readiness, and startup probes.
-# Override service behaviour with `service: false` (suppress) or `service: {type: NodePort}`.
+# Override service behaviour with `service: false` (suppress) or `service:` fields such as
+# `type`, `clusterIP`, `externalTrafficPolicy`, `loadBalancerSourceRanges`, `loadBalancerIP`,
+# `sessionAffinity`, `sessionAffinityConfig`, `healthCheckNodePort`, `publishNotReadyAddresses`,
+# `ipFamilies`, and `ipFamilyPolicy`.
 # The full `containers:` list still works for multi-container workloads.
 deployments: {}
 #   # ── Single-container shorthand ──
@@ -190,6 +207,10 @@ deployments: {}
 #     replicas: 2
 #     ports:
 #       http: 8080
+#     service:
+#       type: LoadBalancer
+#       externalTrafficPolicy: Local
+#       loadBalancerSourceRanges: [10.0.0.0/8]
 #     resources:
 #       requests: { cpu: 100m, memory: 128Mi }
 #       limits: { memory: 256Mi }
@@ -247,12 +268,16 @@ hooks: {}
 # =============================================================================
 
 # -- Kubernetes Service resources. Each key becomes the resource name.
+# If `workload` is omitted, the selector defaults to the service key name.
+# Set `selector` to override the selector verbatim. ExternalName services omit selectors.
 services: {}
 #   nginx:
 #     ports:
 #       - name: http
 #         port: 8080
-#     # workload: nginx
+#     # workload: nginx # optional; defaults to the service key name
+#     # selector:
+#     #   app.kubernetes.io/component: nginx
 
 # -- Gateway API HTTPRoute resources. Each key becomes the resource name.
 httpRoutes: {}

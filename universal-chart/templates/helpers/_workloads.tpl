@@ -29,18 +29,34 @@ env:
   {{- $ctx := .context -}}
   {{- $general := .general -}}
   {{- $v := .value -}}
-  {{- if or (or (or $v.envConfigmaps $v.envSecrets) $v.envFrom) (or (or $general.envConfigmaps $general.envSecrets) $general.envFrom)}}
+  {{- $cmRefs := list -}}
+  {{- with $general.envConfigmaps -}}
+    {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
+  {{- end -}}
+  {{- with $v.envConfigmaps -}}
+    {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
+  {{- end -}}
+  {{- $secRefs := list -}}
+  {{- with $general.envSecrets -}}
+    {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
+  {{- end -}}
+  {{- with $v.envSecrets -}}
+    {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
+  {{- end -}}
+  {{- $hasGlobalEnvs := or (not (empty $ctx.Values.envs)) (not (empty $ctx.Values.envsString)) -}}
+  {{- if and $hasGlobalEnvs (not (has "envs" $cmRefs)) -}}
+    {{- $cmRefs = prepend $cmRefs "envs" -}}
+  {{- end -}}
+  {{- $hasGlobalSecretEnvs := or (not (empty $ctx.Values.secretEnvs)) (not (empty $ctx.Values.secretEnvsString)) -}}
+  {{- if and $hasGlobalSecretEnvs (not (has "secret-envs" $secRefs)) -}}
+    {{- $secRefs = prepend $secRefs "secret-envs" -}}
+  {{- end -}}
+  {{- if or $cmRefs (or $secRefs (or $general.envFrom $v.envFrom)) }}
 envFrom:
-    {{- with $general.envConfigmaps }}
+    {{- with $cmRefs }}
       {{ include "helpers.configmaps.includeEnvConfigmap" ( dict "value" . "context" $ctx) }}
     {{- end -}}
-    {{- with $v.envConfigmaps }}
-      {{ include "helpers.configmaps.includeEnvConfigmap" ( dict "value" . "context" $ctx) }}
-    {{- end -}}
-    {{- with $general.envSecrets }}
-      {{ include "helpers.secrets.includeEnvSecret" ( dict "value" . "context" $ctx) }}
-    {{- end -}}
-    {{- with $v.envSecrets }}
+    {{- with $secRefs }}
       {{ include "helpers.secrets.includeEnvSecret" ( dict "value" . "context" $ctx) }}
     {{- end -}}
     {{- with $general.envFrom }}
@@ -109,6 +125,13 @@ defaults.autoChecksum  (bool, default true)  — global opt-out
       {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
     {{- end -}}
 
+    {{- if and (or (not (empty $ctx.Values.envs)) (not (empty $ctx.Values.envsString))) (not (has "envs" $cmRefs)) -}}
+      {{- $cmRefs = prepend $cmRefs "envs" -}}
+    {{- end -}}
+    {{- if and (or (not (empty $ctx.Values.secretEnvs)) (not (empty $ctx.Values.secretEnvsString))) (not (has "secret-envs" $secRefs)) -}}
+      {{- $secRefs = prepend $secRefs "secret-envs" -}}
+    {{- end -}}
+
     {{- /* Hash referenced ConfigMaps */}}
     {{- range $cmRefs -}}
       {{- $refName := . -}}
@@ -167,8 +190,16 @@ checksum/secret-{{ $refName }}: {{ . | toJson | sha256sum }}
 httpGet:
   path: {{ .healthCheck.path | default "/healthz" }}
   port: {{ .healthCheck.port | default 8080 }}
+  {{- with .healthCheck.scheme }}
+  scheme: {{ . }}
+  {{- end }}
 initialDelaySeconds: {{ .healthCheck.initialDelaySeconds | default $defaultDelay }}
 periodSeconds: {{ .healthCheck.periodSeconds | default 10 }}
 timeoutSeconds: {{ .healthCheck.timeoutSeconds | default 1 }}
+{{- if ne $probeType "startup" }}
+  {{- with .healthCheck.successThreshold }}
+successThreshold: {{ . }}
+  {{- end }}
+{{- end }}
 failureThreshold: {{ .healthCheck.failureThreshold | default 3 }}
 {{- end }}

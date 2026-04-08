@@ -4,9 +4,12 @@ templates:
 tests:
   - it: renders a Deployment with correct kind and apiVersion
     set:
-      deployments.web.containers[0].name: web
-      deployments.web.containers[0].image: nginx
-      deployments.web.containers[0].imageTag: "1.25"
+      deployments:
+        web:
+          containers:
+            - name: web
+              image: nginx
+              imageTag: "1.25"
     asserts:
       - isKind:
           of: Deployment
@@ -21,10 +24,13 @@ tests:
 
   - it: respects the disabled flag
     set:
-      deployments.web.disabled: true
-      deployments.web.containers[0].name: web
-      deployments.web.containers[0].image: nginx
-      deployments.web.containers[0].imageTag: "1.25"
+      deployments:
+        web:
+          disabled: true
+          containers:
+            - name: web
+              image: nginx
+              imageTag: "1.25"
     asserts:
       - hasDocuments:
           count: 0
@@ -51,6 +57,59 @@ tests:
       - notExists:
           path: spec.template.spec.imagePullSecrets
 
+  - it: injects global envs configmap into workload envFrom
+    set:
+      envs:
+        LOG_LEVEL: info
+      deployments.web.image: nginx
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: RELEASE-NAME-envs
+      - exists:
+          path: spec.template.metadata.annotations.checksum/configmap-envs
+
+  - it: injects global secret envs secret into workload envFrom
+    set:
+      secretEnvs:
+        API_KEY: super-secret
+      deployments.web.image: nginx
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: RELEASE-NAME-secret-envs
+      - exists:
+          path: spec.template.metadata.annotations.checksum/secret-secret-envs
+
+  - it: omits global envs envFrom when top-level envs are empty
+    set:
+      envs: {}
+      envsString: ""
+      deployments.web.image: nginx
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].envFrom
+
+  - it: does not duplicate global envs configmap when workload already references envs
+    set:
+      envs:
+        LOG_LEVEL: info
+      deployments:
+        web:
+          image: nginx
+          envConfigmaps:
+            - envs
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom
+          value:
+            - configMapRef:
+                name: RELEASE-NAME-envs
+
   - it: merges defaults.annotations into deployment metadata
     set:
       defaults:
@@ -64,6 +123,41 @@ tests:
           content:
             team: platform
             env: prod
+
+  - it: renders dnsConfig in the pod spec
+    set:
+      deployments:
+        web:
+          image: nginx
+          dnsConfig:
+            options:
+              - name: ndots
+                value: "2"
+            searches:
+              - svc.cluster.local
+    asserts:
+      - equal:
+          path: spec.template.spec.dnsConfig.options[0].name
+          value: ndots
+      - equal:
+          path: spec.template.spec.dnsConfig.options[0].value
+          value: "2"
+      - equal:
+          path: spec.template.spec.dnsConfig.searches[0]
+          value: svc.cluster.local
+
+  - it: renders minReadySeconds in deployment spec only
+    set:
+      deployments:
+        web:
+          image: nginx
+          minReadySeconds: 30
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 30
+      - notExists:
+          path: spec.template.spec.minReadySeconds
 
   - it: diagnosticMode overrides command and args and suppresses probes
     set:
@@ -87,6 +181,43 @@ tests:
       - notExists:
           path: spec.template.spec.containers[0].readinessProbe
 
+  - it: renders HTTPS scheme for shorthand liveness and readiness probes
+    set:
+      deployments:
+        web:
+          image: nginx
+          healthCheck:
+            path: /healthz
+            scheme: HTTPS
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.scheme
+          value: HTTPS
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.scheme
+          value: HTTPS
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.scheme
+          value: HTTPS
+
+  - it: renders successThreshold for shorthand liveness and readiness probes only
+    set:
+      deployments:
+        web:
+          image: nginx
+          healthCheck:
+            path: /healthz
+            successThreshold: 3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.successThreshold
+          value: 3
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.successThreshold
+          value: 3
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe.successThreshold
+
   - it: injects preStopSleep lifecycle hook from defaults
     set:
       defaults:
@@ -103,11 +234,14 @@ tests:
   - it: init container does not get preStopSleep lifecycle
     set:
       defaults.preStopSleep: 5
-      deployments.test.image: nginx
-      deployments.test.imageTag: latest
-      deployments.test.initContainers[0].name: init
-      deployments.test.initContainers[0].image: busybox
-      deployments.test.initContainers[0].imageTag: latest
+      deployments:
+        test:
+          image: nginx
+          imageTag: latest
+          initContainers:
+            - name: init
+              image: busybox
+              imageTag: latest
     asserts:
       - notExists:
           path: spec.template.spec.initContainers[0].lifecycle
@@ -173,6 +307,65 @@ tests:
             name: varlog
             mountPath: /var/log
             readOnly: true
+
+  - it: renders configMap typed volume with explicit configMapName
+    set:
+      deployments.web.image: nginx
+      deployments.web.volumes:
+        - name: config
+          type: configMap
+          configMapName: app-config
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            configMap:
+              name: app-config
+
+  - it: renders secret typed volume with explicit secretName
+    set:
+      deployments.web.image: nginx
+      deployments.web.volumes:
+        - name: certs
+          type: secret
+          secretName: tls-certs
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: certs
+            secret:
+              secretName: tls-certs
+
+  - it: renders pvc typed volume with explicit claimName
+    set:
+      deployments.web.image: nginx
+      deployments.web.volumes:
+        - name: data
+          type: pvc
+          claimName: my-pvc
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            persistentVolumeClaim:
+              claimName: my-pvc
+
+  - it: keeps backward-compatible secret typed volume naming without secretName
+    set:
+      deployments.web.image: nginx
+      deployments.web.volumes:
+        - name: certs
+          type: secret
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: certs
+            secret:
+              secretName: "RELEASE-NAME-certs"
 
   - it: mounts PVCs scoped to the matching workload
     set:
@@ -246,7 +439,7 @@ tests:
           path: spec.template.spec.containers[0].image
           value: "nginx:1.20"
 
-  - it: appends default tag to registry-with-port image without embedded tag
+  - it: does not append default tag to explicit container image without imageTag
     set:
       deployments:
         web:
@@ -256,7 +449,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: "registry.example.com:5000/myapp:v0.0.1"
+          value: "registry.example.com:5000/myapp"
 
   - it: uses explicit imageTag even when image has no embedded tag
     set:
@@ -270,6 +463,16 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "nginx:1.25"
+
+  - it: appends default tag to single-container shorthand image without imageTag
+    set:
+      deployments:
+        web:
+          image: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "nginx:v0.0.1"
 
   - it: merges imagePullSecrets from all sources (top-level + defaults + workload)
     set:

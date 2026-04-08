@@ -42,6 +42,46 @@ spec:
       {{- with (index $val.service "clusterIP") }}
   clusterIP: {{ . }}
       {{- end }}
+      {{- with (index $val.service "externalTrafficPolicy") }}
+  externalTrafficPolicy: {{ . }}
+      {{- end }}
+      {{- with (index $val.service "loadBalancerSourceRanges") }}
+  loadBalancerSourceRanges:
+        {{- toYaml . | nindent 4 }}
+      {{- end }}
+      {{- with (index $val.service "loadBalancerIP") }}
+  loadBalancerIP: {{ . }}
+      {{- end }}
+      {{- with (index $val.service "loadBalancerClass") }}
+  loadBalancerClass: {{ . }}
+      {{- end }}
+      {{- if not (or (index $val.service "allocateLoadBalancerNodePorts") (eq ((index $val.service "allocateLoadBalancerNodePorts") | toString) "<nil>")) }}
+  allocateLoadBalancerNodePorts: false
+      {{- end }}
+      {{- with (index $val.service "sessionAffinity") }}
+  sessionAffinity: {{ . }}
+      {{- end }}
+      {{- with (index $val.service "sessionAffinityConfig") }}
+  sessionAffinityConfig:
+        {{- toYaml . | nindent 4 }}
+      {{- end }}
+      {{- with (index $val.service "healthCheckNodePort") }}
+  healthCheckNodePort: {{ . }}
+      {{- end }}
+      {{- with (index $val.service "externalIPs") }}
+  externalIPs:
+        {{- toYaml . | nindent 4 }}
+      {{- end }}
+      {{- with (index $val.service "publishNotReadyAddresses") }}
+  publishNotReadyAddresses: {{ . }}
+      {{- end }}
+      {{- with (index $val.service "ipFamilies") }}
+  ipFamilies:
+        {{- toYaml . | nindent 4 }}
+      {{- end }}
+      {{- with (index $val.service "ipFamilyPolicy") }}
+  ipFamilyPolicy: {{ . }}
+      {{- end }}
     {{- end }}
   ports:
     {{- range $portName := keys $val.ports | sortAlpha }}

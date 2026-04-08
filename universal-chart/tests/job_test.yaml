@@ -4,9 +4,12 @@ templates:
 tests:
   - it: renders a Job with correct kind and apiVersion
     set:
-      jobs.refresh.containers[0].name: refresh
-      jobs.refresh.containers[0].image: myapp
-      jobs.refresh.containers[0].imageTag: "1.0"
+      jobs:
+        refresh:
+          containers:
+            - name: refresh
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - isKind:
           of: Job
@@ -21,20 +24,26 @@ tests:
 
   - it: respects the disabled flag
     set:
-      jobs.refresh.disabled: true
-      jobs.refresh.containers[0].name: refresh
-      jobs.refresh.containers[0].image: myapp
-      jobs.refresh.containers[0].imageTag: "1.0"
+      jobs:
+        refresh:
+          disabled: true
+          containers:
+            - name: refresh
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - hasDocuments:
           count: 0
 
   - it: renders PrometheusRule with release namespace
     set:
-      jobs.refresh.commandDurationAlert: 30
-      jobs.refresh.containers[0].name: refresh
-      jobs.refresh.containers[0].image: myapp
-      jobs.refresh.containers[0].imageTag: "1.0"
+      jobs:
+        refresh:
+          commandDurationAlert: 30
+          containers:
+            - name: refresh
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - hasDocuments:
           count: 2
@@ -121,10 +130,13 @@ tests:
 
   - it: renders PrometheusRule when commandDurationAlert is zero
     set:
-      jobs.refresh.commandDurationAlert: 0
-      jobs.refresh.containers[0].name: refresh
-      jobs.refresh.containers[0].image: myapp
-      jobs.refresh.containers[0].imageTag: "1.0"
+      jobs:
+        refresh:
+          commandDurationAlert: 0
+          containers:
+            - name: refresh
+              image: myapp
+              imageTag: "1.0"
     asserts:
       - hasDocuments:
           count: 2

@@ -40,6 +40,33 @@ tests:
           path: spec.type
           value: LoadBalancer
 
+  - it: auto-service renders externalTrafficPolicy override
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+      deployments.api.service.type: LoadBalancer
+      deployments.api.service.externalTrafficPolicy: Local
+    asserts:
+      - equal:
+          path: spec.externalTrafficPolicy
+          value: Local
+
+  - it: auto-service renders loadBalancerSourceRanges override
+    set:
+      deployments.api.image: myapp:1.0
+      deployments.api.ports.http: 8080
+      deployments.api.service.type: LoadBalancer
+      deployments.api.service.loadBalancerSourceRanges:
+        - 10.0.0.0/8
+        - 192.168.0.0/16
+    asserts:
+      - equal:
+          path: spec.loadBalancerSourceRanges[0]
+          value: 10.0.0.0/8
+      - equal:
+          path: spec.loadBalancerSourceRanges[1]
+          value: 192.168.0.0/16
+
   - it: no ports at workload level produces no auto-service
     set:
       deployments.api.image: myapp:1.0

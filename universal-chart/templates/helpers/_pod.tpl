@@ -81,6 +81,10 @@ dnsPolicy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) |
 dnsPolicy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
     {{- end }}
+    {{- with .dnsConfig }}
+dnsConfig:
+  {{- toYaml . | nindent 2 }}
+    {{- end }}
     {{- if (ne .nodeSelector nil) }}
       {{- with .nodeSelector }}
 nodeSelector: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
@@ -171,12 +175,12 @@ initContainers:
         {{- else }}
 - name: {{ printf "%s-init-%d" ($name | trunc 52 | trimSuffix "-") $idx }}
         {{- end }}
-        {{- include "helpers.container.render" (dict "value" $ic "name" "" "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" true "workloadContainerSecurityContext" $workloadContainerSecCtx "isInitContainer" true) | indent 0 }}
+        {{- include "helpers.container.render" (dict "value" $ic "name" "" "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" false "workloadContainerSecurityContext" $workloadContainerSecCtx "isInitContainer" true) | indent 0 }}
       {{- end }}{{- end }}
-      {{- if and (not .containers) .image }}
+      {{- if not .containers }}
 containers:
 - name: {{ $name }}
-        {{- include "helpers.container.render" (dict "value" . "name" $name "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" true "enableMapPorts" true "useDefaultImage" false "autoPvcs" $autoPvcs "workloadContainerSecurityContext" .containerSecurityContext) | indent 0 }}
+        {{- include "helpers.container.render" (dict "value" . "name" $name "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" true "enableMapPorts" true "useDefaultImage" true "autoPvcs" $autoPvcs "workloadContainerSecurityContext" .containerSecurityContext) | indent 0 }}
       {{- else }}
 containers:
         {{- range $idx, $ct := .containers }}
@@ -185,7 +189,7 @@ containers:
           {{- else }}
 - name: {{ printf "%s-%d" ($name | trunc 58 | trimSuffix "-") $idx }}
           {{- end }}
-          {{- include "helpers.container.render" (dict "value" $ct "name" "" "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" true "autoPvcs" $autoPvcs "workloadContainerSecurityContext" $workloadContainerSecCtx) | indent 0 }}
+          {{- include "helpers.container.render" (dict "value" $ct "name" "" "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" false "autoPvcs" $autoPvcs "workloadContainerSecurityContext" $workloadContainerSecCtx) | indent 0 }}
         {{- end }}
       {{- end }}
       {{- $vols := include "helpers.volumes.renderVolume" (dict "value" . "general" $general "context" $ "name" $name "autoPvcs" $autoPvcs) }}
