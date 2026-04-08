@@ -101,9 +101,41 @@ When no `trafficPolicy` was configured, DestinationRule emitted
 validation warnings and causes unnecessary diff noise. The key is now only
 emitted when the value is non-empty.
 
+#### `overhead`, `readinessGates`, `schedulingGates`, `os` missing defaults tier cascade (M1)
+These four fields (added in 1.5.5) only cascaded instance → general, missing the
+defaults tier entirely. Setting `defaults.overhead`, `defaults.readinessGates`,
+`defaults.schedulingGates`, or `defaults.os` was silently ignored.
+
+All four now support the full 3-tier cascade: instance → general → defaults.
+
+#### Wasted `$_` assignment in `issuer.yaml` (M2)
+`issuer.yaml` stored the result of `helpers.tplvalues.render` in `$_` then
+immediately re-evaluated the same expression. The intermediate variable was
+removed by inlining the call directly into the `ternary` expression.
+
+### Added
+
+#### Port protocol support in ports map shorthand (F4, M5)
+The `ports:` map shorthand previously hardcoded `protocol: TCP` on both container
+ports and auto-generated Service ports. UDP and SCTP services were impossible to
+create via the shorthand — users had to switch to the full `containers:` list form.
+
+The ports map now supports an extended form alongside the existing simple form:
+
+```yaml
+ports:
+  http: 8080              # simple form → TCP (backward compatible)
+  dns:
+    port: 53
+    protocol: UDP         # extended form → specify protocol
+```
+
+Both auto-generated Service ports and container ports honour the new format.
+Schema updated to accept either integer or `{port, protocol}` object values.
+
 ### Tests
 
-490 tests passing (up from 477 in 1.5.5). New and updated suites:
+501 tests passing (up from 477 in 1.5.5). New and updated suites:
 
 - `cronjob_test.yaml` — B1 (concurrencyPolicy), F2 (suspend nil-guard)
 - `general_merge_test.yaml` — B3 (progressDeadlineSeconds), B4 (empty affinity), F3 (securityContext alias)
@@ -111,6 +143,9 @@ emitted when the value is non-empty.
 - `secret_test.yaml` — S5 (immutable passthrough)
 - `istiovirtualservice_test.yaml` — M3 (name nil-guard)
 - `istiodestinationrule_test.yaml` — M4 (trafficPolicy nil-guard)
+- `pod_extra_fields_test.yaml` — M1 (defaults tier cascade for overhead, readinessGates, schedulingGates, os)
+- `autoservice_test.yaml` — F4 (UDP/SCTP protocol on auto-generated Service)
+- `workload_shorthand_test.yaml` — M5 (UDP/SCTP protocol on container ports)
 
 ---
 
