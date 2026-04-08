@@ -6,6 +6,54 @@ Format: [Semantic Versioning](https://semver.org). Dates are approximate (branch
 
 ---
 
+## [1.5.7] — 2026-04-09
+
+### Fixed
+
+#### `allocateLoadBalancerNodePorts` forced `false` on standalone Services
+The standalone Service template (`svc.yaml`) incorrectly set
+`allocateLoadBalancerNodePorts: false` whenever the field was not explicitly
+provided, overriding the Kubernetes default of `true`. Now uses a `hasKey`
+guard — the field is rendered only when explicitly set, matching the
+autoservices.yaml pattern.
+
+#### Standalone Services rendered empty `ports:` when no ports defined
+If a Service had an empty or missing `ports` list, the template emitted
+`ports:` with no entries — invalid Kubernetes YAML. Now guarded with
+`{{- if $s.ports }}`.
+
+#### `externalTrafficPolicy` hardcoded `"Cluster"` default
+Both NodePort and LoadBalancer branches explicitly set
+`externalTrafficPolicy: "Cluster"` when the field was unset, adding noise
+to rendered manifests. Now only rendered when explicitly set, letting
+Kubernetes apply its own default.
+
+### Added
+
+#### Standalone Services: `publishNotReadyAddresses`, `sessionAffinity`, `sessionAffinityConfig`, `ipFamilies`, `ipFamilyPolicy`
+These fields were supported in auto-generated Services but missing from
+standalone `services:` definitions. All five are now rendered in `svc.yaml`
+and validated in the `$defs.service` schema definition.
+
+#### `strategy`/`updateStrategy`/`podManagementPolicy` cascade via `*General`
+Deployment `strategy`, StatefulSet/DaemonSet `updateStrategy`, and
+StatefulSet `podManagementPolicy` were instance-only — values set in
+`deploymentsGeneral`, `statefulSetsGeneral`, or `daemonSetsGeneral`
+were silently ignored. All three now cascade via the existing `$merged`
+pattern. Schema updated to allow these fields in `workloadGeneral`.
+
+#### CronJob `timeZone` field
+CronJobs now support the `timeZone` field (Kubernetes 1.27+), cascading
+instance → `cronJobsGeneral`. Schema updated in both `$defs.cronJob`
+and `$defs.workloadGeneral`.
+
+#### `daemonSetsGeneral.extraVolumeMounts` deprecation warning
+The deprecation helper for `extraVolumeMounts` checked all `*General`
+sections except `daemonSetsGeneral`. Users setting this deprecated field
+on DaemonSets now receive the expected migration warning.
+
+---
+
 ## [1.5.6] — 2026-04-08
 
 ### Fixed
