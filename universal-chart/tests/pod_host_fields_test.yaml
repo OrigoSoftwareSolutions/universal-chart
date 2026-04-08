@@ -1,0 +1,74 @@
+suite: pod host fields
+templates:
+  - deployment.yaml
+tests:
+  - it: renders hostNetwork true on pod spec
+    set:
+      deployments.app.image: nginx
+      deployments.app.hostNetwork: true
+    asserts:
+      - equal:
+          path: spec.template.spec.hostNetwork
+          value: true
+
+  - it: renders hostNetwork false when explicitly set
+    set:
+      deployments.app.image: nginx
+      deployments.app.hostNetwork: false
+    asserts:
+      - equal:
+          path: spec.template.spec.hostNetwork
+          value: false
+
+  - it: omits hostNetwork when not set
+    set:
+      deployments.app.image: nginx
+    asserts:
+      - notExists:
+          path: spec.template.spec.hostNetwork
+
+  - it: renders hostPID true on pod spec
+    set:
+      deployments.app.image: nginx
+      deployments.app.hostPID: true
+    asserts:
+      - equal:
+          path: spec.template.spec.hostPID
+          value: true
+
+  - it: renders hostIPC true on pod spec
+    set:
+      deployments.app.image: nginx
+      deployments.app.hostIPC: true
+    asserts:
+      - equal:
+          path: spec.template.spec.hostIPC
+          value: true
+
+  - it: renders shareProcessNamespace true on pod spec
+    set:
+      deployments.app.image: nginx
+      deployments.app.shareProcessNamespace: true
+    asserts:
+      - equal:
+          path: spec.template.spec.shareProcessNamespace
+          value: true
+
+  - it: defaults.hostNetwork cascades to all workloads
+    set:
+      deployments.app.image: nginx
+      defaults.hostNetwork: true
+    asserts:
+      - equal:
+          path: spec.template.spec.hostNetwork
+          value: true
+
+  - it: instance hostNetwork overrides defaults
+    set:
+      deployments.app.image: nginx
+      defaults.hostNetwork: true
+      deployments.app.hostNetwork: false
+    asserts:
+      - equal:
+          path: spec.template.spec.hostNetwork
+          value: false

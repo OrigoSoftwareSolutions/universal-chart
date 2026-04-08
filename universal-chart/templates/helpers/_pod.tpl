@@ -83,13 +83,13 @@ dnsPolicy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) |
     {{- end }}
     {{- with .dnsConfig }}
 dnsConfig:
-  {{- toYaml . | nindent 2 }}
+      {{- toYaml . | nindent 2 }}
     {{- else with $general.dnsConfig }}
 dnsConfig:
-  {{- toYaml . | nindent 2 }}
+      {{- toYaml . | nindent 2 }}
     {{- else with $.Values.defaults.dnsConfig }}
 dnsConfig:
-  {{- toYaml . | nindent 2 }}
+      {{- toYaml . | nindent 2 }}
     {{- end }}
     {{- if (ne .nodeSelector nil) }}
       {{- with .nodeSelector }}
@@ -163,6 +163,34 @@ imagePullSecrets:
     {{- if and (not $termGraceSet) (ne $.Values.defaults.terminationGracePeriodSeconds nil) }}{{ $termGrace = $.Values.defaults.terminationGracePeriodSeconds }}{{ $termGraceSet = true }}{{ end -}}
     {{- if $termGraceSet }}
 terminationGracePeriodSeconds: {{ $termGrace }}
+    {{- end }}
+    {{- if (ne .hostNetwork nil) }}
+hostNetwork: {{ .hostNetwork }}
+    {{- else if (ne $general.hostNetwork nil) }}
+hostNetwork: {{ $general.hostNetwork }}
+    {{- else if (ne $.Values.defaults.hostNetwork nil) }}
+hostNetwork: {{ $.Values.defaults.hostNetwork }}
+    {{- end }}
+    {{- if (ne .hostPID nil) }}
+hostPID: {{ .hostPID }}
+    {{- else if (ne $general.hostPID nil) }}
+hostPID: {{ $general.hostPID }}
+    {{- else if (ne $.Values.defaults.hostPID nil) }}
+hostPID: {{ $.Values.defaults.hostPID }}
+    {{- end }}
+    {{- if (ne .hostIPC nil) }}
+hostIPC: {{ .hostIPC }}
+    {{- else if (ne $general.hostIPC nil) }}
+hostIPC: {{ $general.hostIPC }}
+    {{- else if (ne $.Values.defaults.hostIPC nil) }}
+hostIPC: {{ $.Values.defaults.hostIPC }}
+    {{- end }}
+    {{- if (ne .shareProcessNamespace nil) }}
+shareProcessNamespace: {{ .shareProcessNamespace }}
+    {{- else if (ne $general.shareProcessNamespace nil) }}
+shareProcessNamespace: {{ $general.shareProcessNamespace }}
+    {{- else if (ne $.Values.defaults.shareProcessNamespace nil) }}
+shareProcessNamespace: {{ $.Values.defaults.shareProcessNamespace }}
     {{- end }}
     {{- $workloadContainerSecCtx := .containerSecurityContext -}}
     {{- with .initContainers}}
