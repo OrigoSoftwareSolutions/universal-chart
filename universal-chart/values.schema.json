@@ -437,7 +437,6 @@
       ],
       "properties": {
         "schedule": { "type": "string", "description": "Cron schedule expression (required)." },
-        "timeZone": { "type": "string", "description": "Time zone for the CronJob schedule (e.g. America/New_York). Requires K8s 1.27+." },
         "startingDeadlineSeconds": { "type": "integer", "minimum": 0, "description": "Deadline in seconds for starting the job if it misses its scheduled time." },
         "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0, "description": "Number of successful finished jobs to retain." },
         "failedJobsHistoryLimit": { "type": "integer", "minimum": 0, "description": "Number of failed finished jobs to retain." },
@@ -822,6 +821,10 @@
         "schedule": {
           "type": "string",
           "description": "Cron schedule expression (CronJobs)."
+        },
+        "timeZone": {
+          "type": "string",
+          "description": "Time zone for CronJob schedule (e.g. America/New_York). Requires K8s 1.27+."
         },
         "singleOnly": {
           "type": "boolean",

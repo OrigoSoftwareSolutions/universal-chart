@@ -211,3 +211,15 @@ tests:
       - equal:
           path: spec.minReadySeconds
           value: 0
+
+  - it: replicas zero renders correctly
+    set:
+      statefulSets:
+        db:
+          image: postgres
+          imageTag: "16"
+          replicas: 0
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0

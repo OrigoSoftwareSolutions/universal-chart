@@ -18,6 +18,17 @@ metadata:
 spec:
   endpoints:
     {{- include "helpers.tplvalues.render" (dict "value" $sm.endpoints "context" $) | nindent 4 }}
+    {{- with $sm.jobLabel }}
+  jobLabel: {{ . }}
+    {{- end }}
+    {{- with $sm.targetLabels }}
+  targetLabels:
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with $sm.podTargetLabels }}
+  podTargetLabels:
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
     {{- with $sm.namespaceSelector }}
   namespaceSelector: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}

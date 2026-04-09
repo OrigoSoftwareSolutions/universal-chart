@@ -71,3 +71,43 @@ tests:
       - equal:
           path: metadata.annotations.custom
           value: value
+
+  - it: renders jobLabel when set
+    set:
+      serviceMonitors.app.endpoints[0].port: http
+      serviceMonitors.app.jobLabel: my-app
+    asserts:
+      - equal:
+          path: spec.jobLabel
+          value: my-app
+
+  - it: omits jobLabel when not set
+    set:
+      serviceMonitors.app.endpoints[0].port: http
+    asserts:
+      - notExists:
+          path: spec.jobLabel
+
+  - it: renders targetLabels when set
+    set:
+      serviceMonitors.app.endpoints[0].port: http
+      serviceMonitors.app.targetLabels:
+        - app
+        - version
+    asserts:
+      - equal:
+          path: spec.targetLabels
+          value:
+            - app
+            - version
+
+  - it: renders podTargetLabels when set
+    set:
+      serviceMonitors.app.endpoints[0].port: http
+      serviceMonitors.app.podTargetLabels:
+        - pod-label-a
+    asserts:
+      - equal:
+          path: spec.podTargetLabels
+          value:
+            - pod-label-a
