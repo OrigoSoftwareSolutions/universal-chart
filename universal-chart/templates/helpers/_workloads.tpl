@@ -5,22 +5,22 @@
   {{- if or (or (or $v.envsFromConfigmap $v.envsFromSecret) $v.env) (or (or $general.envsFromConfigmap $general.envsFromSecret) $general.env)}}
 env:
     {{- with $general.envsFromConfigmap }}
-      {{ include "helpers.configmaps.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
+      {{- include "helpers.configmaps.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
     {{- end -}}
     {{- with $v.envsFromConfigmap }}
-      {{ include "helpers.configmaps.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
+      {{- include "helpers.configmaps.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
     {{- end -}}
     {{- with $general.envsFromSecret }}
-      {{ include "helpers.secrets.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
+      {{- include "helpers.secrets.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
     {{- end -}}
     {{- with $v.envsFromSecret }}
-      {{ include "helpers.secrets.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
+      {{- include "helpers.secrets.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
     {{- end -}}
     {{- with $general.env }}
-      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
+      {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
     {{- end -}}
     {{- with $v.env }}
-      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
+      {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
     {{- end }}
   {{- end }}
 {{- end }}
@@ -54,16 +54,16 @@ env:
   {{- if or $cmRefs (or $secRefs (or $general.envFrom $v.envFrom)) }}
 envFrom:
     {{- with $cmRefs }}
-      {{ include "helpers.configmaps.includeEnvConfigmap" ( dict "value" . "context" $ctx) | nindent 2 }}
+      {{- include "helpers.configmaps.includeEnvConfigmap" ( dict "value" . "context" $ctx) | nindent 2 }}
     {{- end -}}
     {{- with $secRefs }}
-      {{ include "helpers.secrets.includeEnvSecret" ( dict "value" . "context" $ctx) | nindent 2 }}
+      {{- include "helpers.secrets.includeEnvSecret" ( dict "value" . "context" $ctx) | nindent 2 }}
     {{- end -}}
     {{- with $general.envFrom }}
-      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
+      {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
     {{- end -}}
     {{- with $v.envFrom }}
-      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
+      {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
     {{- end }}
   {{- end }}
 {{- end }}
