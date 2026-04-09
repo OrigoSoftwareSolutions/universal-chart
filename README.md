@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.5.8](https://img.shields.io/badge/Version-1.5.8-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.6.0](https://img.shields.io/badge/Version-1.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -12,16 +12,14 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 | StatefulSet | HTTPRoute (Gateway API) | Secret | SecretStore / ClusterSecretStore |
 | DaemonSet | Istio VirtualService | PersistentVolumeClaim | Certificate / Issuer / ClusterIssuer |
 | CronJob / Job | Istio Gateway | ServiceAccount | PrometheusRule |
-| Helm Hooks | Istio DestinationRule | | ImageUpdater (Argo CD) |
-| HPA / PDB | Istio PeerAuthentication | | |
-| | Istio AuthorizationPolicy | | |
-| | ServiceMonitor | | |
+| Helm Hooks | ServiceMonitor | PersistentVolume | ImageUpdater (Argo CD) |
+| HPA / PDB | | | Istio DestinationRule / PeerAuthentication / AuthorizationPolicy |
 
 ## Install
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.5.8 \
+  --version 1.6.0 \
   -f my-values.yaml
 ```
 
@@ -201,14 +199,16 @@ deployments:
 
 ### CRD resources: thin passthrough
 
-For CRD-based resources (ExternalSecret, HTTPRoute, PeerAuthentication, AuthorizationPolicy, etc.), the chart uses thin passthrough — you write `spec:` and it goes directly to the Kubernetes resource unchanged:
+For CRD-based resources (ExternalSecret, HTTPRoute, SecretStore, Certificate, etc.), the chart uses thin passthrough — you write `spec:` and it goes directly to the Kubernetes resource unchanged:
 
 ```yaml
-istioPeerAuthentications:
-  strict-mtls:
-    spec:                  # ← passed through to the K8s resource as-is
-      mtls:
-        mode: STRICT
+secretStores:
+  aws:
+    spec:                    # ← passed through to the K8s resource as-is
+      provider:
+        aws:
+          service: SecretsManager
+          region: eu-west-1
 ```
 
 No abstraction layers, no surprises. Whatever you put in `spec:` is what Kubernetes sees.
@@ -512,43 +512,9 @@ istioGateways:
           - "*.example.com"
 ```
 
-### Istio DestinationRule
+### Other Istio CRDs
 
-```yaml
-istioDestinationRules:
-  api:
-    host: api.default.svc.cluster.local
-    trafficPolicy:
-      connectionPool:
-        tcp:
-          maxConnections: 100
-        http:
-          h2UpgradePolicy: DEFAULT
-```
-
-### Istio PeerAuthentication
-
-```yaml
-istioPeerAuthentications:
-  strict-mtls:
-    spec:
-      mtls:
-        mode: STRICT
-```
-
-### Istio AuthorizationPolicy
-
-```yaml
-istioAuthorizationPolicies:
-  allow-frontend:
-    spec:
-      action: ALLOW
-      rules:
-        - from:
-            - source:
-                principals:
-                  - "cluster.local/ns/frontend/sa/frontend"
-```
+The chart also supports Istio DestinationRule, PeerAuthentication, and AuthorizationPolicy as thin-passthrough CRDs. Values keys: `istioDestinationRules`, `istioPeerAuthentications`, `istioAuthorizationPolicies`.
 
 ---
 
@@ -2006,22 +1972,95 @@ helm template my-release universal-chart/ -f my-values.yaml \
 
 ## Development
 
+### Prerequisites
+
+Install these tools before working on the chart locally:
+
+**Required:**
+
+| Tool | Version | Purpose | Install |
+|---|---|---|---|
+| [Helm](https://helm.sh/) | 3.19+ | Chart rendering, linting, packaging | [Install docs](https://helm.sh/docs/intro/install/) |
+| [helm-unittest](https://github.com/helm-unittest/helm-unittest) | 1.0+ | Unit test runner (Helm plugin) | `helm plugin install https://github.com/helm-unittest/helm-unittest --version 1.0.3` |
+| [Python](https://www.python.org/) | 3.9+ | Required by pre-commit and helmfmt | [Download](https://www.python.org/downloads/) (often pre-installed on macOS/Linux) |
+| [pre-commit](https://pre-commit.com/) | 3.0+ | Git hook manager — auto-runs formatting and docs generation on every commit | [Install docs](https://pre-commit.com/#installation) |
+
+> **Note:** You do not need to install [helmfmt](https://github.com/digitalstudium/helmfmt) or [helm-docs](https://github.com/norwoodj/helm-docs) separately — pre-commit downloads and manages them automatically when the hooks run.
+
+**Optional (CI runs these, but useful locally):**
+
+| Tool | Purpose | Install |
+|---|---|---|
+| [kubeconform](https://github.com/yannh/kubeconform) | Schema validation of rendered manifests | [Releases](https://github.com/yannh/kubeconform/releases) |
+| [chart-testing (ct)](https://github.com/helm/chart-testing) | Chart linting with git diff awareness | [Releases](https://github.com/helm/chart-testing/releases) |
+
+### First-time setup
+
 ```bash
-# Lint
+# Clone and enter the repo
+git clone https://github.com/OrigoSoftwareSolutions/universal-chart.git
+cd universal-chart
+
+# Install the helm-unittest plugin (one-time)
+helm plugin install https://github.com/helm-unittest/helm-unittest --version 1.0.3
+
+# Install pre-commit hooks (one-time) — runs helmfmt + helm-docs automatically on git commit
+pre-commit install
+```
+
+### Day-to-day commands
+
+```bash
+# Lint (must pass before pushing)
 helm lint universal-chart/ --strict
 
-# Render templates
-helm template test universal-chart/ -f universal-chart/ci/test-values.yaml
-
-# Run unit tests (requires helm-unittest plugin)
+# Run unit tests (must pass before pushing)
 helm unittest universal-chart/ --strict --file 'tests/*.yaml'
 
-# Regenerate docs (required before commit)
+# Run a single test suite
+helm unittest universal-chart/ --strict --file 'tests/deployment_test.yaml'
+
+# Render templates (smoke test)
+helm template test universal-chart/ -f universal-chart/ci/test-values.yaml
+
+# Render with Istio CRD resolution
+helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
+  --api-versions networking.istio.io/v1beta1
+
+# Regenerate README (required after values.yaml changes — also runs automatically via pre-commit)
 helm-docs --chart-search-root universal-chart/ -o ../README.md
 
-# Format
+# Format templates (also runs automatically via pre-commit)
 helmfmt universal-chart/
+
+# Schema validation (optional — CI runs this)
+helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
+  | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.33.6 \
+    -schema-location default \
+    -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
 ```
+
+### Pre-commit hooks
+
+The repo uses [pre-commit](https://pre-commit.com/) hooks (configured in `.pre-commit-config.yaml`) that run automatically on each `git commit`:
+
+| Hook | What it does |
+|---|---|
+| **helmfmt** | Auto-formats all `.yaml`/`.yml`/`.tpl` files in `universal-chart/` (2-space indent, consistent whitespace) |
+| **helm-docs** | Regenerates `README.md` from the gotmpl template + `values.yaml` comments |
+
+If a hook modifies files, the commit is aborted so you can review and re-stage. Just run `git add . && git commit` again.
+
+### Style & formatting rules
+
+Enforced by `.yamllint` and `.helmfmt`:
+
+- **Indent**: 2 spaces — no tabs
+- **Line length**: max 150 characters
+- **Booleans**: `true`/`false` only (never `yes`/`no`/`on`/`off`)
+- **No trailing spaces**; max 3 consecutive empty lines
+- **`nindent`** value must match actual rendered indentation level
+- Quote image tags that look numeric: `imageTag: "1.25"`
 
 ## Contributing & Release
 
@@ -2054,15 +2093,6 @@ Five parallel jobs run on every pull request:
 
 All five must pass before merge.
 
-### Pre-commit hooks
-
-The repo uses pre-commit hooks (configured in `.pre-commit-config.yaml`) that run automatically on each commit:
-
-- **helmfmt** — auto-formats all `.yaml`/`.yml`/`.tpl` files in `universal-chart/`
-- **helm-docs** — regenerates `README.md` from the gotmpl + values.yaml comments
-
-Install once: `pre-commit install`. After that, formatting and docs regeneration happen automatically on `git commit`.
-
 ### Versioning & release
 
 This chart follows [SemVer](https://semver.org/):
@@ -2081,7 +2111,7 @@ No manual tagging required. The `Chart.yaml` version is the single source of tru
 
 ### Adding a new resource type
 
-1. Create the template in `universal-chart/templates/` — use `.yaml` extension for new files (`.yml` is reserved for legacy nixys templates)
+1. Create the template in `universal-chart/templates/` (`.yaml` extension only)
 2. Add a plural values key in `values.yaml` (e.g. `myResources: {}`) with a `# --` helm-docs comment
 3. Add schema validation in `values.schema.json` if the resource has structured fields
 4. Write a test suite in `universal-chart/tests/<resource>_test.yaml`

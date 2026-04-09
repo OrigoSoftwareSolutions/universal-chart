@@ -202,10 +202,10 @@ httpGet:
 initialDelaySeconds: {{ .healthCheck.initialDelaySeconds | default $defaultDelay }}
 periodSeconds: {{ .healthCheck.periodSeconds | default 10 }}
 timeoutSeconds: {{ .healthCheck.timeoutSeconds | default 1 }}
-{{- if ne $probeType "startup" }}
-  {{- with .healthCheck.successThreshold }}
+  {{- if ne $probeType "startup" }}
+    {{- with .healthCheck.successThreshold }}
 successThreshold: {{ . }}
+    {{- end }}
   {{- end }}
-{{- end }}
 failureThreshold: {{ .healthCheck.failureThreshold | default 3 }}
 {{- end }}
