@@ -2,7 +2,7 @@ suite: envsFrom cherry-pick
 templates:
   - deployment.yaml
 tests:
-  - it: envsFromSecret renders correct env var name, secret name, and key
+  - it: envsFromSecret references the secret by its verbatim name
     set:
       deployments.api.image: nginx
       deployments.api.envsFromSecret:
@@ -16,10 +16,10 @@ tests:
             name: DB_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: RELEASE-NAME-db-secret
+                name: db-secret
                 key: password
 
-  - it: envsFromConfigmap renders correct env var name, configmap name, and key
+  - it: envsFromConfigmap references the configmap by its verbatim name
     set:
       deployments.api.image: nginx
       deployments.api.envsFromConfigmap:
@@ -33,7 +33,7 @@ tests:
             name: DATABASE_URL
             valueFrom:
               configMapKeyRef:
-                name: RELEASE-NAME-db-config
+                name: db-config
                 key: url
 
   - it: multiple envsFromSecret entries render independently
@@ -53,7 +53,7 @@ tests:
             name: DB_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: RELEASE-NAME-db-secret
+                name: db-secret
                 key: password
       - contains:
           path: spec.template.spec.containers[0].env
@@ -61,7 +61,7 @@ tests:
             name: API_KEY
             valueFrom:
               secretKeyRef:
-                name: RELEASE-NAME-api-secret
+                name: api-secret
                 key: token
 
   - it: envsFromSecret and envsFromConfigmap can coexist
@@ -82,7 +82,7 @@ tests:
             name: SECRET_VAR
             valueFrom:
               secretKeyRef:
-                name: RELEASE-NAME-my-secret
+                name: my-secret
                 key: secret-key
       - contains:
           path: spec.template.spec.containers[0].env
@@ -90,5 +90,29 @@ tests:
             name: CONFIG_VAR
             valueFrom:
               configMapKeyRef:
-                name: RELEASE-NAME-my-config
+                name: my-config
                 key: config-key
+
+  - it: envSecrets references the secret by its verbatim name
+    set:
+      deployments.api.image: nginx
+      deployments.api.envSecrets:
+        - applications-azure-secrets
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: applications-azure-secrets
+
+  - it: envConfigmaps references the configmap by its verbatim name
+    set:
+      deployments.api.image: nginx
+      deployments.api.envConfigmaps:
+        - shared-config
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: shared-config

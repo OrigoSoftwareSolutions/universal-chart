@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.6.1](https://img.shields.io/badge/Version-1.6.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.7.1](https://img.shields.io/badge/Version-1.7.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -19,7 +19,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.6.1 \
+  --version 1.7.1 \
   -f my-values.yaml
 ```
 
@@ -636,7 +636,11 @@ secretEnvsString: |
 
 ### Per-workload env injection
 
-Each workload can pull envs from existing ConfigMaps/Secrets:
+Each workload pulls environment variables from ConfigMaps and Secrets that already exist in the cluster. **Resource names are used verbatim** — write the actual Kubernetes name, no prefixing, no transformation. This is the same surface area as `valueFrom.secretKeyRef.name` in raw Kubernetes.
+
+#### Real-world example (External Secrets Operator)
+
+The ESO setup creates a Secret named `applications-azure-secrets` containing keys synced from Azure Key Vault. The keys have long vault-style names; the app expects short env var names. Cherry-pick with `envsFromSecret` to remap them:
 
 ```yaml
 deployments:
@@ -644,30 +648,68 @@ deployments:
     image: my-api
     imageTag: "1.0.0"
 
-    # Inject entire ConfigMap/Secret via envFrom
-    envConfigmaps:
-      - app-config
-      - feature-flags
-    envSecrets:
-      - api-credentials
+    envsFromSecret:
+      API_KEY:                                                              # env var the app sees
+        name: applications-azure-secrets                                    # actual K8s Secret name
+        key: applications-project-apis-text2unspsc-api-api-key              # actual key inside the Secret
+      DB_PASSWORD:
+        name: applications-azure-secrets
+        key: applications-project-apis-text2unspsc-api-db-password
+```
 
-    # Cherry-pick individual keys
-    envsFromConfigmap:
-      DATABASE_URL:
-        name: db-config
-        key: url
+If the Secret already has clean env-var-style keys (e.g. an app-scoped ExternalSecret with `secretKey: API_KEY`), inject the whole thing at once with `envSecrets` — no per-key mapping needed:
+
+```yaml
+deployments:
+  api:
+    envSecrets:
+      - api-secrets             # injects every key in the Secret as an env var
+```
+
+#### The four mechanisms
+
+| Field | Purpose | When to use |
+|---|---|---|
+| `envSecrets` | Inject **all** keys from a Secret as env vars (`envFrom.secretRef`) | The Secret's keys are already valid env var names (e.g. an app-scoped ExternalSecret you control) |
+| `envConfigmaps` | Inject **all** keys from a ConfigMap as env vars (`envFrom.configMapRef`) | Same as above, for non-sensitive config |
+| `envsFromSecret` | **Cherry-pick** specific keys from a Secret and rename them | The Secret contains many keys, only some are relevant, or the key names need remapping (e.g. ESO bulk sync with vault-style keys) |
+| `envsFromConfigmap` | **Cherry-pick** specific keys from a ConfigMap and rename them | Same as above, for non-sensitive config |
+
+#### Combined example
+
+All four mechanisms can coexist in one workload:
+
+```yaml
+deployments:
+  api:
+    image: my-api
+    imageTag: "1.0.0"
+
+    # Inject every key from these resources
+    envSecrets:
+      - api-secrets
+    envConfigmaps:
+      - feature-flags
+
+    # Cherry-pick + rename specific keys
     envsFromSecret:
       DB_PASSWORD:
-        name: db-secret
-        key: password
+        name: applications-azure-secrets
+        key: applications-project-apis-text2unspsc-api-db-password
+    envsFromConfigmap:
+      DATABASE_URL:
+        name: shared-runtime-config
+        key: connection-string
 
-    # Inline env entries
+    # Inline env entries (raw Kubernetes spec)
     env:
       - name: POD_NAME
         valueFrom:
           fieldRef:
             fieldPath: metadata.name
 ```
+
+> **Auto-checksum**: pod annotations that trigger a rolling restart on data change are only emitted for **chart-managed** resources (those declared in `configMaps:` or `secrets:` in your values). For externally-managed resources (ESO, Sealed Secrets, etc.), use [Stakater Reloader](https://github.com/stakater/Reloader) or similar.
 
 ### Base64 shorthand
 
