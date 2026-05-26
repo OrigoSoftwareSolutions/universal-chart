@@ -755,12 +755,12 @@
         "envConfigmaps": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "ConfigMap names to inject via envFrom."
+          "description": "ConfigMap names to inject via envFrom. Names are used verbatim — write the actual Kubernetes ConfigMap name."
         },
         "envSecrets": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Secret names to inject via envFrom."
+          "description": "Secret names to inject via envFrom. Names are used verbatim — write the actual Kubernetes Secret name."
         },
         "envsFromConfigmap": {
           "type": "object",
@@ -973,12 +973,12 @@
         "envConfigmaps": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Default ConfigMap names to inject via envFrom."
+          "description": "Default ConfigMap names to inject via envFrom. Names are used verbatim."
         },
         "envSecrets": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Default Secret names to inject via envFrom."
+          "description": "Default Secret names to inject via envFrom. Names are used verbatim."
         },
         "envsFromConfigmap": {
           "type": "object",

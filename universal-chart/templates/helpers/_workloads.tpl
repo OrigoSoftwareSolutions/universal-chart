@@ -44,12 +44,12 @@ env:
     {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
   {{- end -}}
   {{- $hasGlobalEnvs := or (not (empty $ctx.Values.envs)) (not (empty $ctx.Values.envsString)) -}}
-  {{- if and $hasGlobalEnvs (not (has "envs" $cmRefs)) -}}
-    {{- $cmRefs = prepend $cmRefs "envs" -}}
+  {{- if $hasGlobalEnvs -}}
+    {{- $cmRefs = prepend $cmRefs (include "helpers.app.fullname" (dict "name" "envs" "context" $ctx)) -}}
   {{- end -}}
   {{- $hasGlobalSecretEnvs := or (not (empty $ctx.Values.secretEnvs)) (not (empty $ctx.Values.secretEnvsString)) -}}
-  {{- if and $hasGlobalSecretEnvs (not (has "secret-envs" $secRefs)) -}}
-    {{- $secRefs = prepend $secRefs "secret-envs" -}}
+  {{- if $hasGlobalSecretEnvs -}}
+    {{- $secRefs = prepend $secRefs (include "helpers.app.fullname" (dict "name" "secret-envs" "context" $ctx)) -}}
   {{- end -}}
   {{- if or $cmRefs (or $secRefs (or $general.envFrom $v.envFrom)) }}
 envFrom:
@@ -107,7 +107,8 @@ defaults.autoChecksum  (bool, default true)  — global opt-out
   {{- end -}}
 
   {{- if $enabled -}}
-    {{- /* Collect envConfigmaps references (general + instance) */}}
+    {{- /* Collect references the workload makes via envConfigmaps/envSecrets.
+    These hold rendered Kubernetes resource names (verbatim). */}}
     {{- $cmRefs := list -}}
     {{- with $general.envConfigmaps -}}
       {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
@@ -115,8 +116,6 @@ defaults.autoChecksum  (bool, default true)  — global opt-out
     {{- with $v.envConfigmaps -}}
       {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
     {{- end -}}
-
-    {{- /* Collect envSecrets references (general + instance) */}}
     {{- $secRefs := list -}}
     {{- with $general.envSecrets -}}
       {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
@@ -125,44 +124,29 @@ defaults.autoChecksum  (bool, default true)  — global opt-out
       {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
     {{- end -}}
 
-    {{- if and (or (not (empty $ctx.Values.envs)) (not (empty $ctx.Values.envsString))) (not (has "envs" $cmRefs)) -}}
-      {{- $cmRefs = prepend $cmRefs "envs" -}}
-    {{- end -}}
-    {{- if and (or (not (empty $ctx.Values.secretEnvs)) (not (empty $ctx.Values.secretEnvsString))) (not (has "secret-envs" $secRefs)) -}}
-      {{- $secRefs = prepend $secRefs "secret-envs" -}}
-    {{- end -}}
-
-    {{- /* Hash referenced ConfigMaps */}}
-    {{- range $cmRefs -}}
-      {{- $refName := . -}}
-      {{- if eq $refName "envs" -}}
-        {{- /* Global envs ConfigMap — hash envs + envsString */}}
-        {{- if or (not (empty $ctx.Values.envs)) (not (empty $ctx.Values.envsString)) }}
+    {{- /* Global envs ConfigMap (chart-managed, name "<release>-envs") —
+    always checksummed when present, even if the user didn't list it
+    explicitly, because the chart auto-injects its envFrom. */}}
+    {{- if or (not (empty $ctx.Values.envs)) (not (empty $ctx.Values.envsString)) }}
 checksum/configmap-envs: {{ printf "%v%v" $ctx.Values.envs $ctx.Values.envsString | sha256sum }}
-        {{- end -}}
-      {{- else -}}
-        {{- /* Named configMap — look up in $.Values.configMaps */}}
-        {{- $cm := index $ctx.Values.configMaps $refName | default dict -}}
-        {{- with $cm.data }}
-checksum/configmap-{{ $refName }}: {{ . | toJson | sha256sum }}
-        {{- end -}}
+    {{- end }}
+    {{- if or (not (empty $ctx.Values.secretEnvs)) (not (empty $ctx.Values.secretEnvsString)) }}
+checksum/secret-secret-envs: {{ printf "%v%v" $ctx.Values.secretEnvs $ctx.Values.secretEnvsString | sha256sum }}
+    {{- end }}
+
+    {{- /* Chart-managed ConfigMaps referenced explicitly. Match by rendered
+    K8s name: the user writes the actual name in envConfigmaps, so we
+    compare against helpers.app.fullname of each chart-managed CM. */}}
+    {{- range $cmName, $cm := $ctx.Values.configMaps -}}
+      {{- $rendered := include "helpers.app.fullname" (dict "name" $cmName "context" $ctx) -}}
+      {{- if and (has $rendered $cmRefs) $cm.data }}
+checksum/configmap-{{ $cmName }}: {{ $cm.data | toJson | sha256sum }}
       {{- end -}}
     {{- end -}}
-
-    {{- /* Hash referenced Secrets */}}
-    {{- range $secRefs -}}
-      {{- $refName := . -}}
-      {{- if eq $refName "secret-envs" -}}
-        {{- /* Global secretEnvs Secret — hash secretEnvs + secretEnvsString */}}
-        {{- if or (not (empty $ctx.Values.secretEnvs)) (not (empty $ctx.Values.secretEnvsString)) }}
-checksum/secret-secret-envs: {{ printf "%v%v" $ctx.Values.secretEnvs $ctx.Values.secretEnvsString | sha256sum }}
-        {{- end -}}
-      {{- else -}}
-        {{- /* Named secret — look up in $.Values.secrets */}}
-        {{- $sec := index $ctx.Values.secrets $refName | default dict -}}
-        {{- with $sec.data }}
-checksum/secret-{{ $refName }}: {{ . | toJson | sha256sum }}
-        {{- end -}}
+    {{- range $secName, $sec := $ctx.Values.secrets -}}
+      {{- $rendered := include "helpers.app.fullname" (dict "name" $secName "context" $ctx) -}}
+      {{- if and (has $rendered $secRefs) $sec.data }}
+checksum/secret-{{ $secName }}: {{ $sec.data | toJson | sha256sum }}
       {{- end -}}
     {{- end -}}
   {{- end -}}

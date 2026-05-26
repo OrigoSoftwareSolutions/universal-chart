@@ -1,5 +1,4 @@
 {{- define "helpers.secrets.includeEnv" -}}
-  {{- $ctx := .context -}}
   {{- $s := dict -}}
   {{- if typeIs "string" .value -}}
     {{- $s = fromYaml .value -}}
@@ -11,17 +10,16 @@
 - name: {{ $envVarName }}
   valueFrom:
     secretKeyRef:
-      name: {{ include "helpers.app.fullname" (dict "name" $ref.name "context" $ctx) }}
+      name: {{ $ref.name }}
       key: {{ $ref.key }}
     {{- end -}}
   {{- end -}}
 {{- end -}}
 
 {{- define "helpers.secrets.includeEnvSecret" -}}
-  {{- $ctx := .context -}}
   {{- range $i, $sName := .value }}
 - secretRef:
-    name: {{ include "helpers.app.fullname" (dict "name" $sName "context" $ctx) }}
+    name: {{ $sName }}
   {{- end -}}
 {{- end -}}
 

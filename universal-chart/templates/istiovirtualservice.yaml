@@ -28,57 +28,57 @@ spec:
     {{- range $httpRoute := $virtualservice.http }}
     - {{- with $httpRoute.name }}
       name: {{ . | quote }}
-      {{- end }}
-      {{- with $httpRoute.match }}
+    {{- end }}
+    {{- with $httpRoute.match }}
       match:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $httpRoute.route }}
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with $httpRoute.route }}
       route:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $httpRoute.retries }}
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with $httpRoute.retries }}
       retries:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $httpRoute.fault }}
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with $httpRoute.fault }}
       fault:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $httpRoute.timeout }}
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with $httpRoute.timeout }}
       timeout: {{ . }}
-      {{- end }}
-      {{- with $httpRoute.rewrite }}
+    {{- end }}
+    {{- with $httpRoute.rewrite }}
       rewrite:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $httpRoute.corsPolicy }}
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with $httpRoute.corsPolicy }}
       corsPolicy:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- toYaml . | nindent 8 }}
     {{- end }}
-    {{- if $virtualservice.tls }}
-  tls:
-      {{- range $virtualservice.tls }}
-    - match:
-        {{- if .match }}
-          {{- toYaml .match | nindent 8 }}
-        {{- end }}
-      route:
-        {{- if .route }}
-          {{- toYaml .route | nindent 8 }}
-        {{- end }}
-      {{- end }}
-    {{- end }}
-    {{- if $virtualservice.tcp }}
-  tcp:
-      {{- range $tcpRoute := $virtualservice.tcp }}
-    - {{- toYaml $tcpRoute | nindent 6 }}
-      {{- end }}
-    {{- end }} {{/* end with $virtualservice.tcp */}}
-    {{- with $virtualservice.exportTo }}
-  exportTo:
-      {{- toYaml . | nindent 4 }}
-    {{- end }} {{/* end with $virtualservice.exportTo */}}
   {{- end }}
+  {{- if $virtualservice.tls }}
+  tls:
+    {{- range $virtualservice.tls }}
+    - match:
+      {{- if .match }}
+        {{- toYaml .match | nindent 8 }}
+      {{- end }}
+      route:
+      {{- if .route }}
+        {{- toYaml .route | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if $virtualservice.tcp }}
+  tcp:
+    {{- range $tcpRoute := $virtualservice.tcp }}
+    - {{- toYaml $tcpRoute | nindent 6 }}
+    {{- end }}
+  {{- end }} {{/* end with $virtualservice.tcp */}}
+  {{- with $virtualservice.exportTo }}
+  exportTo:
+    {{- toYaml . | nindent 4 }}
+  {{- end }} {{/* end with $virtualservice.exportTo */}}
+{{- end }}
 {{- end -}}

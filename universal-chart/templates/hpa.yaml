@@ -24,28 +24,28 @@ spec:
     {{- end }}
   minReplicas: {{ .minReplicas | default 2 | int }}
   maxReplicas: {{ .maxReplicas | default 3 | int }}
-  {{- if or (not (empty .targetCPU)) (not (empty .targetMemory)) .metrics }}
+    {{- if or (not (empty .targetCPU)) (not (empty .targetMemory)) .metrics }}
   metrics:
-    {{- if not (empty .targetCPU) }}
+      {{- if not (empty .targetCPU) }}
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
           averageUtilization: {{ .targetCPU }}
-    {{- end }}
-    {{- if not (empty .targetMemory) }}
+      {{- end }}
+      {{- if not (empty .targetMemory) }}
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
           averageUtilization: {{ .targetMemory }}
+      {{- end }}
+      {{- if .metrics }}
+        {{- toYaml .metrics | nindent 4 }}
+      {{- end }}
     {{- end }}
-    {{- if .metrics }}
-      {{- toYaml .metrics | nindent 4 }}
-    {{- end }}
-  {{- end }}
     {{- with .behavior }}
   behavior:
       {{- toYaml . | nindent 4 }}

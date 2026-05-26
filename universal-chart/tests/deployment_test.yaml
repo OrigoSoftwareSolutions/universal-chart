@@ -94,7 +94,7 @@ tests:
       - notExists:
           path: spec.template.spec.containers[0].envFrom
 
-  - it: does not duplicate global envs configmap when workload already references envs
+  - it: envConfigmaps entries are used verbatim alongside the auto-injected global envs envFrom
     set:
       envs:
         LOG_LEVEL: info
@@ -102,13 +102,15 @@ tests:
         web:
           image: nginx
           envConfigmaps:
-            - envs
+            - extra-config
     asserts:
       - equal:
           path: spec.template.spec.containers[0].envFrom
           value:
             - configMapRef:
                 name: RELEASE-NAME-envs
+            - configMapRef:
+                name: extra-config
 
   - it: merges defaults.annotations into deployment metadata
     set:

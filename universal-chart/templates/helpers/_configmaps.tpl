@@ -24,7 +24,6 @@
 {{- end -}}
 
 {{- define "helpers.configmaps.includeEnv" -}}
-  {{- $ctx := .context -}}
   {{- $s := dict -}}
   {{- if typeIs "string" .value -}}
     {{- $s = fromYaml .value -}}
@@ -36,16 +35,15 @@
 - name: {{ $envVarName }}
   valueFrom:
     configMapKeyRef:
-      name: {{ include "helpers.app.fullname" (dict "name" $ref.name "context" $ctx) }}
+      name: {{ $ref.name }}
       key: {{ $ref.key }}
     {{- end -}}
   {{- end -}}
 {{- end -}}
 
 {{- define "helpers.configmaps.includeEnvConfigmap" -}}
-  {{- $ctx := .context -}}
   {{- range $i, $sName := .value }}
 - configMapRef:
-    name: {{ include "helpers.app.fullname" (dict "name" $sName "context" $ctx) }}
+    name: {{ $sName }}
   {{- end -}}
 {{- end -}}
