@@ -1302,8 +1302,8 @@
       "description": "Argo CD Image Updater instance.",
       "properties": {
         "disabled": { "type": "boolean" },
-        "applicationName": { "type": "string", "description": "Argo CD Application name to target." },
-        "namespace": { "type": "string", "description": "Namespace where the Argo CD Application lives (default: argocd)." },
+        "applicationName": { "type": "string", "description": "Argo CD Application name pattern to target." },
+        "metadataNamespace": { "type": "string", "description": "Namespace where the ImageUpdater CR itself is created (default: argocd). Must match the namespace where target Applications live, since AIU v1.2+ defaults to namespace scope." },
         "labels": { "type": "object", "additionalProperties": { "type": "string" } },
         "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
         "images": {
@@ -1316,7 +1316,28 @@
               "updateStrategy": { "type": "string", "enum": ["latest", "newest-build", "alphabetical", "digest"] },
               "allowTags": { "type": "string" },
               "ignoreTags": { "type": "array", "items": { "type": "string" } },
-              "manifestTargets": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+              "manifestTargets": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "helm": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": { "type": "string" },
+                      "tag": { "type": "string" },
+                      "spec": { "type": "string" }
+                    }
+                  },
+                  "kustomize": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                      "name": { "type": "string" }
+                    }
+                  }
+                }
+              }
             },
             "required": ["alias", "imageName"]
           }

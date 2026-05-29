@@ -9,7 +9,7 @@ imageUpdaters:
       method: argocd
   app-two:
     applicationName: "second-app"
-    namespace: custom-ns
+    metadataNamespace: custom-ns
     images:
       - alias: api
         imageName: registry.example.com/api
@@ -21,8 +21,8 @@ imageUpdaters:
           - latest
           - dev
         manifestTargets:
-          - kustomization:
-              image: registry.example.com/worker
+          kustomize:
+            name: registry.example.com/worker
     writeBackConfig:
       method: git
       git:
