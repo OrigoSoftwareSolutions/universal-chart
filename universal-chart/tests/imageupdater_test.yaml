@@ -37,13 +37,20 @@ tests:
   # ---------------------------------------------------------------------------
   # Spec fields
   # ---------------------------------------------------------------------------
-  - it: defaults namespace to argocd
+  - it: defaults metadata.namespace to argocd
     values:
       - values/imageupdater.yaml
     asserts:
       - equal:
-          path: spec.namespace
+          path: metadata.namespace
           value: argocd
+
+  - it: omits spec.namespace (removed from AIU v1.2 API)
+    values:
+      - values/imageupdater.yaml
+    asserts:
+      - notExists:
+          path: spec.namespace
 
   - it: renders applicationName as namePattern
     values:
@@ -116,13 +123,13 @@ tests:
       - hasDocuments:
           count: 2
 
-  - it: renders custom namespace override
+  - it: renders custom metadata.namespace override
     values:
       - values/imageupdater_multi.yaml
     documentIndex: 1
     asserts:
       - equal:
-          path: spec.namespace
+          path: metadata.namespace
           value: custom-ns
 
   - it: renders multiple images per instance
@@ -186,12 +193,36 @@ tests:
       - notExists:
           path: spec.applicationRefs[0].images[0].commonUpdateSettings.ignoreTags
 
-  - it: omits manifestTargets when not set
+  - it: defaults manifestTargets.helm to defaultImage/defaultImageTag when not set
     values:
       - values/imageupdater.yaml
     asserts:
-      - notExists:
-          path: spec.applicationRefs[0].images[0].manifestTargets
+      - equal:
+          path: spec.applicationRefs[0].images[0].manifestTargets.helm.name
+          value: defaultImage
+      - equal:
+          path: spec.applicationRefs[0].images[0].manifestTargets.helm.tag
+          value: defaultImageTag
+
+  - it: preserves user-supplied manifestTargets override
+    set:
+      imageUpdaters:
+        my-app:
+          applicationName: my-argocd-app
+          images:
+            - alias: api
+              imageName: registry.example.com/my-image
+              manifestTargets:
+                helm:
+                  name: deployments.api.image
+                  tag: deployments.api.imageTag
+    asserts:
+      - equal:
+          path: spec.applicationRefs[0].images[0].manifestTargets.helm.name
+          value: deployments.api.image
+      - equal:
+          path: spec.applicationRefs[0].images[0].manifestTargets.helm.tag
+          value: deployments.api.imageTag
 
   # ---------------------------------------------------------------------------
   # Labels and annotations
@@ -211,13 +242,6 @@ tests:
       - equal:
           path: metadata.annotations.note
           value: my-annotation
-
-  - it: includes namespace in metadata
-    values:
-      - values/imageupdater.yaml
-    asserts:
-      - isNotEmpty:
-          path: metadata.namespace
 
   - it: includes defaults.annotations on imageupdater
     set:

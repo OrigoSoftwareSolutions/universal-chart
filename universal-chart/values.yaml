@@ -504,14 +504,29 @@ clusterIssuers: {}
 
 # -- Argo CD Image Updater resources. Each key becomes the resource name.
 # Configures automatic image updates for Argo CD applications.
+#
+# The ImageUpdater CR is deployed into the `argocd` namespace by default,
+# matching where Application CRs live and AIU v1.2+ namespace-scoped defaults.
+# Override per resource via `metadataNamespace`.
+#
+# `manifestTargets` defaults to { helm: { name: defaultImage, tag: defaultImageTag } }
+# when omitted, matching the chart's single-image shorthand (defaultImage/defaultImageTag).
+# Override per-image for explicit-containers workloads or non-Helm targets.
 imageUpdaters: {}
 #   my-app:
 #     applicationName: "my-argocd-app"
+#     # metadataNamespace: argocd   # where the ImageUpdater CR is created
 #     images:
 #       - alias: api
 #         imageName: registry.example.com/my-image
 #         updateStrategy: newest-build
 #         allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
+#         # manifestTargets defaults to helm.name=defaultImage, helm.tag=defaultImageTag.
+#         # Override only when targeting different value paths, e.g.:
+#         # manifestTargets:
+#         #   helm:
+#         #     name: deployments.api.image
+#         #     tag: deployments.api.imageTag
 #     writeBackConfig:
 #       method: argocd
 
