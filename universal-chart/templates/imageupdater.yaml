@@ -31,14 +31,9 @@ spec:
             ignoreTags:
         {{- toYaml . | nindent 14 }}
       {{- end }}
-      {{- if .manifestTargets }}
+      {{- with .manifestTargets }}
           manifestTargets:
-        {{- toYaml .manifestTargets | nindent 12 }}
-      {{- else }}
-          manifestTargets:
-            helm:
-              name: defaultImage
-              tag: defaultImageTag
+        {{- toYaml . | nindent 12 }}
       {{- end }}
     {{- end }}
     {{- with $val.writeBackConfig }}

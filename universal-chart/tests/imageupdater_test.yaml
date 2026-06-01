@@ -193,16 +193,16 @@ tests:
       - notExists:
           path: spec.applicationRefs[0].images[0].commonUpdateSettings.ignoreTags
 
-  - it: defaults manifestTargets.helm to defaultImage/defaultImageTag when not set
+  - it: defaults manifestTargets.helm to user-supplied per-deployment paths
     values:
       - values/imageupdater.yaml
     asserts:
       - equal:
           path: spec.applicationRefs[0].images[0].manifestTargets.helm.name
-          value: defaultImage
+          value: deployments.api.image
       - equal:
           path: spec.applicationRefs[0].images[0].manifestTargets.helm.tag
-          value: defaultImageTag
+          value: deployments.api.imageTag
 
   - it: preserves user-supplied manifestTargets override
     set:
@@ -223,6 +223,18 @@ tests:
       - equal:
           path: spec.applicationRefs[0].images[0].manifestTargets.helm.tag
           value: deployments.api.imageTag
+
+  - it: rejects imageUpdaters image entry without manifestTargets (schema-required since 1.7.3)
+    set:
+      imageUpdaters:
+        my-app:
+          applicationName: my-argocd-app
+          images:
+            - alias: api
+              imageName: registry.example.com/my-image
+    asserts:
+      - failedTemplate:
+          errorPattern: "manifestTargets"
 
   # ---------------------------------------------------------------------------
   # Labels and annotations
@@ -254,6 +266,10 @@ tests:
           images:
             - alias: api
               imageName: registry.example.com/my-image
+              manifestTargets:
+                helm:
+                  name: deployments.api.image
+                  tag: deployments.api.imageTag
     asserts:
       - equal:
           path: metadata.annotations.global

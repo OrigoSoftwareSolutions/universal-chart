@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.7.2](https://img.shields.io/badge/Version-1.7.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.7.3](https://img.shields.io/badge/Version-1.7.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -19,7 +19,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.7.2 \
+  --version 1.7.3 \
   -f my-values.yaml
 ```
 
@@ -919,6 +919,15 @@ certificates:
 
 Configures automatic image updates for Argo CD applications. Aligned with Argo CD Image Updater **v1.2+** (namespace-scoped by default; `spec.namespace` removed from the API).
 
+#### Why `manifestTargets` is required (since 1.7.3)
+
+universal-chart hosts **N deployments per release** — there is no single "the image" of a chart instance. AIU writes back a single Helm parameter to the target Application's `spec.sources[].helm.parameters`. If that parameter targeted a chart-root key, two things go wrong:
+
+1. **Ambiguity** — which deployment? which container? A root-level `image.tag` cannot express "tag for `deployments.api`" vs "tag for `deployments.api-worker`".
+2. **Silent shadowing** — universal-chart reads images from `deployments.<name>.image` / `deployments.<name>.imageTag`. A root key written by AIU would be ignored by the chart's container template, and pods would keep running the values-file-pinned tag forever — AIU appears to do nothing.
+
+Every `images[]` entry must therefore declare `manifestTargets.helm.{name,tag}` pointing at the exact value path the chart reads — typically `deployments.<name>.image` and `deployments.<name>.imageTag` (or `initContainers.<n>.image` / `.imageTag` for migration sidecars). This is enforced by the values schema; there is no fallback.
+
 ```yaml
 imageUpdaters:
   my-app:
@@ -931,22 +940,20 @@ imageUpdaters:
         imageName: registry.example.com/my-api
         updateStrategy: newest-build    # latest | newest-build | alphabetical | digest
         allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
-        # manifestTargets defaults to:
-        #   helm:
-        #     name: defaultImage
-        #     tag: defaultImageTag
-        # which matches the chart's single-image shorthand (top-level `defaultImage` / `defaultImageTag`).
-        # Override only when targeting other value paths (e.g. multi-container workloads):
-        # manifestTargets:
-        #   helm:
-        #     name: deployments.api.image
-        #     tag: deployments.api.imageTag
+        manifestTargets:
+          helm:
+            name: deployments.api.image
+            tag: deployments.api.imageTag
       - alias: worker
         imageName: registry.example.com/my-worker
         updateStrategy: latest
         ignoreTags:
           - dev
           - latest
+        manifestTargets:
+          helm:
+            name: deployments.api-worker.image
+            tag: deployments.api-worker.imageTag
     writeBackConfig:
       method: argocd    # or git
       # git:
@@ -958,34 +965,25 @@ imageUpdaters:
 ```yaml
 imageUpdaters:
 
-  # Multi-container Deployment — image isn't on the chart's shorthand path,
-  # so point manifestTargets at the actual Helm value keys.
-  api-multi-container:
-    applicationName: my-app
-    images:
-      - alias: api
-        imageName: registry.example.com/my-api
-        manifestTargets:
-          helm:
-            name: deployments.api.image
-            tag: deployments.api.imageTag
-
-  # Two images in one Application (e.g. app + migration init container).
-  # The first uses the chart default (defaultImage/defaultImageTag);
-  # the second needs an explicit target.
+  # App with a migration sidecar — point the second imageUpdater entry at
+  # the init container's value path so AIU can update it independently.
   api-with-migrations:
     applicationName: my-app
     images:
       - alias: app
         imageName: registry.example.com/my-api
         allowTags: 'regexp:^\d+\.\d+\.\d+-[a-f0-9]{7}-main-\d+$'
+        manifestTargets:
+          helm:
+            name: deployments.api.image
+            tag: deployments.api.imageTag
       - alias: migrations
         imageName: registry.example.com/my-api
         allowTags: 'regexp:^\d+\.\d+\.\d+-[a-f0-9]{7}-migrations-\d+$'
         manifestTargets:
           helm:
-            name: initContainers.migrate.image
-            tag: initContainers.migrate.imageTag
+            name: deployments.api.initContainers.migrate.image
+            tag: deployments.api.initContainers.migrate.imageTag
 
   # Place the ImageUpdater CR in a non-default namespace
   # (must match the namespace where the target Applications live;
@@ -996,6 +994,10 @@ imageUpdaters:
     images:
       - alias: web
         imageName: registry.example.com/web
+        manifestTargets:
+          helm:
+            name: deployments.web.image
+            tag: deployments.web.imageTag
 
   # Suspend updates without removing the CR from Git.
   paused-app:
@@ -2006,9 +2008,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | cronJobsGeneral | object | `{"usePredefinedAffinity":false}` | Shared defaults for all CronJobs. |
 | daemonSets | object | `{}` | Kubernetes DaemonSet resources. Each key becomes the resource name. DaemonSets run one pod per node (no `replicas`). Uses `updateStrategy` instead of `strategy`. |
 | daemonSetsGeneral | object | `{}` | Shared defaults for all DaemonSets. |
-| defaultImage | string | `"nginx"` | Fallback container image used when a workload omits `image`. |
 | defaultImagePullPolicy | string | `"IfNotPresent"` | Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`. |
-| defaultImageTag | string | `"v0.0.1"` | Fallback container image tag. |
 | defaults | object | `{"annotations":{},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"podSecurityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"resources":{"limits":{"memory":"128Mi"},"requests":{"cpu":"100m","memory":"128Mi"}},"revisionHistoryLimit":3,"usePredefinedAffinity":true}` | Default settings applied to all workload templates (labels, annotations, pod metadata, volumes, etc.) |
 | defaults.annotations | object | `{}` | Annotations added to every resource's `metadata.annotations`. |
 | defaults.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Default container-level securityContext applied to every container. |
@@ -2039,7 +2039,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | hpas | object | `{}` | Kubernetes HorizontalPodAutoscaler resources (autoscaling/v2). Each key becomes the resource name. |
 | httpRoutes | object | `{}` | Gateway API HTTPRoute resources. Each key becomes the resource name. |
 | imagePullSecrets | list | `[]` | Image pull secret names referenced in every pod spec. Secrets must be pre-created in the namespace. |
-| imageUpdaters | object | `{}` | Argo CD Image Updater resources. Each key becomes the resource name. Configures automatic image updates for Argo CD applications.  The ImageUpdater CR is deployed into the `argocd` namespace by default, matching where Application CRs live and AIU v1.2+ namespace-scoped defaults. Override per resource via `metadataNamespace`.  `manifestTargets` defaults to { helm: { name: defaultImage, tag: defaultImageTag } } when omitted, matching the chart's single-image shorthand (defaultImage/defaultImageTag). Override per-image for explicit-containers workloads or non-Helm targets. |
+| imageUpdaters | object | `{}` | Argo CD Image Updater resources. Each key becomes the resource name. Configures automatic image updates for Argo CD applications.  The ImageUpdater CR is deployed into the `argocd` namespace by default, matching where Application CRs live and AIU v1.2+ namespace-scoped defaults. Override per resource via `metadataNamespace`.  Why `manifestTargets` is required (no chart-level default): universal-chart hosts N deployments per release. AIU writes back a single Helm parameter; targeting a chart-root key would be ambiguous (which deployment? which container?) and would silently shadow per-deployment values. Each `images[]` entry MUST point `manifestTargets.helm.{name,tag}` at the exact value path the chart reads — typically `deployments.<name>.image` / `deployments.<name>.imageTag`. |
 | issuers | object | `{}` | cert-manager Issuer resources (namespace-scoped). Each key becomes the resource name. |
 | istioAuthorizationPolicies | object | `{}` | Istio AuthorizationPolicy resources. Each key becomes the resource name. |
 | istioDestinationRules | object | `{}` | Istio DestinationRule resources. Each key becomes the resource name. |

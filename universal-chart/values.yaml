@@ -19,10 +19,6 @@
 # -- Prefix prepended to all resource names. Leave empty to disable.
 releasePrefix: ""
 
-# -- Fallback container image used when a workload omits `image`.
-defaultImage: nginx
-# -- Fallback container image tag.
-defaultImageTag: v0.0.1
 # -- Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`.
 defaultImagePullPolicy: "IfNotPresent"
 
@@ -509,9 +505,13 @@ clusterIssuers: {}
 # matching where Application CRs live and AIU v1.2+ namespace-scoped defaults.
 # Override per resource via `metadataNamespace`.
 #
-# `manifestTargets` defaults to { helm: { name: defaultImage, tag: defaultImageTag } }
-# when omitted, matching the chart's single-image shorthand (defaultImage/defaultImageTag).
-# Override per-image for explicit-containers workloads or non-Helm targets.
+# Why `manifestTargets` is required (no chart-level default):
+# universal-chart hosts N deployments per release. AIU writes back a single
+# Helm parameter; targeting a chart-root key would be ambiguous (which
+# deployment? which container?) and would silently shadow per-deployment
+# values. Each `images[]` entry MUST point `manifestTargets.helm.{name,tag}`
+# at the exact value path the chart reads — typically
+# `deployments.<name>.image` / `deployments.<name>.imageTag`.
 imageUpdaters: {}
 #   my-app:
 #     applicationName: "my-argocd-app"
@@ -521,12 +521,10 @@ imageUpdaters: {}
 #         imageName: registry.example.com/my-image
 #         updateStrategy: newest-build
 #         allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
-#         # manifestTargets defaults to helm.name=defaultImage, helm.tag=defaultImageTag.
-#         # Override only when targeting different value paths, e.g.:
-#         # manifestTargets:
-#         #   helm:
-#         #     name: deployments.api.image
-#         #     tag: deployments.api.imageTag
+#         manifestTargets:
+#           helm:
+#             name: deployments.api.image
+#             tag: deployments.api.imageTag
 #     writeBackConfig:
 #       method: argocd
 
