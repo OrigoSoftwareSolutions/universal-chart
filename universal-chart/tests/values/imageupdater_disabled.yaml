@@ -5,3 +5,7 @@ imageUpdaters:
     images:
       - alias: app
         imageName: nginx
+        manifestTargets:
+          helm:
+            name: deployments.app.image
+            tag: deployments.app.imageTag

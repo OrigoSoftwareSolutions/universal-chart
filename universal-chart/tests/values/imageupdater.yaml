@@ -6,5 +6,9 @@ imageUpdaters:
         imageName: registry.example.com/my-image
         updateStrategy: newest-build
         allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
+        manifestTargets:
+          helm:
+            name: deployments.api.image
+            tag: deployments.api.imageTag
     writeBackConfig:
       method: argocd

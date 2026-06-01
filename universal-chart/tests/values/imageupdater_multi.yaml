@@ -5,6 +5,10 @@ imageUpdaters:
       - alias: web
         imageName: registry.example.com/web
         updateStrategy: latest
+        manifestTargets:
+          helm:
+            name: deployments.web.image
+            tag: deployments.web.imageTag
     writeBackConfig:
       method: argocd
   app-two:
@@ -15,6 +19,10 @@ imageUpdaters:
         imageName: registry.example.com/api
         updateStrategy: newest-build
         allowTags: 'regexp:^\d+$'
+        manifestTargets:
+          helm:
+            name: deployments.api.image
+            tag: deployments.api.imageTag
       - alias: worker
         imageName: registry.example.com/worker
         ignoreTags:

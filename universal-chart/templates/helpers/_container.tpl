@@ -12,13 +12,14 @@
   {{- $isInitContainer := .isInitContainer | default false -}}
   {{- with $c -}}
     {{- if $useDefaultImage }}
-      {{- $image := $.Values.defaultImage }}{{ with .image }}{{ $image = include "helpers.tplvalues.render" ( dict "value" . "context" $) }}{{ end }}
-      {{- $imageTag := $.Values.defaultImageTag }}{{ with .imageTag }}{{ $imageTag = include "helpers.tplvalues.render" ( dict "value" . "context" $) }}{{ end }}
+      {{- $image := include "helpers.tplvalues.render" (dict "value" (required (printf "deployments.%s (or matching workload kind): .image is required. Root-level defaultImage/defaultImageTag fallbacks were removed in chart 1.7.3 — set deployments.%s.image (and deployments.%s.imageTag) explicitly so AIU writes are unambiguous." $name $name $name) .image) "context" $) -}}
       {{- $hasEmbeddedTag := regexMatch "^([^/]+/)*[^/:]+:[^/]+$" $image -}}
       {{- if and (not .imageTag) $hasEmbeddedTag }}
   image: {{ $image }}
+      {{- else if .imageTag }}
+  image: {{ $image }}:{{ include "helpers.tplvalues.render" (dict "value" .imageTag "context" $) }}
       {{- else }}
-  image: {{ $image }}:{{ $imageTag }}
+  image: {{ $image }}
       {{- end }}
     {{- else }}
       {{- $image := include "helpers.tplvalues.render" (dict "value" (required "Explicit containers[] and initContainers[] entries must set image" .image) "context" $) -}}

@@ -522,7 +522,7 @@ tests:
           path: spec.template.spec.containers[0].image
           value: "nginx:1.25"
 
-  - it: appends default tag to single-container shorthand image without imageTag
+  - it: renders single-container shorthand image without tag verbatim when imageTag omitted
     set:
       deployments:
         web:
@@ -530,7 +530,15 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: "nginx:v0.0.1"
+          value: "nginx"
+
+  - it: rejects single-container shorthand without image (defaultImage fallback removed in 1.7.3)
+    set:
+      deployments:
+        web:
+          imageTag: "1.0"
+    asserts:
+      - failedTemplate: {}
 
   - it: merges imagePullSecrets from all sources (top-level + defaults + workload)
     set:
