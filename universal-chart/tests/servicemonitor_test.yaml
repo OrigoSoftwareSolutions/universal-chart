@@ -111,3 +111,37 @@ tests:
           path: spec.podTargetLabels
           value:
             - pod-label-a
+
+  - it: default selector scopes to one workload via app.kubernetes.io/component
+    set:
+      serviceMonitors.api.endpoints[0].port: http
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: api
+      - exists:
+          path: spec.selector.matchLabels["app.kubernetes.io/name"]
+      - exists:
+          path: spec.selector.matchLabels["app.kubernetes.io/instance"]
+
+  - it: workload field overrides the default component selector
+    set:
+      serviceMonitors.api-metrics.endpoints[0].port: http
+      serviceMonitors.api-metrics.workload: api
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: api
+
+  - it: extraSelectorLabels are merged into the default workload selector
+    set:
+      serviceMonitors.api.endpoints[0].port: http
+      serviceMonitors.api.extraSelectorLabels:
+        scrape-tier: gold
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: api
+      - equal:
+          path: spec.selector.matchLabels.scrape-tier
+          value: gold

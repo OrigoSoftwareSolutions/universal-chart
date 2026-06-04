@@ -696,14 +696,14 @@ tests:
           path: spec.revisionHistoryLimit
           value: 10
 
-  - it: default resources include memory limit 128Mi
+  - it: default resources have memory limit 4× memory request (burst headroom)
     set:
       deployments.test.image: nginx
       deployments.test.imageTag: latest
     asserts:
       - equal:
           path: spec.template.spec.containers[0].resources.limits.memory
-          value: 128Mi
+          value: 512Mi
       - equal:
           path: spec.template.spec.containers[0].resources.requests.memory
           value: 128Mi

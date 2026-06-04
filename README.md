@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.7.11](https://img.shields.io/badge/Version-1.7.11-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.8.0](https://img.shields.io/badge/Version-1.8.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -19,7 +19,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.7.11 \
+  --version 1.8.0 \
   -f my-values.yaml
 ```
 
@@ -577,6 +577,33 @@ pvcs:
 
 Hooks, Jobs, and CronJobs are excluded from auto-mounting.
 
+#### Scope a PVC to specific workloads only
+
+By default a PVC is auto-mounted into *every* Deployment / StatefulSet / DaemonSet in the release. Set `workloads:` to a list of workload names to scope it down — useful when one PVC is owned by one workload and other workloads in the same release shouldn't see it (e.g. `RWO` volumes that block scheduling on multi-AZ workloads, or stateful directories you don't want appearing in unrelated containers).
+
+```yaml
+deployments:
+  api:
+    image: my-api
+    imageTag: "1.0.0"
+  worker:
+    image: my-worker
+    imageTag: "1.0.0"
+
+pvcs:
+  api-cache:
+    accessModes: [ReadWriteOnce]
+    size: 5Gi
+    mountPath: /cache
+    workloads: [api]            # mounted only into the `api` Deployment
+
+  shared:
+    accessModes: [ReadWriteMany]
+    size: 1Gi
+    mountPath: /shared
+    # workloads: omitted → mounted into both `api` and `worker`
+```
+
 > **`disabled: true` on an installed PVC is destructive by default.** Helm reconciles by diffing rendered manifests against release state — the moment a PVC disappears from the rendered output, `helm upgrade` deletes the live PVC. If the bound PV's StorageClass uses `reclaimPolicy: Delete` (the default for most cloud StorageClasses, including Azure `managed-csi`), the underlying disk is destroyed too.
 >
 > **To safely retire a PVC**, do it in two steps:
@@ -908,17 +935,33 @@ Use `defaults.serviceAccountName: app-sa` or set `serviceAccountName` per worklo
 
 ```yaml
 serviceMonitors:
-  api:
+  api:                              # SM key — also the workload name it scrapes by default
     endpoints:
       - port: metrics
         path: /metrics
         interval: 30s
+
+  # SM name differs from workload name — point it explicitly:
+  api-metrics:
+    workload: api                   # scrape the `api` workload's auto-Service
+    endpoints:
+      - port: metrics
+        path: /metrics
+        interval: 30s
+
+  # Custom matcher — bypasses the default workload selector entirely:
+  cross-workload:
     selector:
       matchLabels:
-        app.kubernetes.io/component: api      # ← the workload's component label
+        scrape-me: "true"
+    endpoints:
+      - port: metrics
+        path: /metrics
 ```
 
-> **Pick `app.kubernetes.io/component`, not `name`.** The chart sets `app.kubernetes.io/name` to the **release name** (same value across every workload in the release), and `app.kubernetes.io/component` to the **workload key** — so `component` is the label that uniquely targets a single workload's auto-generated Service. Omit `selector:` entirely and the chart falls back to `app.kubernetes.io/name + instance`, which matches *every* Service in the release — fine when you only have one scrapable workload, wrong when you have several.
+> **Default selector targets one workload.** When you omit `selector:`, the chart selects services that carry `app.kubernetes.io/component: <SM key>` (or `<workload>` when `workload:` is set), so each SM scrapes exactly the matching auto-generated Service. Set `selector:` explicitly to scrape something else (e.g. multiple workloads, a Service the chart didn't create, or a label your CI pipeline applies).
+
+> **Behavior change in 1.8.0.** Earlier releases defaulted to `app.kubernetes.io/name + instance`, which matched **every** Service in the release — wrong whenever a release exposed multiple metrics endpoints. If you depended on that behavior, set an explicit `selector:` block to keep the old matcher.
 
 ### Job/CronJob Duration Alerts
 
@@ -2136,7 +2179,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | daemonSets | object | `{}` | Kubernetes DaemonSet resources. Each key becomes the resource name. DaemonSets run one pod per node (no `replicas`). Uses `updateStrategy` instead of `strategy`. |
 | daemonSetsGeneral | object | `{}` | Shared defaults for all DaemonSets. |
 | defaultImagePullPolicy | string | `"IfNotPresent"` | Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`. |
-| defaults | object | `{"annotations":{},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"podSecurityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"resources":{"limits":{"memory":"128Mi"},"requests":{"cpu":"100m","memory":"128Mi"}},"revisionHistoryLimit":3,"usePredefinedAffinity":true}` | Default settings applied to all workload templates (labels, annotations, pod metadata, volumes, etc.) |
+| defaults | object | `{"annotations":{},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"podSecurityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"128Mi"}},"revisionHistoryLimit":3,"usePredefinedAffinity":true}` | Default settings applied to all workload templates (labels, annotations, pod metadata, volumes, etc.) |
 | defaults.annotations | object | `{}` | Annotations added to every resource's `metadata.annotations`. |
 | defaults.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Default container-level securityContext applied to every container. |
 | defaults.extraImagePullSecrets | list | `[]` | Additional image pull secrets appended to every pod spec. |
@@ -2148,7 +2191,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | defaults.podAnnotations | object | `{}` | Annotations added to pod templates. |
 | defaults.podLabels | object | `{}` | Labels added to pod templates. |
 | defaults.podSecurityContext | object | `{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Default pod-level securityContext applied to every pod spec. |
-| defaults.resources | object | `{"limits":{"memory":"128Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Default resource requests/limits applied to containers when not overridden. |
+| defaults.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Default resource requests/limits applied to containers when not overridden. No CPU limit by design — CPU throttling hurts tail latency more than it helps; set `limits.cpu` per-workload only when you have a concrete reason. Memory limit is 4× request to absorb allocation spikes (JVM/Node) without OOMKill — tighten per-workload once you've measured real footprint. |
 | defaults.revisionHistoryLimit | int | `3` | Default revisionHistoryLimit for Deployments and StatefulSets. Controls how many old ReplicaSets/ControllerRevisions are retained for rollback. Lower values reduce etcd/API-server load; set to 0 to disable rollback history entirely. |
 | defaults.usePredefinedAffinity | bool | `true` | Use the chart's built-in pod affinity/anti-affinity rules. |
 | deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form `{name: port}`) auto-creates containerPorts AND a matching ClusterIP Service. `resources:` raw requests/limits map. `healthCheck:` sets liveness, readiness, and startup probes. Override service behaviour with `service: false` (suppress) or `service:` fields such as `type`, `clusterIP`, `externalTrafficPolicy`, `loadBalancerSourceRanges`, `loadBalancerIP`, `sessionAffinity`, `sessionAffinityConfig`, `healthCheckNodePort`, `publishNotReadyAddresses`, `ipFamilies`, and `ipFamilyPolicy`. The full `containers:` list still works for multi-container workloads. |
