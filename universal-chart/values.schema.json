@@ -247,6 +247,11 @@
       "additionalProperties": { "$ref": "#/$defs/disableable" },
       "description": "Kubernetes PersistentVolume resources (cluster-scoped). Thin passthrough — spec goes directly to the resource."
     },
+    "storageClasses": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/disableable" },
+      "description": "Kubernetes StorageClass resources (cluster-scoped). Standard StorageClass fields are passed through directly."
+    },
     "extraDeploy": {
       "type": "object",
       "additionalProperties": {},

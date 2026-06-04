@@ -306,6 +306,22 @@ secrets: {}
 #       api.key: supersecret
 #     # keepOnDelete: true
 
+# -- Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key becomes the resource name.
+# Standard StorageClass fields are passed through directly (no `spec:` wrapper — StorageClass has no spec in the K8s API).
+# Set `isDefault: true` to add the `storageclass.kubernetes.io/is-default-class: "true"` annotation.
+storageClasses: {}
+#   fast-ssd:
+#     provisioner: disk.csi.azure.com
+#     reclaimPolicy: Retain                    # Delete (default) | Retain
+#     volumeBindingMode: WaitForFirstConsumer  # Immediate | WaitForFirstConsumer
+#     allowVolumeExpansion: true
+#     parameters:
+#       skuName: Premium_LRS
+#       cachingMode: ReadOnly
+#     mountOptions:
+#       - debug
+#     # isDefault: true                        # mark as cluster default
+
 # -- Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name.
 # Thin passthrough — `spec:` goes directly to the Kubernetes resource unchanged.
 persistentVolumes: {}

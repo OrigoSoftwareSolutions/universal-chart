@@ -1,0 +1,106 @@
+suite: storageclass
+templates:
+  - storageclasses.yaml
+tests:
+  - it: renders a StorageClass with provisioner and reclaimPolicy
+    set:
+      storageClasses.fast-ssd.provisioner: disk.csi.azure.com
+      storageClasses.fast-ssd.reclaimPolicy: Retain
+      storageClasses.fast-ssd.volumeBindingMode: WaitForFirstConsumer
+      storageClasses.fast-ssd.allowVolumeExpansion: true
+      storageClasses.fast-ssd.parameters.skuName: Premium_LRS
+    asserts:
+      - isKind:
+          of: StorageClass
+      - equal:
+          path: apiVersion
+          value: storage.k8s.io/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -fast-ssd$
+      - notExists:
+          path: metadata.namespace
+      - equal:
+          path: provisioner
+          value: disk.csi.azure.com
+      - equal:
+          path: reclaimPolicy
+          value: Retain
+      - equal:
+          path: volumeBindingMode
+          value: WaitForFirstConsumer
+      - equal:
+          path: allowVolumeExpansion
+          value: true
+      - equal:
+          path: parameters.skuName
+          value: Premium_LRS
+
+  - it: renders allowVolumeExpansion false explicitly
+    set:
+      storageClasses.slow.provisioner: disk.csi.azure.com
+      storageClasses.slow.allowVolumeExpansion: false
+    asserts:
+      - equal:
+          path: allowVolumeExpansion
+          value: false
+
+  - it: omits optional fields when not set
+    set:
+      storageClasses.minimal.provisioner: kubernetes.io/no-provisioner
+    asserts:
+      - equal:
+          path: provisioner
+          value: kubernetes.io/no-provisioner
+      - notExists:
+          path: reclaimPolicy
+      - notExists:
+          path: volumeBindingMode
+      - notExists:
+          path: allowVolumeExpansion
+      - notExists:
+          path: parameters
+
+  - it: marks default storage class via isDefault
+    set:
+      storageClasses.default-sc.provisioner: disk.csi.azure.com
+      storageClasses.default-sc.isDefault: true
+    asserts:
+      - equal:
+          path: metadata.annotations["storageclass.kubernetes.io/is-default-class"]
+          value: "true"
+
+  - it: renders mountOptions and allowedTopologies
+    set:
+      storageClasses.zonal.provisioner: disk.csi.azure.com
+      storageClasses.zonal.mountOptions:
+        - debug
+        - noatime
+      storageClasses.zonal.allowedTopologies:
+        - matchLabelExpressions:
+            - key: topology.kubernetes.io/zone
+              values:
+                - westeurope-1
+                - westeurope-2
+    asserts:
+      - equal:
+          path: mountOptions[0]
+          value: debug
+      - equal:
+          path: allowedTopologies[0].matchLabelExpressions[0].key
+          value: topology.kubernetes.io/zone
+
+  - it: omits storageclass documents when disabled
+    set:
+      storageClasses.gone.provisioner: disk.csi.azure.com
+      storageClasses.gone.disabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: fails when provisioner is missing
+    set:
+      storageClasses.broken.reclaimPolicy: Retain
+    asserts:
+      - failedTemplate:
+          errorMessage: "storageClasses.broken.provisioner is required"
