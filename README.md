@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.7.4](https://img.shields.io/badge/Version-1.7.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.7.5](https://img.shields.io/badge/Version-1.7.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -19,7 +19,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.7.4 \
+  --version 1.7.5 \
   -f my-values.yaml
 ```
 
@@ -82,29 +82,30 @@ cronJobs:
     imageTag: "1.4.2"
     command: ["python", "manage.py", "cleanup", "--older-than", "30d"]
 
-# ── Secrets from AWS Secrets Manager ──
+# ── Secrets from Azure Key Vault ──
 secretStores:
-  aws:
+  azure:
     spec:
       provider:
-        aws:
-          service: SecretsManager
-          region: eu-west-1
+        azurekv:
+          vaultUrl: "https://my-vault.vault.azure.net"
+          authType: WorkloadIdentity
+          serviceAccountRef:
+            name: eso-sa
 
 externalSecrets:
   api-secrets:
     spec:
       refreshInterval: 1h
       secretStoreRef:
-        name: aws
+        name: azure
         kind: SecretStore
       target:
         name: api-secrets
       data:
         - secretKey: DB_PASSWORD
           remoteRef:
-            key: prod/api
-            property: db_password
+            key: prod-api-db-password
 
 # ── Environment variables ──
 envs:
@@ -203,12 +204,14 @@ For CRD-based resources (ExternalSecret, HTTPRoute, SecretStore, Certificate, et
 
 ```yaml
 secretStores:
-  aws:
+  azure:
     spec:                    # ← passed through to the K8s resource as-is
       provider:
-        aws:
-          service: SecretsManager
-          region: eu-west-1
+        azurekv:
+          vaultUrl: "https://my-vault.vault.azure.net"
+          authType: WorkloadIdentity
+          serviceAccountRef:
+            name: eso-sa
 ```
 
 No abstraction layers, no surprises. Whatever you put in `spec:` is what Kubernetes sees.
@@ -607,40 +610,54 @@ deployments:
 
 ---
 
-## Environment Variables
+## Configuration & Secrets
 
-### Global envs (injected into all workloads)
+This is the single source of truth for getting environment variables, ConfigMaps and Secrets into your workloads. The chart exposes **5 ways to supply** data and **6 ways to consume** it. Pick by intent, not by habit.
 
-```yaml
-# Plain text → ConfigMap + envFrom
-envs:
-  LOG_LEVEL: info
-  API_URL: https://api.example.com
+### Decision matrix — "Use when you want to…"
 
-# Secrets → Secret + envFrom
-secretEnvs:
-  DB_PASSWORD: s3cret
-  API_KEY: abc123
+| You want to… | Use this key | Notes |
+|---|---|---|
+| Inject the same plain env vars into **every** workload | `envs:` (top-level) | Generates one ConfigMap, auto-mounted via `envFrom` |
+| Inject the same secret env vars into **every** workload | `secretEnvs:` (top-level) | Generates one Secret. **Plain values land in `values.yaml`** — only use when that's acceptable (dev/sandbox, bootstrap creds) |
+| Same as above, but with multiline values or special chars | `envsString:` / `secretEnvsString:` | Raw YAML string variant — bypasses YAML parsing quirks |
+| Manage a chart-owned ConfigMap with structured data (files, multi-key config) | `configMaps.<name>:` | Reference it from a workload via `envConfigmaps:` or as a typed volume |
+| Manage a chart-owned Secret with arbitrary data (TLS bundles, dockerconfig, etc.) | `secrets.<name>:` | Same as above for Secrets. Avoid for runtime app secrets — use ESO. |
+| Pull secrets from Azure Key Vault, Vault, etc. at runtime | `externalSecrets.<name>:` + `secretStores.<name>:` | Standard pattern. The Secret materializes in-cluster; consume it like any other Secret |
+| Inject **all keys** from an existing Secret/ConfigMap as env vars on **one** workload | `envSecrets:` / `envConfigmaps:` | Whole-resource `envFrom`. Keys must already be valid env var names |
+| **Cherry-pick** specific keys from a Secret/ConfigMap and **rename** them | `envsFromSecret:` / `envsFromConfigmap:` | Per-key `valueFrom.*KeyRef` mapping. Use when key names need remapping (e.g. ESO bulk sync with vault-style keys) |
+| Set inline env vars with `valueFrom` (downward API, resource refs) | `env:` (raw K8s list) | Standard Kubernetes container `env` spec |
+| Override one env var that came from a global source | `env:` on the workload | `env` beats `envFrom` — handy for per-instance overrides |
 
-# For multiline values or special characters, use the string variants:
-envsString: |
-  MULTILINE_CONFIG: |
-    line1
-    line2
+### Supplying data — where it comes from
 
-secretEnvsString: |
-  PRIVATE_KEY: |
-    -----BEGIN RSA PRIVATE KEY-----
-    ...
-```
+| Key | Generates | Scope | Plain values in `values.yaml`? |
+|---|---|---|---|
+| `envs:` / `envsString:` | ConfigMap `<release>-envs` | Mounted into **all** workloads via `envFrom` | Yes (non-sensitive only) |
+| `secretEnvs:` / `secretEnvsString:` | Secret `<release>-secret-envs` | Mounted into **all** workloads via `envFrom` | **Yes — plain text in values** |
+| `configMaps.<name>:` | ConfigMap `<release>-<name>` | Not mounted automatically — reference by name | Yes |
+| `secrets.<name>:` | Secret `<release>-<name>` | Not mounted automatically — reference by name | **Yes — plain text in values** |
+| `externalSecrets.<name>:` | ExternalSecret CR (ESO materializes the Secret) | Not mounted automatically — reference by name | No — fetched from external store at runtime |
 
-### Per-workload env injection
+> **Rule of thumb for runtime secrets**: prefer `externalSecrets` + ESO. `secretEnvs` and `secrets.<name>` are fine for non-sensitive Secret-typed objects (dockerconfig, TLS bundles you generate elsewhere) and for bootstrap-time credentials, but they put plaintext into your values file.
 
-Each workload pulls environment variables from ConfigMaps and Secrets that already exist in the cluster. **Resource names are used verbatim** — write the actual Kubernetes name, no prefixing, no transformation. This is the same surface area as `valueFrom.secretKeyRef.name` in raw Kubernetes.
+### Consuming data — how a workload pulls it in
 
-#### Real-world example (External Secrets Operator)
+| Workload key | What it does | Form |
+|---|---|---|
+| _(implicit)_ | Global `envs` / `secretEnvs` are auto-mounted as `envFrom` on **every** workload | Automatic — nothing to write |
+| `envConfigmaps:` | Mount **all** keys of a ConfigMap as env vars on **this** workload | List of resource names |
+| `envSecrets:` | Mount **all** keys of a Secret as env vars on **this** workload | List of resource names |
+| `envsFromConfigmap:` | Cherry-pick + rename specific keys from a ConfigMap | Map of `<ENV_VAR>: {name, key}` |
+| `envsFromSecret:` | Cherry-pick + rename specific keys from a Secret | Map of `<ENV_VAR>: {name, key}` |
+| `env:` | Raw Kubernetes container `env` list (downward API, `valueFrom`, literal `value`) | Standard K8s spec |
+| `envFrom:` | Raw Kubernetes container `envFrom` list | Standard K8s spec — escape hatch |
 
-The ESO setup creates a Secret named `applications-azure-secrets` containing keys synced from Azure Key Vault. The keys have long vault-style names; the app expects short env var names. Cherry-pick with `envsFromSecret` to remap them:
+> **Resource names are verbatim**. `envConfigmaps: [feature-flags]` references a ConfigMap **literally named** `feature-flags` in the cluster — no prefixing, no transformation. Chart-managed resources from `configMaps.<name>:` get prefixed with `<release>-`, so reference them as `<release>-<name>`.
+
+### Real-world example: ESO with vault-style keys
+
+ESO syncs a Secret named `applications-azure-secrets` from Azure Key Vault. Keys are long and vault-shaped; the app wants short env var names. Cherry-pick + rename:
 
 ```yaml
 deployments:
@@ -649,49 +666,48 @@ deployments:
     imageTag: "1.0.0"
 
     envsFromSecret:
-      API_KEY:                                                              # env var the app sees
-        name: applications-azure-secrets                                    # actual K8s Secret name
-        key: applications-project-apis-text2unspsc-api-api-key              # actual key inside the Secret
+      API_KEY:                                                # env var the app sees
+        name: applications-azure-secrets                      # actual K8s Secret name
+        key: applications-project-apis-text2unspsc-api-api-key
       DB_PASSWORD:
         name: applications-azure-secrets
         key: applications-project-apis-text2unspsc-api-db-password
 ```
 
-If the Secret already has clean env-var-style keys (e.g. an app-scoped ExternalSecret with `secretKey: API_KEY`), inject the whole thing at once with `envSecrets` — no per-key mapping needed:
+If you control the ExternalSecret and can shape its `secretKey:` names to be valid env var names, skip the per-key mapping and inject everything at once:
 
 ```yaml
+externalSecrets:
+  api-secrets:
+    spec:
+      # … target.name: api-secrets, data with clean secretKey: DB_PASSWORD etc.
+
 deployments:
   api:
     envSecrets:
-      - api-secrets             # injects every key in the Secret as an env var
+      - api-secrets        # mounts every key in the Secret as an env var
 ```
 
-#### The four mechanisms
-
-| Field | Purpose | When to use |
-|---|---|---|
-| `envSecrets` | Inject **all** keys from a Secret as env vars (`envFrom.secretRef`) | The Secret's keys are already valid env var names (e.g. an app-scoped ExternalSecret you control) |
-| `envConfigmaps` | Inject **all** keys from a ConfigMap as env vars (`envFrom.configMapRef`) | Same as above, for non-sensitive config |
-| `envsFromSecret` | **Cherry-pick** specific keys from a Secret and rename them | The Secret contains many keys, only some are relevant, or the key names need remapping (e.g. ESO bulk sync with vault-style keys) |
-| `envsFromConfigmap` | **Cherry-pick** specific keys from a ConfigMap and rename them | Same as above, for non-sensitive config |
-
-#### Combined example
-
-All four mechanisms can coexist in one workload:
+### Combined example — all mechanisms in one workload
 
 ```yaml
+# Global — every workload gets these
+envs:
+  LOG_LEVEL: info
+  REGION: westeurope
+
 deployments:
   api:
     image: my-api
     imageTag: "1.0.0"
 
-    # Inject every key from these resources
+    # Whole-resource envFrom (existing Secret/ConfigMap with clean keys)
     envSecrets:
       - api-secrets
     envConfigmaps:
       - feature-flags
 
-    # Cherry-pick + rename specific keys
+    # Cherry-pick + rename
     envsFromSecret:
       DB_PASSWORD:
         name: applications-azure-secrets
@@ -701,7 +717,7 @@ deployments:
         name: shared-runtime-config
         key: connection-string
 
-    # Inline env entries (raw Kubernetes spec)
+    # Raw K8s env (downward API)
     env:
       - name: POD_NAME
         valueFrom:
@@ -709,18 +725,61 @@ deployments:
             fieldPath: metadata.name
 ```
 
-> **Auto-checksum**: pod annotations that trigger a rolling restart on data change are only emitted for **chart-managed** resources (those declared in `configMaps:` or `secrets:` in your values). For externally-managed resources (ESO, Sealed Secrets, etc.), use [Stakater Reloader](https://github.com/stakater/Reloader) or similar.
+### Precedence
+
+When the same env var name comes from multiple sources, last-write-wins per Kubernetes rules:
+
+1. `env` (inline) **overrides** `envFrom` (whole-resource and cherry-pick) on the same container.
+2. Within `envFrom`, later entries override earlier ones.
+3. Across the chart's defaults cascade: instance-level keys override `<kind>General` which overrides `defaults` / global `envs`.
+
+Use this to override one specific value per workload without redefining everything else.
+
+### Auto-checksum (rolling restarts on data change)
+
+The chart automatically injects `checksum/configmap-<name>` / `checksum/secret-<name>` pod annotations whenever a workload references a **chart-managed** ConfigMap or Secret. When the underlying data changes, the annotation hash changes, Kubernetes rolls the pods. No manual config.
+
+| Source | Auto-checksum? |
+|---|---|
+| Global `envs:` / `envsString:` (chart-generated `<release>-envs` ConfigMap) | ✅ |
+| Global `secretEnvs:` / `secretEnvsString:` (chart-generated `<release>-secret-envs` Secret) | ✅ |
+| `configMaps.<name>:` referenced via `envConfigmaps:` / `envsFromConfigmap:` | ✅ |
+| `secrets.<name>:` referenced via `envSecrets:` / `envsFromSecret:` | ✅ |
+| External resources (ESO-materialized Secrets, Sealed Secrets, hand-applied ConfigMaps) | ❌ — use [Stakater Reloader](https://github.com/stakater/Reloader) |
+
+Enabled by default. Opt out globally, per-kind, or per-instance:
+
+```yaml
+defaults:
+  autoChecksum: false           # global
+
+deploymentsGeneral:
+  autoChecksum: false           # all Deployments
+
+deployments:
+  api:
+    autoChecksum: false         # this one only
+```
+
+For external sources or anything else not auto-tracked, use the manual helper:
+
+```yaml
+deployments:
+  api:
+    podAnnotations:
+      config-hash: '{{ include "helpers.workload.checksum" (printf "%s%s" $.Values.envs $.Values.envsString) }}'
+```
 
 ### Base64 shorthand
 
-Values prefixed with `b64:` skip double-encoding in Secrets and auto-decode in ConfigMaps:
+In `secrets.<name>.data`, prefix a value with `b64:` to pass already-base64 content (skips double-encoding). Plain strings are auto-encoded:
 
 ```yaml
 secrets:
   certs:
     data:
-      ca.crt: "b64:LS0tLS1CRUdJTi..."  # stored as-is (already base64)
-      token: my-plain-token               # auto-encoded to base64
+      ca.crt: "b64:LS0tLS1CRUdJTi..."   # stored as-is
+      token: my-plain-token               # auto-encoded
 ```
 
 ---
@@ -836,51 +895,50 @@ cronJobs:
 
 ```yaml
 secretStores:
-  aws:
+  azure:
     spec:
       provider:
-        aws:
-          service: SecretsManager
-          region: eu-west-1
-          auth:
-            jwt:
-              serviceAccountRef:
-                name: eso-sa
+        azurekv:
+          vaultUrl: "https://my-vault.vault.azure.net"
+          authType: WorkloadIdentity
+          serviceAccountRef:
+            name: eso-sa
 
 externalSecrets:
   db-credentials:
     spec:
       refreshInterval: 1h
       secretStoreRef:
-        name: aws
+        name: azure
         kind: SecretStore
       target:
         name: db-credentials
       data:
         - secretKey: password
           remoteRef:
-            key: prod/database
-            property: password
+            key: prod-database-password
         - secretKey: username
           remoteRef:
-            key: prod/database
-            property: username
+            key: prod-database-username
 
 # Cluster-scoped variants
 clusterSecretStores:
-  global-aws:
+  global-azure:
     spec:
       provider:
-        aws:
-          service: SecretsManager
-          region: eu-west-1
+        azurekv:
+          vaultUrl: "https://shared-vault.vault.azure.net"
+          authType: WorkloadIdentity
+          serviceAccountRef:
+            name: eso-sa
+            namespace: external-secrets
 
 clusterExternalSecrets:
   shared-config:
     spec:
       refreshInterval: 24h
       secretStoreRef:
-        name: global-aws
+        name: global-azure
         kind: ClusterSecretStore
       target:
         name: shared-config
@@ -1101,8 +1159,8 @@ nodeAffinityPreset:
   type: hard                  # soft | hard | ""
   key: topology.kubernetes.io/zone
   values:
-    - eu-west-1a
-    - eu-west-1b
+    - westeurope-1
+    - westeurope-2
 ```
 
 Disable per-workload with `usePredefinedAffinity: false`, or supply a custom `affinity:` block.
@@ -1279,33 +1337,33 @@ configMaps:
       DATABASE_HOST: postgres.db.svc
       LOG_LEVEL: info
 
-# ── Secrets from AWS ──
+# ── Secrets from Azure Key Vault ──
 secretStores:
-  aws:
+  azure:
     spec:
       provider:
-        aws:
-          service: SecretsManager
-          region: eu-west-1
+        azurekv:
+          vaultUrl: "https://my-vault.vault.azure.net"
+          authType: WorkloadIdentity
+          serviceAccountRef:
+            name: eso-sa
 
 externalSecrets:
   db-credentials:
     spec:
       refreshInterval: 1h
       secretStoreRef:
-        name: aws
+        name: azure
         kind: SecretStore
       target:
         name: db-credentials
       data:
         - secretKey: DB_PASSWORD
           remoteRef:
-            key: prod/api
-            property: db_password
+            key: prod-api-db-password
         - secretKey: DB_USERNAME
           remoteRef:
-            key: prod/api
-            property: db_username
+            key: prod-api-db-username
 
 # ── Monitoring ──
 serviceMonitors:
@@ -1569,8 +1627,8 @@ nodeAffinityPreset:
   type: hard
   key: topology.kubernetes.io/zone
   values:
-    - eu-west-1a
-    - eu-west-1b
+    - westeurope-1
+    - westeurope-2
 ```
 
 ### Node selection and tolerations
@@ -1711,52 +1769,6 @@ deployments:
             resource: limits.memory
 ```
 
-### Config hash for automatic rollouts
-
-The chart **automatically injects** `checksum/configmap-<name>` and `checksum/secret-<name>` pod annotations for every chart-managed ConfigMap or Secret that a workload references via `envConfigmaps` / `envSecrets`. When the underlying data changes, the annotation hash changes, and Kubernetes triggers a rolling restart — no manual configuration needed.
-
-```yaml
-envs:
-  LOG_LEVEL: info
-
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    envConfigmaps:
-      - envs          # ← auto-injects checksum/configmap-envs annotation
-    envSecrets:
-      - secret-envs   # ← auto-injects checksum/secret-secret-envs annotation
-```
-
-Auto-checksums are enabled by default. Disable globally, per-kind, or per-instance:
-
-```yaml
-# Global opt-out
-defaults:
-  autoChecksum: false
-
-# Per-kind opt-out
-deploymentsGeneral:
-  autoChecksum: false
-
-# Per-instance opt-out (overrides global and per-kind)
-deployments:
-  api:
-    autoChecksum: false
-```
-
-For ConfigMaps or Secrets **not** managed by `envConfigmaps`/`envSecrets`, you can still use the manual helper:
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    podAnnotations:
-      config-hash: '{{ include "helpers.workload.checksum" (printf "%s%s" $.Values.envs $.Values.envsString) }}'
-```
-
 ### Priority classes
 
 Ensure critical workloads get scheduled first:
@@ -1785,48 +1797,6 @@ services:
       - name: http
         port: 443
 ```
-
-### Multiple environment sources per workload
-
-Combine global envs, per-workload ConfigMaps, Secrets, and inline env in one workload:
-
-```yaml
-# Global (injected into ALL workloads)
-envs:
-  LOG_LEVEL: info
-  REGION: eu-west-1
-
-# Per-workload
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-
-    # Mount entire ConfigMaps/Secrets as envFrom
-    envConfigmaps:
-      - feature-flags
-    envSecrets:
-      - api-keys
-
-    # Cherry-pick individual keys
-    envsFromConfigmap:
-      DATABASE_URL:
-        name: db-config
-        key: connection-string
-    envsFromSecret:
-      JWT_SECRET:
-        name: auth-secrets
-        key: jwt-key
-
-    # Inline env entries (Kubernetes spec)
-    env:
-      - name: POD_NAME
-        valueFrom:
-          fieldRef:
-            fieldPath: metadata.name
-```
-
-Merge order: global `envs`/`secretEnvs` → general `envConfigmaps`/`envSecrets` → instance-level entries.
 
 ### CronJob-specific fields
 
