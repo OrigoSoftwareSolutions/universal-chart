@@ -23,8 +23,10 @@ ct.yaml                    ← chart-testing config
 .github/workflows/         ← ci.yaml (PR gates) + release.yaml (OCI push on main)
 ```
 
-Pinned tool versions (match these locally): Helm `v3.19.1`, helm-unittest `1.0.3`,
-helm-docs `v1.14.2`, helmfmt `v0.4.3`, kubeconform `v0.7.0`, K8s schema target `1.33.6`.
+Pinned tool versions (match these locally): Helm `v4.2.0` (CI `ct-lint` job pins
+`v3.19.3` because chart-testing v3 is not Helm-4 compatible yet), helm-unittest `1.1.0`
+(install with `--verify=false` on Helm 4), helm-docs `v1.14.2`, helmfmt `v0.4.3`,
+kubeconform `v0.7.0`, K8s schema target `1.33.6`.
 
 ## Commands
 
