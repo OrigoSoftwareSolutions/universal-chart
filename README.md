@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.7.10](https://img.shields.io/badge/Version-1.7.10-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.7.11](https://img.shields.io/badge/Version-1.7.11-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -19,7 +19,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.7.10 \
+  --version 1.7.11 \
   -f my-values.yaml
 ```
 
@@ -835,7 +835,7 @@ secrets:
 hpas:
   api:
     scaleTargetRef:
-      name: api               # references Deployment name
+      name: api               # bare workload key — the chart prefixes it with the release name
       # kind: Deployment      # optional, defaults to Deployment
     minReplicas: 2
     maxReplicas: 10
@@ -846,6 +846,8 @@ hpas:
         stabilizationWindowSeconds: 300
 ```
 
+> **`scaleTargetRef.name` is the bare workload key, not the rendered Deployment name.** The chart wraps it with `helpers.app.fullname`, so `name: api` targets the `<release>-api` Deployment (or `<releasePrefix>-api` when set). Don't pre-prefix it yourself — that produces `<release>-<release>-api` and the HPA finds nothing to scale.
+
 ### PodDisruptionBudget
 
 ```yaml
@@ -855,9 +857,9 @@ pdbs:
     # OR
     # maxUnavailable: 25%
     unhealthyPodEvictionPolicy: IfHealthyBudget  # optional: IfHealthyBudget or AlwaysAllow
-    extraSelectorLabels:      # additional labels for pod selection
-      app: api
 ```
+
+> The default selector already isolates per-workload via `app.kubernetes.io/component: <pdb key>` (matching the workload of the same name). Set `extraSelectorLabels:` only when you need to *narrow* the selector further — and only with labels that pods in the matching workload actually carry (e.g. via `defaults.podLabels` or per-workload `podLabels`). `extraSelectorLabels` adds an **AND** clause; a label that no pod has makes the PDB select zero pods.
 
 ---
 
@@ -913,8 +915,10 @@ serviceMonitors:
         interval: 30s
     selector:
       matchLabels:
-        app.kubernetes.io/name: api
+        app.kubernetes.io/component: api      # ← the workload's component label
 ```
+
+> **Pick `app.kubernetes.io/component`, not `name`.** The chart sets `app.kubernetes.io/name` to the **release name** (same value across every workload in the release), and `app.kubernetes.io/component` to the **workload key** — so `component` is the label that uniquely targets a single workload's auto-generated Service. Omit `selector:` entirely and the chart falls back to `app.kubernetes.io/name + instance`, which matches *every* Service in the release — fine when you only have one scrapable workload, wrong when you have several.
 
 ### Job/CronJob Duration Alerts
 
@@ -1027,7 +1031,7 @@ universal-chart hosts **N deployments per release** — there is no single "the 
 1. **Ambiguity** — which deployment? which container? A root-level `image.tag` cannot express "tag for `deployments.api`" vs "tag for `deployments.api-worker`".
 2. **Silent shadowing** — universal-chart reads images from `deployments.<name>.image` / `deployments.<name>.imageTag`. A root key written by AIU would be ignored by the chart's container template, and pods would keep running the values-file-pinned tag forever — AIU appears to do nothing.
 
-Every `images[]` entry must therefore declare `manifestTargets.helm.{name,tag}` pointing at the exact value path the chart reads — typically `deployments.<name>.image` and `deployments.<name>.imageTag` (or `initContainers.<n>.image` / `.imageTag` for migration sidecars). This is enforced by the values schema; there is no fallback.
+Every `images[]` entry must therefore declare `manifestTargets.helm.{name,tag}` pointing at the exact value path the chart reads — `deployments.<name>.image` and `deployments.<name>.imageTag`. This is enforced by the values schema; there is no fallback.
 
 ```yaml
 imageUpdaters:
@@ -1065,26 +1069,6 @@ imageUpdaters:
 
 ```yaml
 imageUpdaters:
-
-  # App with a migration sidecar — point the second imageUpdater entry at
-  # the init container's value path so AIU can update it independently.
-  api-with-migrations:
-    applicationName: my-app
-    images:
-      - alias: app
-        imageName: registry.example.com/my-api
-        allowTags: 'regexp:^\d+\.\d+\.\d+-[a-f0-9]{7}-main-\d+$'
-        manifestTargets:
-          helm:
-            name: deployments.api.image
-            tag: deployments.api.imageTag
-      - alias: migrations
-        imageName: registry.example.com/my-api
-        allowTags: 'regexp:^\d+\.\d+\.\d+-[a-f0-9]{7}-migrations-\d+$'
-        manifestTargets:
-          helm:
-            name: deployments.api.initContainers.migrate.image
-            tag: deployments.api.initContainers.migrate.imageTag
 
   # Place the ImageUpdater CR in a non-default namespace
   # (must match the namespace where the target Applications live;

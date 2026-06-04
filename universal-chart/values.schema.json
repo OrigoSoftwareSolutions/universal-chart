@@ -1316,7 +1316,7 @@
               "manifestTargets": {
                 "type": "object",
                 "additionalProperties": false,
-                "description": "Required. Tells AIU exactly which Helm value keys to write the new image/tag into. There is no chart-level default — universal-chart hosts N deployments per release, so a root-level fallback would be ambiguous. Use deployments.<name>.image / deployments.<name>.imageTag (or initContainers.<n>.image / .imageTag) so AIU writes land on the exact path the chart reads.",
+                "description": "Required. Tells AIU exactly which Helm value keys to write the new image/tag into. There is no chart-level default — universal-chart hosts N deployments per release, so a root-level fallback would be ambiguous. Use deployments.<name>.image / deployments.<name>.imageTag so AIU writes land on the exact path the chart reads.",
                 "oneOf": [
                   { "required": ["helm"] },
                   { "required": ["kustomize"] }
