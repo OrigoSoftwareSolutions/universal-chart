@@ -5,3 +5,14 @@ tmp
 *.tgz
 docs/
 samples/
+
+# Non-functional content — not part of the packaged chart artifact.
+# Anchored to chart root (leading /) so any future templates/tests/ helm
+# test hooks would still ship.
+
+# helm-unittest suites
+/tests/
+# CI smoke-test values (helm template / kubeconform)
+/ci/
+# helm-docs source — generated README.md ships, this template doesn't
+README.md.gotmpl
