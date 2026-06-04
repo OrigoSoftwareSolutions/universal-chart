@@ -17,7 +17,7 @@ externalSecrets:
     spec:
       refreshInterval: 1h
       secretStoreRef:
-        name: aws-secrets
+        name: azure-secrets
         kind: SecretStore
       target:
         name: my-db-secret
@@ -28,20 +28,14 @@ externalSecrets:
             property: password
 
 secretStores:
-  aws-store:
+  azure-store:
     spec:
       provider:
-        aws:
-          service: SecretsManager
-          region: eu-west-1
-          auth:
-            secretRef:
-              accessKeyIDSecretRef:
-                name: aws-creds
-                key: access-key-id
-              secretAccessKeySecretRef:
-                name: aws-creds
-                key: secret-access-key
+        azurekv:
+          vaultUrl: "https://my-vault.vault.azure.net"
+          authType: WorkloadIdentity
+          serviceAccountRef:
+            name: eso-sa
 
 clusterSecretStores:
   cluster-store:

@@ -454,7 +454,7 @@ secretStores: {}
 #   my-store:
 #     spec:
 #       provider:
-#         aws: { service: SecretsManager, region: eu-west-1 }
+#         azurekv: { vaultUrl: "https://my-vault.vault.azure.net", authType: WorkloadIdentity, serviceAccountRef: { name: eso-sa } }
 
 # -- External Secrets Operator ClusterSecretStore resources (cluster-scoped). Each key becomes the resource name.
 clusterSecretStores: {}
