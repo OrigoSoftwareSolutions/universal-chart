@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.7.5](https://img.shields.io/badge/Version-1.7.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.7.6](https://img.shields.io/badge/Version-1.7.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -19,7 +19,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.7.5 \
+  --version 1.7.6 \
   -f my-values.yaml
 ```
 
@@ -576,6 +576,49 @@ pvcs:
 ```
 
 Hooks, Jobs, and CronJobs are excluded from auto-mounting.
+
+> **`disabled: true` on an installed PVC is destructive by default.** Helm reconciles by diffing rendered manifests against release state — the moment a PVC disappears from the rendered output, `helm upgrade` deletes the live PVC. If the bound PV's StorageClass uses `reclaimPolicy: Delete` (the default for most cloud StorageClasses, including Azure `managed-csi`), the underlying disk is destroyed too.
+>
+> **To safely retire a PVC**, do it in two steps:
+>
+> 1. Add `keepOnDelete: true`, run `helm upgrade` — this lands the `helm.sh/resource-policy: keep` annotation on the live PVC.
+> 2. Then set `disabled: true` and upgrade again — Helm respects the keep annotation and leaves the PVC (and its PV/disk) alone.
+>
+> Adding `keepOnDelete: true` and `disabled: true` in the **same** change does nothing — the disabled guard skips the entire manifest, including the annotation. Same caveat applies to `persistentVolumes.<name>.disabled: true`.
+
+### StorageClasses
+
+Cluster-scoped resources for defining how PVs are dynamically provisioned. Standard StorageClass fields are passed through directly — no `spec:` wrapper, since StorageClass is a flat resource in the Kubernetes API.
+
+```yaml
+storageClasses:
+  fast-ssd:
+    provisioner: disk.csi.azure.com
+    reclaimPolicy: Retain                   # Delete (default) | Retain
+    volumeBindingMode: WaitForFirstConsumer # Immediate | WaitForFirstConsumer
+    allowVolumeExpansion: true
+    parameters:
+      skuName: Premium_LRS
+      cachingMode: ReadOnly
+    mountOptions:
+      - debug
+    allowedTopologies:
+      - matchLabelExpressions:
+          - key: topology.kubernetes.io/zone
+            values:
+              - westeurope-1
+              - westeurope-2
+
+  default-sc:
+    provisioner: disk.csi.azure.com
+    isDefault: true                         # adds storageclass.kubernetes.io/is-default-class: "true"
+    parameters:
+      skuName: StandardSSD_LRS
+```
+
+`provisioner` is required; everything else is optional and follows Kubernetes defaults when omitted.
+
+> **`reclaimPolicy: Delete` is the StorageClass default.** PVs dynamically provisioned through this StorageClass will be deleted (along with their backing disk) when their PVC is deleted. Use `reclaimPolicy: Retain` for stateful workloads where data must survive PVC deletion.
 
 ### Typed Volumes
 
@@ -2038,6 +2081,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | services | object | `{}` | Kubernetes Service resources. Each key becomes the resource name. If `workload` is omitted, the selector defaults to the service key name. Set `selector` to override the selector verbatim. ExternalName services omit selectors. |
 | statefulSets | object | `{}` | Kubernetes StatefulSet resources. Each key becomes the resource name. Uses `updateStrategy` instead of `strategy`. Adds `volumeClaimTemplates` support. |
 | statefulSetsGeneral | object | `{}` | Shared defaults for all StatefulSets. |
+| storageClasses | object | `{}` | Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key becomes the resource name. Standard StorageClass fields are passed through directly (no `spec:` wrapper — StorageClass has no spec in the K8s API). Set `isDefault: true` to add the `storageclass.kubernetes.io/is-default-class: "true"` annotation. |
 
 ## Maintainers
 

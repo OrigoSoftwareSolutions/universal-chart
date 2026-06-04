@@ -1,0 +1,43 @@
+{{- range $name, $sc := .Values.storageClasses }}
+  {{- if not ($sc.disabled | default false) }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  labels:
+    {{- include "helpers.app.labels" $ | nindent 4 }}
+    {{- with $sc.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots $sc.annotations $sc.isDefault }}
+  annotations:
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- if $sc.isDefault }}
+    storageclass.kubernetes.io/is-default-class: "true"
+      {{- end }}
+      {{- with $sc.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- end }}
+provisioner: {{ required (printf "storageClasses.%s.provisioner is required" $name) $sc.provisioner }}
+    {{- with $sc.reclaimPolicy }}
+reclaimPolicy: {{ . }}
+    {{- end }}
+    {{- with $sc.volumeBindingMode }}
+volumeBindingMode: {{ . }}
+    {{- end }}
+    {{- if hasKey $sc "allowVolumeExpansion" }}
+allowVolumeExpansion: {{ $sc.allowVolumeExpansion }}
+    {{- end }}
+    {{- with $sc.parameters }}
+parameters:
+      {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+    {{- end }}
+    {{- with $sc.mountOptions }}
+mountOptions:
+      {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+    {{- end }}
+    {{- with $sc.allowedTopologies }}
+allowedTopologies:
+      {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+    {{- end }}
+  {{- end }}
+{{- end }}
