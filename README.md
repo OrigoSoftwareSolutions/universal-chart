@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.8.0](https://img.shields.io/badge/Version-1.8.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.8.1](https://img.shields.io/badge/Version-1.8.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -19,7 +19,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.8.0 \
+  --version 1.8.1 \
   -f my-values.yaml
 ```
 
