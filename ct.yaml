@@ -1,5 +1,0 @@
-chart-dirs:
-  - .
-target-branch: main
-validate-maintainers: false
-lint-conf: .yamllint
