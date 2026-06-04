@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.7.7](https://img.shields.io/badge/Version-1.7.7-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.7.8](https://img.shields.io/badge/Version-1.7.8-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -19,7 +19,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.7.7 \
+  --version 1.7.8 \
   -f my-values.yaml
 ```
 
@@ -700,7 +700,7 @@ This is the single source of truth for getting environment variables, ConfigMaps
 
 ### Real-world example: ESO with vault-style keys
 
-ESO syncs a Secret named `applications-azure-secrets` from Azure Key Vault. Keys are long and vault-shaped; the app wants short env var names. Cherry-pick + rename:
+ESO syncs a Secret named `app-secrets-bundle` from Azure Key Vault. Keys are long and vault-shaped; the app wants short env var names. Cherry-pick + rename:
 
 ```yaml
 deployments:
@@ -709,12 +709,12 @@ deployments:
     imageTag: "1.0.0"
 
     envsFromSecret:
-      API_KEY:                                                # env var the app sees
-        name: applications-azure-secrets                      # actual K8s Secret name
-        key: applications-project-apis-text2unspsc-api-api-key
+      API_KEY:                          # env var the app sees
+        name: app-secrets-bundle        # actual K8s Secret name
+        key: prod-myapp-api-key
       DB_PASSWORD:
-        name: applications-azure-secrets
-        key: applications-project-apis-text2unspsc-api-db-password
+        name: app-secrets-bundle
+        key: prod-myapp-db-password
 ```
 
 If you control the ExternalSecret and can shape its `secretKey:` names to be valid env var names, skip the per-key mapping and inject everything at once:
@@ -753,8 +753,8 @@ deployments:
     # Cherry-pick + rename
     envsFromSecret:
       DB_PASSWORD:
-        name: applications-azure-secrets
-        key: applications-project-apis-text2unspsc-api-db-password
+        name: app-secrets-bundle
+        key: prod-myapp-db-password
     envsFromConfigmap:
       DATABASE_URL:
         name: shared-runtime-config
@@ -1836,7 +1836,30 @@ defaults:
 
 > **Tip**: Set `terminationGracePeriodSeconds` > `preStopSleep` so the app gets enough time to shut down after the sleep.
 
-For custom lifecycle hooks (overrides `preStopSleep` for that container):
+### Lifecycle hooks (postStart and preStop)
+
+Kubernetes lifecycle hooks fire at the boundaries of a container's life: `postStart` runs the moment the container starts (in parallel with the entrypoint — no ordering guarantees), `preStop` runs when the kubelet decides to terminate the container, before SIGTERM. The chart passes the entire `lifecycle:` block through verbatim, so any combination of hooks and any K8s-supported handler (`exec`, `httpGet`, `tcpSocket`, `sleep` since K8s 1.30) is available.
+
+Use either or both — set only the one you need. Works in both single-container shorthand and full `containers:` form.
+
+#### Single-container shorthand
+
+```yaml
+deployments:
+  api:
+    image: my-api
+    imageTag: "1.0.0"
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/sh", "-c", "/usr/local/bin/warm-cache.sh"]
+      preStop:
+        httpGet:
+          path: /shutdown
+          port: 8080
+```
+
+#### Full `containers:` form (multi-container)
 
 ```yaml
 deployments:
@@ -1846,14 +1869,49 @@ deployments:
         image: my-api
         imageTag: "1.0.0"
         lifecycle:
-          preStop:
-            httpGet:
-              path: /shutdown
-              port: 8080
           postStart:
             exec:
-              command: ["sh", "-c", "echo started"]
+              command: ["/bin/sh", "-c", "echo started >> /var/log/boot.log"]
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "kill -SIGINT 1 && sleep 10"]
 ```
+
+#### Only one hook
+
+Set just the one you need — the other is omitted entirely. No placeholder required.
+
+```yaml
+deployments:
+  worker:
+    image: my-worker
+    imageTag: "1.0.0"
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/sh", "-c", "/app/register-with-coordinator.sh"]
+        # no preStop — container goes straight to SIGTERM on shutdown
+```
+
+> **Foot-gun — `lifecycle:` replaces the entire auto-generated `preStopSleep` block.** If your release sets `defaults.preStopSleep: 5` (or `*General.preStopSleep`) and a workload then defines its own `lifecycle:` (even just `lifecycle.postStart`), the auto-generated preStop sleep is **silently dropped**. The chart picks `lifecycle:` over `preStopSleep` whenever both could apply ([_container.tpl L66-76](file:///home/dzhi/git/origo/universal-chart/universal-chart/templates/helpers/_container.tpl#L66-L76)).
+>
+> If you need both a custom postStart **and** the drain-sleep behavior on the same container, write the sleep into the `lifecycle:` block yourself:
+>
+> ```yaml
+> deployments:
+>   api:
+>     image: my-api
+>     imageTag: "1.0.0"
+>     lifecycle:
+>       postStart:
+>         exec:
+>           command: ["/bin/sh", "-c", "/app/init.sh"]
+>       preStop:
+>         exec:
+>           command: ["/bin/sh", "-c", "sleep 10"]   # replicates preStopSleep: 10
+> ```
+
+> **Init containers do NOT get auto-`preStopSleep`.** Init containers run to completion before the main containers start, so a preStop hook makes no sense there. The chart skips `preStopSleep` injection for init containers automatically. You can still set `lifecycle:` explicitly on an init container if you have a niche reason — it's passed through — but Kubernetes itself only invokes preStop for restartable init containers (`restartPolicy: Always`, K8s 1.29+).
 
 ### Downward API and per-pod env vars
 
