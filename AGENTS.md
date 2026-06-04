@@ -161,7 +161,7 @@ Three parallel jobs in `.github/workflows/ci.yaml`. All must pass:
 
 ## Release
 
-Bump `version:` in `universal-chart/Chart.yaml`, merge to `main`. `.github/workflows/release.yaml` runs on every push to `main` but checks `helm show chart oci://...` first and skips silently if that version is already published — so docs/test-only merges are no-ops. Bump only when you intend to ship. No tags, no gh-pages — OCI only. `Chart.yaml` version is the only source of truth.
+Bump `version:` in `universal-chart/Chart.yaml`, merge to `main`. `.github/workflows/release.yaml` runs on every push to `main` but applies two gates: it skips silently if that version is already published (so docs/test-only merges are no-ops), and it **rejects the release if the proposed version is not strictly greater than the highest stable tag already in GHCR** (catches typos and stale-branch merges). No tags, no gh-pages — OCI only. `Chart.yaml` version is the only source of truth. Backport releases are not supported by this workflow; if ever needed, drop the "Reject downgrade" step for one merge.
 
 ## What NOT to Do
 

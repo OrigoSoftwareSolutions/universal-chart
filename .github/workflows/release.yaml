@@ -42,6 +42,33 @@ jobs:
         if: steps.check.outputs.skip == 'false'
         run: helm package universal-chart/
 
+      # Monotonicity gate: refuse to release if Chart.yaml.version is not strictly
+      # greater than the highest stable tag already in GHCR. Catches typos and
+      # stale-branch merges that would otherwise publish a ghost lower-version tag.
+      # No support for backport release lines — when needed, drop this step for one merge.
+      - name: Reject downgrade
+        if: steps.check.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.check.outputs.version }}"
+          LATEST=$(gh api --paginate \
+            /orgs/origosoftwaresolutions/packages/container/universal-chart/versions \
+            --jq '.[].metadata.container.tags[]?' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sort -V \
+            | tail -1)
+          if [ -z "$LATEST" ]; then
+            echo "No prior stable releases — accepting ${VERSION} as initial release."
+            exit 0
+          fi
+          if [ "$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -1)" != "$VERSION" ]; then
+            echo "Refusing release: ${VERSION} is not strictly greater than published max ${LATEST}."
+            echo "Bump Chart.yaml to a version > ${LATEST} and re-merge."
+            exit 1
+          fi
+          echo "OK: ${VERSION} > ${LATEST}"
+
       - name: Push to GHCR
         if: steps.check.outputs.skip == 'false'
         run: helm push universal-chart-${{ steps.check.outputs.version }}.tgz oci://ghcr.io/origosoftwaresolutions
