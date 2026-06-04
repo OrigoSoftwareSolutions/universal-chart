@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.7.3](https://img.shields.io/badge/Version-1.7.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.7.4](https://img.shields.io/badge/Version-1.7.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -19,7 +19,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.7.3 \
+  --version 1.7.4 \
   -f my-values.yaml
 ```
 
@@ -938,7 +938,7 @@ imageUpdaters:
     images:
       - alias: api
         imageName: registry.example.com/my-api
-        updateStrategy: newest-build    # latest | newest-build | alphabetical | digest
+        updateStrategy: newest-build    # semver | latest | newest-build | alphabetical | digest | name (AIU v1.2 CRD default: semver)
         allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
         manifestTargets:
           helm:

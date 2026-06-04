@@ -1305,7 +1305,7 @@
             "properties": {
               "alias": { "type": "string" },
               "imageName": { "type": "string" },
-              "updateStrategy": { "type": "string", "enum": ["latest", "newest-build", "alphabetical", "digest"] },
+              "updateStrategy": { "type": "string", "enum": ["semver", "latest", "newest-build", "alphabetical", "digest", "name"], "description": "Argo CD Image Updater image-update strategy. Valid values per AIU v1.2.0 CRD: semver (v1.2 CRD default), latest, newest-build, alphabetical, digest, name." },
               "allowTags": { "type": "string" },
               "ignoreTags": { "type": "array", "items": { "type": "string" } },
               "manifestTargets": {

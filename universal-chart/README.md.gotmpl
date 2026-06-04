@@ -938,7 +938,7 @@ imageUpdaters:
     images:
       - alias: api
         imageName: registry.example.com/my-api
-        updateStrategy: newest-build    # latest | newest-build | alphabetical | digest
+        updateStrategy: newest-build    # semver | latest | newest-build | alphabetical | digest | name (AIU v1.2 CRD default: semver)
         allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
         manifestTargets:
           helm:
