@@ -97,13 +97,13 @@ tests:
     set:
       deployments.api.image: nginx
       deployments.api.envSecrets:
-        - applications-azure-secrets
+        - app-secrets-bundle
     asserts:
       - contains:
           path: spec.template.spec.containers[0].envFrom
           content:
             secretRef:
-              name: applications-azure-secrets
+              name: app-secrets-bundle
 
   - it: envConfigmaps references the configmap by its verbatim name
     set:
