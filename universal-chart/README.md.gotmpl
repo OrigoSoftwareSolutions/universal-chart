@@ -2164,7 +2164,6 @@ Install these tools before working on the chart locally:
 | Tool | Purpose | Install |
 |---|---|---|
 | [kubeconform](https://github.com/yannh/kubeconform) | Schema validation of rendered manifests | [Releases](https://github.com/yannh/kubeconform/releases) |
-| [chart-testing (ct)](https://github.com/helm/chart-testing) | Chart linting with git diff awareness | [Releases](https://github.com/helm/chart-testing/releases) |
 
 ### First-time setup
 
@@ -2253,17 +2252,15 @@ Enforced by `.yamllint` and `.helmfmt`:
 
 ### CI checks (automated on every PR)
 
-Five parallel jobs run on every pull request:
+Three parallel jobs run on every pull request:
 
 | Job | What it does |
 |---|---|
 | `lint` | `helm lint --strict` + kubeconform schema validation |
 | `unittest` | All helm-unittest suites |
-| `security` | Trivy scan on rendered manifests |
-| `ct-lint` | chart-testing `ct lint` |
 | `docs-check` | Verifies `README.md` matches `helm-docs` output |
 
-All five must pass before merge.
+All three must pass before merge.
 
 ### Versioning & release
 
@@ -2277,7 +2274,9 @@ This chart follows [SemVer](https://semver.org/):
 
 1. Bump `version:` in `universal-chart/Chart.yaml`
 2. Merge to `main`
-3. GitHub Actions automatically packages and pushes to `oci://ghcr.io/origosoftwaresolutions/universal-chart`
+3. GitHub Actions packages and pushes to `oci://ghcr.io/origosoftwaresolutions/universal-chart`
+
+The release workflow runs on every push to `main` but is a no-op when `Chart.yaml`'s version is already published — so docs-only or test-only PRs don't need a version bump and don't trigger a release. Bump `version:` only when you actually want to ship.
 
 No manual tagging required. The `Chart.yaml` version is the single source of truth.
 

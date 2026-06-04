@@ -19,21 +19,18 @@ new-values.yaml            ← unrelated scratch file (do NOT treat as chart inp
 examples/                  ← static example values; not consumed by chart
 .helmfmt, .yamllint        ← style enforcement
 .pre-commit-config.yaml    ← runs helmfmt + helm-docs on commit
-ct.yaml                    ← chart-testing config
-.github/workflows/         ← ci.yaml (PR gates) + release.yaml (OCI push on main)
+.github/workflows/         ← ci.yaml (PR gates) + release.yaml (OCI push on main, skip-existing on Chart.yaml version)
 ```
 
-Pinned tool versions (match these locally): Helm `v4.2.0` (CI `ct-lint` job pins
-`v3.19.3` because chart-testing v3 is not Helm-4 compatible yet), helm-unittest `1.1.0`
+Pinned tool versions (match these locally): Helm `v4.2.0`, helm-unittest `1.1.0`
 (install with `--verify=false` on Helm 4), helm-docs `v1.14.2`, helmfmt `v0.4.3`,
 kubeconform `v0.7.0`, K8s schema target `1.33.6`.
 
 ## Commands
 
 ```bash
-# Lint (CI runs both on every PR)
+# Lint (CI runs this on every PR)
 helm lint universal-chart/ --strict
-ct lint --config ct.yaml
 
 # Render templates (smoke test)
 helm template test universal-chart/ -f universal-chart/ci/test-values.yaml
@@ -156,17 +153,15 @@ tests:
 
 ## CI (PRs to `main`)
 
-Five parallel jobs in `.github/workflows/ci.yaml`. All must pass:
+Three parallel jobs in `.github/workflows/ci.yaml`. All must pass:
 
 - `lint` — `helm lint --strict` + kubeconform schema validation.
 - `unittest` — `helm unittest --strict --file 'tests/*.yaml'`.
-- `security` — Trivy `config` scan on rendered manifests, fails on HIGH/CRITICAL.
-- `ct-lint` — `ct lint --config ct.yaml` (git-diff aware).
 - `docs-check` — re-runs `helm-docs` and `git diff --exit-code README.md`. If you edited `values.yaml` without regenerating, this fails.
 
 ## Release
 
-Bump `version:` in `universal-chart/Chart.yaml`, merge to `main`, and `.github/workflows/release.yaml` packages and pushes to `oci://ghcr.io/origosoftwaresolutions/universal-chart`. No tags, no gh-pages — OCI only. `Chart.yaml` version is the only source of truth.
+Bump `version:` in `universal-chart/Chart.yaml`, merge to `main`. `.github/workflows/release.yaml` runs on every push to `main` but checks `helm show chart oci://...` first and skips silently if that version is already published — so docs/test-only merges are no-ops. Bump only when you intend to ship. No tags, no gh-pages — OCI only. `Chart.yaml` version is the only source of truth.
 
 ## What NOT to Do
 
