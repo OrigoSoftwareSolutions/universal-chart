@@ -106,12 +106,16 @@ defaults:
   # -- Default volumeMounts added to every container.
   # volumeMounts: []
   # -- Default resource requests/limits applied to containers when not overridden.
+  # No CPU limit by design — CPU throttling hurts tail latency more than it helps;
+  # set `limits.cpu` per-workload only when you have a concrete reason. Memory limit
+  # is 4× request to absorb allocation spikes (JVM/Node) without OOMKill — tighten
+  # per-workload once you've measured real footprint.
   resources:
     requests:
       cpu: 100m
       memory: 128Mi
     limits:
-      memory: 128Mi
+      memory: 512Mi
   # -- Default pod-level securityContext applied to every pod spec.
   podSecurityContext:
     runAsNonRoot: true

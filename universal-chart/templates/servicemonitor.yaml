@@ -1,5 +1,6 @@
 {{- range $name, $sm := .Values.serviceMonitors }}
   {{- if not ($sm.disabled | default false) }}
+    {{- $workloadName := $sm.workload | default $name }}
 ---
 kind: ServiceMonitor
 apiVersion: monitoring.coreos.com/v1
@@ -37,7 +38,7 @@ spec:
       {{- include "helpers.tplvalues.render" (dict "value" $sm.selector "context" $) | nindent 4 }}
     {{- else }}
     matchLabels:
-      {{- include "helpers.app.selectorLabels" $ | nindent 6 }}
+      {{- include "helpers.app.workloadSelectorLabels" (dict "name" $workloadName "context" $) | nindent 6 }}
       {{- with $sm.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end -}}
     {{- end }}
   {{- end }}
