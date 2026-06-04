@@ -1704,7 +1704,77 @@ deployments:
 
 ### Custom probes (beyond healthCheck)
 
-The `healthCheck` shorthand generates HTTP GET probes. For TCP, gRPC, or exec probes, set them individually:
+Probes are **fully opt-in**. The chart emits no probes unless you ask for them. Three modes:
+
+#### No probes — early development, prototypes, throwaway services
+
+Just don't set `healthCheck`, `startupProbe`, `livenessProbe`, or `readinessProbe`. Nothing is rendered. Kubernetes treats the pod as ready the moment the container starts and never restarts it on health grounds. This is the right default while a service is too young to have stable endpoints, while devs are still iterating on what "healthy" even means, or for short-lived experiments.
+
+```yaml
+deployments:
+  prototype:
+    image: registry.example.com/new-service
+    imageTag: "0.1.0"
+    ports:
+      http: 8080
+    # No healthCheck, no *Probe fields → pod runs without any liveness/readiness gating
+```
+
+> **Trade-offs to be aware of**: traffic from the auto-generated Service starts hitting the pod the instant the container process exists, even if it isn't accepting connections yet — expect connection-refused errors during rollouts. A wedged process won't be auto-restarted. A PDB on this workload becomes near-meaningless without readiness signals. Fine for dev/staging, revisit before promoting to anything that takes real traffic.
+
+#### Shorthand — one HTTP endpoint covers all three probes
+
+Set `healthCheck:` and the chart generates `startupProbe`, `livenessProbe`, and `readinessProbe` from one HTTP GET spec. See the [Health check shorthand](#health-check-shorthand) section.
+
+#### Custom probes — TCP, gRPC, exec, or different endpoints per probe type
+
+Set `startupProbe`, `livenessProbe`, `readinessProbe` directly on the container. Mix and match — set only the ones you need. The moment **any** of the three is set, shorthand generation is skipped entirely and only what you've defined is rendered, so set all three explicitly if you want all three.
+
+##### Three different HTTP paths (production-grade web service)
+
+The most common real-world setup. Each probe answers a different question, has different cost, and different failure consequences:
+
+```yaml
+deployments:
+  api:
+    image: registry.example.com/api
+    imageTag: "1.0.0"
+    ports:
+      http: 8080
+
+    startupProbe:
+      httpGet:
+        path: /startup           # "is initialization done?" — migrations, cache warm, listener bound
+        port: 8080
+      periodSeconds: 5
+      failureThreshold: 30       # 30 × 5 = 150s budget for slow boot; only runs until first success
+
+    livenessProbe:
+      httpGet:
+        path: /healthz           # "is the process wedged?" — cheap, in-process only
+        port: 8080
+      periodSeconds: 10
+      failureThreshold: 3
+
+    readinessProbe:
+      httpGet:
+        path: /ready             # "should this pod receive traffic right now?" — checks deps
+        port: 8080
+      periodSeconds: 5
+      failureThreshold: 2
+```
+
+| Probe | Answers | Failure consequence |
+|---|---|---|
+| `startupProbe` | "Has the app finished initialization?" | Liveness/readiness held off until startup succeeds; pod restarted if startup never succeeds |
+| `livenessProbe` | "Is the process wedged?" | kubelet **kills** the pod and restarts it |
+| `readinessProbe` | "Is this pod ready to serve traffic?" | Pod removed from Service endpoints; **not** killed |
+
+> **Foot-gun**: do not check downstream dependencies (DB, Redis, external APIs) in `livenessProbe`. When the dependency hiccups, every pod gets killed and you eat a restart storm. Put dependency checks in `readinessProbe` only — flapping there just yanks the pod out of the Service endpoint list until the dependency recovers.
+
+##### TCP, exec, gRPC
+
+Use the standard Kubernetes probe types when HTTP isn't an option:
 
 ```yaml
 deployments:
@@ -1729,6 +1799,8 @@ deployments:
             port: 6379
           periodSeconds: 5
 ```
+
+> **Suppressing probes on a workload that inherits them**: if `defaults.healthCheck` or `<kind>General.healthCheck` is set in your values stack and you want one specific workload probe-free, omit the inherited block by setting `healthCheck: null` at the instance level. To temporarily silence probes on **all** workloads (e.g. debugging a crash loop), use `diagnosticMode.enabled: true` — it suppresses every probe across the release.
 
 ### DNS and host aliases
 
