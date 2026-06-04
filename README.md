@@ -2353,9 +2353,12 @@ This chart follows [SemVer](https://semver.org/):
 2. Merge to `main`
 3. GitHub Actions packages and pushes to `oci://ghcr.io/origosoftwaresolutions/universal-chart`
 
-The release workflow runs on every push to `main` but is a no-op when `Chart.yaml`'s version is already published — so docs-only or test-only PRs don't need a version bump and don't trigger a release. Bump `version:` only when you actually want to ship.
+The release workflow runs on every push to `main` and applies two gates:
 
-No manual tagging required. The `Chart.yaml` version is the single source of truth.
+- **Skip-existing**: if `Chart.yaml`'s version is already published, the run is a no-op. Docs-only or test-only PRs don't need a version bump.
+- **Reject downgrade**: the proposed version must be strictly greater than the highest stable tag already in GHCR. Typos and stale-branch merges fail the workflow instead of publishing a ghost tag.
+
+Bump `version:` only when you actually want to ship, and only forward. No manual tagging required. The `Chart.yaml` version is the single source of truth.
 
 ### Adding a new resource type
 
