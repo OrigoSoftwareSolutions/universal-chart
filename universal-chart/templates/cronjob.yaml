@@ -72,25 +72,26 @@ spec:
           restartPolicy: {{ .restartPolicy | default $general.restartPolicy | default "Never" }}
       {{- $cda := dig "commandDurationAlert" (dig "commandDurationAlert" nil $general) $job }}
       {{- if ne $cda nil }}
+        {{- $cdaLabels := dig "commandDurationAlertLabels" (dig "commandDurationAlertLabels" (dict "prometheus" "k8s" "role" "alert-rules") $general) $job }}
+        {{- $cdaRuleLabels := dig "commandDurationAlertRuleLabels" (dig "commandDurationAlertRuleLabels" (dict "severity" "warning") $general) $job }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: cronjob-{{ $cjName }}
   labels:
-    prometheus: k8s
-    role: alert-rules
+        {{- include "helpers.tplvalues.render" (dict "value" $cdaLabels "context" $) | nindent 4 }}
   namespace: {{ $.Release.Namespace | quote }}
 spec:
   groups:
   - name: "cronJobs_rules"
-    interval: 1m # period check for alerts
+    interval: 1m
     rules:
     - alert: "cronjob-{{ $cjName }}-too-long-execution"
       expr: '((time() - kube_job_status_start_time{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"}) and kube_job_status_active{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"} == 1) > {{ $cda }}'
       for: 3m
       labels:
-        severity: warning
+        {{- include "helpers.tplvalues.render" (dict "value" $cdaRuleLabels "context" $) | nindent 8 }}
       annotations:
         message: "CronJob {{ $.Release.Namespace }}/{{ $cjName }} is taking more than {{ $cda }} to complete"
       {{- end }}

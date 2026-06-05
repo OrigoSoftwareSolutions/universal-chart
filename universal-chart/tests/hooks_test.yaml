@@ -266,3 +266,61 @@ tests:
       - equal:
           path: spec.template.spec.restartPolicy
           value: Never
+
+  - it: defaults.hookAnnotations applies to hook Job metadata
+    set:
+      defaults:
+        hookAnnotations:
+          custom.org/owner: platform
+          custom.org/notify: oncall
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: metadata.annotations["custom.org/owner"]
+          value: platform
+      - equal:
+          path: metadata.annotations["custom.org/notify"]
+          value: oncall
+      - isNotEmpty:
+          path: metadata.annotations["helm.sh/hook"]
+
+  - it: helm.sh/hook annotations cannot be overridden by defaults.hookAnnotations
+    set:
+      defaults:
+        hookAnnotations:
+          helm.sh/hook: post-install
+          helm.sh/hook-weight: "99"
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-install,pre-upgrade
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "5"
+
+  - it: hookAnnotations renders Go template expressions
+    set:
+      defaults:
+        hookAnnotations:
+          custom.org/release: "{{ .Release.Name }}"
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - matchRegex:
+          path: metadata.annotations["custom.org/release"]
+          pattern: ^.+$

@@ -77,12 +77,13 @@ Template for default hook annotations for configmaps and secrets
 {{- end }}
 
 {{/*
-Merge the user defined annotations and the common hook annotations
+Merge the user defined annotations and the chart-default annotations.
+Hook annotations are NOT merged here — they belong only on hook Jobs and are
+applied directly in helm-hooks.yaml.
 */}}
 {{- define "helpers.app.annotations" -}}
-  {{- $defaultHookValues := include "helpers.app.defaultHookAnnotations" .context | fromYaml }}
   {{- $defaultAnnotations := include "helpers.app.defaultAnnotations" .context | fromYaml }}
   {{- $userValues := .value | fromYaml }}
-  {{- $mergedValues := mustMergeOverwrite  $defaultHookValues $defaultAnnotations $userValues }}
+  {{- $mergedValues := mustMergeOverwrite $defaultAnnotations $userValues }}
 {{- $mergedValues | toYaml -}}
 {{- end -}}

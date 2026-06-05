@@ -107,8 +107,10 @@ defaults.autoChecksum  (bool, default true)  — global opt-out
   {{- end -}}
 
   {{- if $enabled -}}
-    {{- /* Collect references the workload makes via envConfigmaps/envSecrets.
-    These hold rendered Kubernetes resource names (verbatim). */}}
+    {{- /* Collect references the workload makes via envConfigmaps/envSecrets
+    (whole-resource envFrom) and envsFromConfigmap/envsFromSecret
+    (cherry-pick valueFrom). All hold rendered Kubernetes resource names
+    (verbatim). */}}
     {{- $cmRefs := list -}}
     {{- with $general.envConfigmaps -}}
       {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
@@ -116,12 +118,24 @@ defaults.autoChecksum  (bool, default true)  — global opt-out
     {{- with $v.envConfigmaps -}}
       {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
     {{- end -}}
+    {{- with $general.envsFromConfigmap -}}
+      {{- range $envVar, $ref := . }}{{- if kindIs "map" $ref }}{{- with $ref.name }}{{ $cmRefs = append $cmRefs . }}{{ end }}{{ end }}{{ end -}}
+    {{- end -}}
+    {{- with $v.envsFromConfigmap -}}
+      {{- range $envVar, $ref := . }}{{- if kindIs "map" $ref }}{{- with $ref.name }}{{ $cmRefs = append $cmRefs . }}{{ end }}{{ end }}{{ end -}}
+    {{- end -}}
     {{- $secRefs := list -}}
     {{- with $general.envSecrets -}}
       {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
     {{- end -}}
     {{- with $v.envSecrets -}}
       {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
+    {{- end -}}
+    {{- with $general.envsFromSecret -}}
+      {{- range $envVar, $ref := . }}{{- if kindIs "map" $ref }}{{- with $ref.name }}{{ $secRefs = append $secRefs . }}{{ end }}{{ end }}{{ end -}}
+    {{- end -}}
+    {{- with $v.envsFromSecret -}}
+      {{- range $envVar, $ref := . }}{{- if kindIs "map" $ref }}{{- with $ref.name }}{{ $secRefs = append $secRefs . }}{{ end }}{{ end }}{{ end -}}
     {{- end -}}
 
     {{- /* Global envs ConfigMap (chart-managed, name "<release>-envs") —

@@ -286,3 +286,90 @@ tests:
     asserts:
       - notExists:
           path: spec.template.metadata.annotations.checksum/configmap-envs
+
+---
+suite: auto-checksum cherry-pick env refs
+templates:
+  - deployment.yaml
+tests:
+  - it: cherry-pick envsFromConfigmap pointing at chart-managed CM produces checksum
+    release:
+      name: myrel
+    set:
+      configMaps:
+        app-config:
+          data:
+            KEY: value
+      deployments:
+        api:
+          image: nginx
+          envsFromConfigmap:
+            KEY:
+              name: myrel-app-config
+              key: KEY
+    asserts:
+      - matchRegex:
+          path: spec.template.metadata.annotations.checksum/configmap-app-config
+          pattern: ^[a-f0-9]{64}$
+
+  - it: cherry-pick envsFromSecret pointing at chart-managed Secret produces checksum
+    release:
+      name: myrel
+    set:
+      secrets:
+        api-keys:
+          data:
+            TOKEN: abc
+      deployments:
+        api:
+          image: nginx
+          envsFromSecret:
+            TOKEN:
+              name: myrel-api-keys
+              key: TOKEN
+    asserts:
+      - matchRegex:
+          path: spec.template.metadata.annotations.checksum/secret-api-keys
+          pattern: ^[a-f0-9]{64}$
+
+  - it: cherry-pick envsFromConfigmap pointing at external CM does NOT produce chart checksum
+    release:
+      name: myrel
+    set:
+      configMaps:
+        app-config:
+          data:
+            KEY: value
+      deployments:
+        api:
+          image: nginx
+          envsFromConfigmap:
+            EXT_KEY:
+              name: external-not-chart-managed
+              key: KEY
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations.checksum/configmap-external-not-chart-managed
+      - notExists:
+          path: spec.template.metadata.annotations.checksum/configmap-app-config
+
+  - it: cherry-pick on deploymentsGeneral propagates to all instances
+    release:
+      name: myrel
+    set:
+      configMaps:
+        shared-config:
+          data:
+            KEY: v
+      deploymentsGeneral:
+        envsFromConfigmap:
+          KEY:
+            name: myrel-shared-config
+            key: KEY
+      deployments:
+        api:
+          image: nginx
+    asserts:
+      - matchRegex:
+          path: spec.template.metadata.annotations.checksum/configmap-shared-config
+          pattern: ^[a-f0-9]{64}$

@@ -365,3 +365,87 @@ tests:
           path: spec.groups[0].rules[0].expr
           pattern: "> 3600"
         documentIndex: 1
+
+  - it: commandDurationAlert PrometheusRule uses default labels when no override
+    set:
+      cronJobs:
+        etl:
+          schedule: "0 * * * *"
+          image: nginx
+          commandDurationAlert: 1800
+    asserts:
+      - documentIndex: 1
+        equal:
+          path: kind
+          value: PrometheusRule
+      - documentIndex: 1
+        equal:
+          path: metadata.labels.prometheus
+          value: k8s
+      - documentIndex: 1
+        equal:
+          path: metadata.labels.role
+          value: alert-rules
+      - documentIndex: 1
+        equal:
+          path: spec.groups[0].rules[0].labels.severity
+          value: warning
+
+  - it: commandDurationAlertLabels overrides PrometheusRule metadata.labels
+    set:
+      cronJobs:
+        etl:
+          schedule: "0 * * * *"
+          image: nginx
+          commandDurationAlert: 1800
+          commandDurationAlertLabels:
+            release: kps
+            tier: platform
+    asserts:
+      - documentIndex: 1
+        equal:
+          path: metadata.labels.release
+          value: kps
+      - documentIndex: 1
+        equal:
+          path: metadata.labels.tier
+          value: platform
+      - documentIndex: 1
+        notExists:
+          path: metadata.labels.prometheus
+
+  - it: commandDurationAlertRuleLabels overrides alert rule labels
+    set:
+      cronJobs:
+        etl:
+          schedule: "0 * * * *"
+          image: nginx
+          commandDurationAlert: 1800
+          commandDurationAlertRuleLabels:
+            severity: critical
+            team: data
+    asserts:
+      - documentIndex: 1
+        equal:
+          path: spec.groups[0].rules[0].labels.severity
+          value: critical
+      - documentIndex: 1
+        equal:
+          path: spec.groups[0].rules[0].labels.team
+          value: data
+
+  - it: cronJobsGeneral commandDurationAlertLabels propagates to all cronjobs
+    set:
+      cronJobsGeneral:
+        commandDurationAlertLabels:
+          release: kps
+      cronJobs:
+        etl:
+          schedule: "0 * * * *"
+          image: nginx
+          commandDurationAlert: 1800
+    asserts:
+      - documentIndex: 1
+        equal:
+          path: metadata.labels.release
+          value: kps

@@ -84,7 +84,8 @@
           "items": { "$ref": "#/$defs/topologySpreadConstraint" }
         },
         "revisionHistoryLimit": { "type": "integer", "minimum": 0, "description": "Default revisionHistoryLimit for Deployments and StatefulSets." },
-        "dnsConfig": { "type": "object", "additionalProperties": true, "description": "Default pod DNS configuration." }
+        "dnsConfig": { "type": "object", "additionalProperties": true, "description": "Default pod DNS configuration." },
+        "healthCheck": { "$ref": "#/$defs/healthCheck", "description": "Default health check shorthand cascaded into all workloads (defaults → <kind>General → workload). Workloads with explicit startup/liveness/readiness probes are not affected; init containers never inherit." }
       }
     },
     "podAffinityPreset": {
@@ -444,7 +445,9 @@
           "description": "Concurrency policy for CronJob. Overrides singleOnly when set."
         },
         "suspend": { "type": "boolean", "description": "Suspend the CronJob." },
-        "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Seconds threshold — creates a PrometheusRule that fires when CronJob execution exceeds this duration." }
+        "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Seconds threshold — creates a PrometheusRule that fires when CronJob execution exceeds this duration." },
+        "commandDurationAlertLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Labels applied to the PrometheusRule resource (replaces the default {prometheus: k8s, role: alert-rules}). Set this to match your kube-prometheus-stack.ruleSelector." },
+        "commandDurationAlertRuleLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Labels applied to the alert rule itself (replaces the default {severity: warning}). Used by Alertmanager routing." }
       }
     },
     "job": {
@@ -452,7 +455,9 @@
         { "$ref": "#/$defs/workload" }
       ],
       "properties": {
-        "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Seconds threshold — creates a PrometheusRule that fires when Job execution exceeds this duration." }
+        "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Seconds threshold — creates a PrometheusRule that fires when Job execution exceeds this duration." },
+        "commandDurationAlertLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Labels applied to the PrometheusRule resource (replaces the default {prometheus: k8s, role: alert-rules}). Set this to match your kube-prometheus-stack.ruleSelector." },
+        "commandDurationAlertRuleLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Labels applied to the alert rule itself (replaces the default {severity: warning}). Used by Alertmanager routing." }
       }
     },
     "imagePullPolicy": {
@@ -846,6 +851,16 @@
           "minimum": 0,
           "description": "Seconds threshold for PrometheusRule alert on long-running jobs."
         },
+        "commandDurationAlertLabels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Labels applied to the PrometheusRule resource (replaces the default {prometheus: k8s, role: alert-rules}). Set this to match your kube-prometheus-stack.ruleSelector."
+        },
+        "commandDurationAlertRuleLabels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Labels applied to the alert rule itself (replaces the default {severity: warning}). Used by Alertmanager routing."
+        },
         "autoChecksum": {
           "type": "boolean",
           "description": "Enable/disable automatic checksum annotations for envConfigmaps/envSecrets."
@@ -1037,6 +1052,8 @@
         "weight": { "type": ["string", "integer"], "description": "Default Helm hook weight for all hooks." },
         "restartPolicy": { "type": "string", "description": "Default restart policy for Job/CronJob/Hook pods." },
         "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Default seconds threshold for PrometheusRule alert on long-running jobs." },
+        "commandDurationAlertLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Default labels for the PrometheusRule resource (replaces chart default when set)." },
+        "commandDurationAlertRuleLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Default labels for the alert rule itself (replaces chart default when set)." },
         "podManagementPolicy": { "type": "string", "description": "Default pod management policy for StatefulSets (OrderedReady or Parallel)." },
         "lifecycle": { "type": "object", "additionalProperties": true, "description": "Default container lifecycle hooks (preStop, postStart)." },
         "startupProbe": { "type": "object", "additionalProperties": true, "description": "Default custom startup probe." },

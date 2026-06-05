@@ -1117,3 +1117,255 @@ tests:
     asserts:
       - notExists:
           path: spec.template.spec.initContainers[0].lifecycle
+
+  # ── healthCheck cascade: defaults → general → instance into containers ────
+  - it: defaults.healthCheck cascades into shorthand container without own healthCheck
+    set:
+      defaults:
+        healthCheck:
+          path: /healthz
+          port: 8080
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /healthz
+
+  - it: deploymentsGeneral.healthCheck overrides defaults.healthCheck for shorthand
+    set:
+      defaults:
+        healthCheck:
+          path: /healthz
+      deploymentsGeneral:
+        healthCheck:
+          path: /general
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /general
+
+  - it: instance healthCheck overrides deploymentsGeneral healthCheck for shorthand
+    set:
+      deploymentsGeneral:
+        healthCheck:
+          path: /general
+      deployments:
+        web:
+          image: myapp:1.0
+          healthCheck:
+            path: /instance
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /instance
+
+  - it: workload-level healthCheck cascades into explicit containers without own probes
+    set:
+      deployments:
+        web:
+          healthCheck:
+            path: /healthz
+            port: 8080
+          containers:
+            - name: app
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /healthz
+
+  - it: defaults.healthCheck cascades into explicit containers without own probes
+    set:
+      defaults:
+        healthCheck:
+          path: /healthz
+      deployments:
+        web:
+          containers:
+            - name: app
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz
+
+  - it: explicit container with own livenessProbe is not overridden by workload healthCheck cascade
+    set:
+      deployments:
+        web:
+          healthCheck:
+            path: /workload
+          containers:
+            - name: app
+              image: myapp
+              imageTag: "1.0"
+              livenessProbe:
+                tcpSocket:
+                  port: 9000
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: 9000
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: init container does not inherit workload healthCheck cascade
+    set:
+      defaults:
+        healthCheck:
+          path: /healthz
+      deployments:
+        web:
+          image: myapp:1.0
+          initContainers:
+            - name: init
+              image: busybox
+              imageTag: latest
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers[0].livenessProbe
+      - notExists:
+          path: spec.template.spec.initContainers[0].readinessProbe
+      - notExists:
+          path: spec.template.spec.initContainers[0].startupProbe
+
+  - it: diagnosticMode still suppresses cascaded probes
+    set:
+      diagnosticMode:
+        enabled: true
+      defaults:
+        healthCheck:
+          path: /healthz
+      deployments:
+        web:
+          containers:
+            - name: app
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe
+
+  # ── securityContext deep-merge: adding capabilities preserves secure defaults ──
+  - it: adding capabilities.add deep-merges and preserves capabilities.drop
+    set:
+      deployments:
+        web:
+          image: myapp:1.0
+          containerSecurityContext:
+            capabilities:
+              add:
+                - NET_BIND_SERVICE
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          value:
+            - ALL
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.add
+          value:
+            - NET_BIND_SERVICE
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+
+  - it: per-container securityContext deep-merges with workload containerSecurityContext
+    set:
+      deployments:
+        web:
+          containerSecurityContext:
+            readOnlyRootFilesystem: false
+          containers:
+            - name: app
+              image: myapp
+              imageTag: "1.0"
+              securityContext:
+                capabilities:
+                  add:
+                    - NET_BIND_SERVICE
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          value:
+            - ALL
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.add
+          value:
+            - NET_BIND_SERVICE
+
+  - it: deploymentsGeneral.containerSecurityContext deep-merges with defaults
+    set:
+      deploymentsGeneral:
+        containerSecurityContext:
+          runAsUser: 1000
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+
+  - it: instance podSecurityContext deep-merges with defaults
+    set:
+      defaults:
+        podSecurityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+      deployments:
+        web:
+          image: myapp:1.0
+          podSecurityContext:
+            fsGroup: 2000
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 2000

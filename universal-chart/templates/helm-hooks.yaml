@@ -4,13 +4,19 @@
     {{- if not (.disabled | default false) }}
       {{- $hookName := include "helpers.app.fullname" (dict "name" $name "context" $) }}
       {{- $deletePolicy := dig "deletePolicy" (dig "deletePolicy" "before-hook-creation,hook-succeeded" $general) $hook }}
+      {{- $hookCoreAnnots := dict "helm.sh/hook" (dig "kind" (dig "kind" "pre-install,pre-upgrade" $general) $hook) "helm.sh/hook-weight" (dig "weight" (dig "weight" "5" $general) $hook | toString) "helm.sh/hook-delete-policy" $deletePolicy -}}
+      {{- $hookExtraAnnots := $hookCoreAnnots -}}
+      {{- with $.Values.defaults.hookAnnotations -}}
+        {{- $renderedHookAnnots := include "helpers.tplvalues.render" (dict "value" . "context" $) | fromYaml -}}
+        {{- $hookExtraAnnots = mustMergeOverwrite $renderedHookAnnots $hookCoreAnnots -}}
+      {{- end -}}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ $hookName }}
   namespace: {{ $.Release.Namespace | quote }}
-      {{- include "helpers.workload.metadata" (dict "name" $name "value" $hook "general" $general "context" $ "extraAnnotations" (dict "helm.sh/hook" (dig "kind" (dig "kind" "pre-install,pre-upgrade" $general) $hook) "helm.sh/hook-weight" (dig "weight" (dig "weight" "5" $general) $hook | toString) "helm.sh/hook-delete-policy" $deletePolicy)) | nindent 2 }}
+      {{- include "helpers.workload.metadata" (dict "name" $name "value" $hook "general" $general "context" $ "extraAnnotations" $hookExtraAnnots) | nindent 2 }}
 spec:
       {{- $par := dig "parallelism" (dig "parallelism" nil $general) $hook -}}
       {{- if ne $par nil }}

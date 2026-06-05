@@ -223,3 +223,35 @@ tests:
       - equal:
           path: spec.replicas
           value: 0
+
+  - it: serviceName honors releasePrefix and matches metadata.name by default
+    release:
+      name: myrel
+    set:
+      releasePrefix: corp
+      statefulSets:
+        pg:
+          image: postgres
+          imageTag: "16"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: corp-pg
+      - equal:
+          path: spec.serviceName
+          value: corp-pg
+
+  - it: explicit serviceName is also prefixed to match auto-prefixed Services
+    release:
+      name: myrel
+    set:
+      releasePrefix: corp
+      statefulSets:
+        pg:
+          image: postgres
+          imageTag: "16"
+          serviceName: pg-headless
+    asserts:
+      - equal:
+          path: spec.serviceName
+          value: corp-pg-headless
