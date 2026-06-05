@@ -220,3 +220,44 @@ tests:
           path: spec.groups[0].rules[0].expr
           pattern: "> 1800"
         documentIndex: 1
+
+  - it: commandDurationAlertLabels overrides PrometheusRule metadata.labels for jobs
+    set:
+      jobs:
+        etl:
+          image: nginx
+          commandDurationAlert: 1800
+          commandDurationAlertLabels:
+            release: kps
+    asserts:
+      - documentIndex: 1
+        equal:
+          path: kind
+          value: PrometheusRule
+      - documentIndex: 1
+        equal:
+          path: metadata.labels.release
+          value: kps
+      - documentIndex: 1
+        notExists:
+          path: metadata.labels.prometheus
+
+  - it: jobsGeneral commandDurationAlertRuleLabels propagates to all jobs
+    set:
+      jobsGeneral:
+        commandDurationAlertRuleLabels:
+          severity: critical
+          team: data
+      jobs:
+        etl:
+          image: nginx
+          commandDurationAlert: 1800
+    asserts:
+      - documentIndex: 1
+        equal:
+          path: spec.groups[0].rules[0].labels.severity
+          value: critical
+      - documentIndex: 1
+        equal:
+          path: spec.groups[0].rules[0].labels.team
+          value: data

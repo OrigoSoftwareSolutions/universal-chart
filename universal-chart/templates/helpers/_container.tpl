@@ -9,6 +9,7 @@
   {{- $autoPvcs := .autoPvcs | default false -}}
   {{- $workloadName := .workloadName | default .name -}}
   {{- $workloadContainerSecurityContext := .workloadContainerSecurityContext -}}
+  {{- $workloadHealthCheck := .workloadHealthCheck -}}
   {{- $isInitContainer := .isInitContainer | default false -}}
   {{- with $c -}}
     {{- if $useDefaultImage }}
@@ -33,21 +34,21 @@
       {{- end }}
     {{- end }}
   imagePullPolicy: {{ include "helpers.tplvalues.render" (dict "value" (.imagePullPolicy | default $.Values.defaultImagePullPolicy) "context" $) }}
-    {{- if .securityContext }}
-  securityContext: {{- include "helpers.tplvalues.render" ( dict "value" .securityContext "context" $) | nindent 4 }}
-    {{- else if $workloadContainerSecurityContext }}
-  securityContext: {{- include "helpers.tplvalues.render" ( dict "value" $workloadContainerSecurityContext "context" $) | nindent 4 }}
-    {{- else if $general.containerSecurityContext }}
-  securityContext: {{- include "helpers.tplvalues.render" ( dict "value" $general.containerSecurityContext "context" $) | nindent 4 }}
-    {{- else if $.Values.defaults.containerSecurityContext }}
-  securityContext: {{- include "helpers.tplvalues.render" ( dict "value" $.Values.defaults.containerSecurityContext "context" $) | nindent 4 }}
+    {{- /* Deep-merge container securityContext: defaults → general → workload → container. Each tier overrides previous keys; unset keys retain prior tier's secure defaults so adding a single capability does not strip allowPrivilegeEscalation: false / readOnlyRootFilesystem: true / capabilities.drop. */ -}}
+    {{- $effectiveContainerSecCtx := dict -}}
+    {{- with $.Values.defaults.containerSecurityContext }}{{ $effectiveContainerSecCtx = mustMergeOverwrite $effectiveContainerSecCtx (deepCopy .) }}{{ end -}}
+    {{- with $general.containerSecurityContext }}{{ $effectiveContainerSecCtx = mustMergeOverwrite $effectiveContainerSecCtx (deepCopy .) }}{{ end -}}
+    {{- with $workloadContainerSecurityContext }}{{ $effectiveContainerSecCtx = mustMergeOverwrite $effectiveContainerSecCtx (deepCopy .) }}{{ end -}}
+    {{- with .securityContext }}{{ $effectiveContainerSecCtx = mustMergeOverwrite $effectiveContainerSecCtx (deepCopy .) }}{{ end -}}
+    {{- if $effectiveContainerSecCtx }}
+  securityContext: {{- include "helpers.tplvalues.render" (dict "value" $effectiveContainerSecCtx "context" $) | nindent 4 }}
     {{- end }}
-    {{- if $.Values.diagnosticMode.enabled }}
+    {{- if and $.Values.diagnosticMode.enabled (not $isInitContainer) }}
   args: {{- include "helpers.tplvalues.render" ( dict "value" $.Values.diagnosticMode.args "context" $) | nindent 2 }}
     {{- else if .args }}
   args: {{- include "helpers.tplvalues.render" ( dict "value" .args "context" $) | nindent 2 }}
     {{- end }}
-    {{- if $.Values.diagnosticMode.enabled }}
+    {{- if and $.Values.diagnosticMode.enabled (not $isInitContainer) }}
   command: {{- include "helpers.tplvalues.render" ( dict "value" $.Values.diagnosticMode.command "context" $) | nindent 2 }}
     {{- else if .command }}
   command: {{- include "helpers.tplvalues.render" ( dict "value" .command "context" $) | nindent 2 }}
@@ -79,10 +80,14 @@
       {{- end }}
     {{- end }}
     {{- if not $.Values.diagnosticMode.enabled }}
-      {{- if and $enableHealthCheck .healthCheck }}
-  startupProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "startup" "healthCheck" .healthCheck) | nindent 4 }}
-  livenessProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "liveness" "healthCheck" .healthCheck) | nindent 4 }}
-  readinessProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "readiness" "healthCheck" .healthCheck) | nindent 4 }}
+      {{- $effectiveHealthCheck := "" -}}
+      {{- if and $enableHealthCheck .healthCheck }}{{ $effectiveHealthCheck = .healthCheck }}{{ end -}}
+      {{- $hasOwnProbe := or .startupProbe .livenessProbe .readinessProbe -}}
+      {{- if and (not $effectiveHealthCheck) (not $hasOwnProbe) (not $isInitContainer) $workloadHealthCheck }}{{ $effectiveHealthCheck = $workloadHealthCheck }}{{ end -}}
+      {{- if $effectiveHealthCheck }}
+  startupProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "startup" "healthCheck" $effectiveHealthCheck) | nindent 4 }}
+  livenessProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "liveness" "healthCheck" $effectiveHealthCheck) | nindent 4 }}
+  readinessProbe: {{- include "helpers.workload.healthCheckProbe" (dict "probeType" "readiness" "healthCheck" $effectiveHealthCheck) | nindent 4 }}
       {{- else }}
         {{- with .startupProbe }}
   startupProbe: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 4 }}

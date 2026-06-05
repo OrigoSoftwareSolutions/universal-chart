@@ -13,6 +13,11 @@
     {{- if (ne .podSecurityContext nil) }}{{ $podSecurityContext = .podSecurityContext }}{{ end -}}
     {{- $generalPodSecurityContext := $general.securityContext -}}
     {{- if (ne $general.podSecurityContext nil) }}{{ $generalPodSecurityContext = $general.podSecurityContext }}{{ end -}}
+    {{- $workloadHealthCheck := "" -}}
+    {{- if (ne .healthCheck nil) }}{{ $workloadHealthCheck = .healthCheck }}
+    {{- else if (ne $general.healthCheck nil) }}{{ $workloadHealthCheck = $general.healthCheck }}
+    {{- else if (ne $.Values.defaults.healthCheck nil) }}{{ $workloadHealthCheck = $.Values.defaults.healthCheck }}
+    {{- end -}}
     {{- if (ne .serviceAccountName nil) }}
       {{- with .serviceAccountName }}
 serviceAccountName: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
@@ -146,136 +151,131 @@ topologySpreadConstraints: {{- include "helpers.tplvalues.render" (dict "value" 
       {{- end }}
     {{- end }}
 
-    {{- if (ne $podSecurityContext nil) }}
-      {{- with $podSecurityContext }}
-securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
-      {{- end }}
-    {{- else if (ne $generalPodSecurityContext nil) }}
-      {{- with $generalPodSecurityContext }}
-securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
-      {{- end }}
-    {{- else if (ne $.Values.defaults.podSecurityContext nil) }}
-      {{- with $.Values.defaults.podSecurityContext }}
-securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
-      {{- end }}
-    {{- else if (ne $.Values.defaults.securityContext nil) }}
-      {{- with $.Values.defaults.securityContext }}
-securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
-      {{- end }}
-    {{- end }}
-    {{- $pullSecrets := concat ($.Values.imagePullSecrets | default list) ($.Values.defaults.extraImagePullSecrets | default list) ($general.extraImagePullSecrets | default list) (.imagePullSecrets | default list) (.extraImagePullSecrets | default list) | uniq -}}
-    {{- if $pullSecrets }}
-imagePullSecrets:
-      {{- range $pullSecrets }}
-- name: {{ . }}
-      {{- end }}
-    {{- end }}
-    {{- $termGrace := 0 -}}
-    {{- $termGraceSet := false -}}
-    {{- if (ne .terminationGracePeriodSeconds nil) }}{{ $termGrace = .terminationGracePeriodSeconds }}{{ $termGraceSet = true }}{{ end -}}
-    {{- if and (not $termGraceSet) (ne $general.terminationGracePeriodSeconds nil) }}{{ $termGrace = $general.terminationGracePeriodSeconds }}{{ $termGraceSet = true }}{{ end -}}
-    {{- if and (not $termGraceSet) (ne $.Values.defaults.terminationGracePeriodSeconds nil) }}{{ $termGrace = $.Values.defaults.terminationGracePeriodSeconds }}{{ $termGraceSet = true }}{{ end -}}
-    {{- if $termGraceSet }}
-terminationGracePeriodSeconds: {{ $termGrace }}
-    {{- end }}
-    {{- if (ne .hostNetwork nil) }}
-hostNetwork: {{ .hostNetwork }}
-    {{- else if (ne $general.hostNetwork nil) }}
-hostNetwork: {{ $general.hostNetwork }}
-    {{- else if (ne $.Values.defaults.hostNetwork nil) }}
-hostNetwork: {{ $.Values.defaults.hostNetwork }}
-    {{- end }}
-    {{- if (ne .hostPID nil) }}
-hostPID: {{ .hostPID }}
-    {{- else if (ne $general.hostPID nil) }}
-hostPID: {{ $general.hostPID }}
-    {{- else if (ne $.Values.defaults.hostPID nil) }}
-hostPID: {{ $.Values.defaults.hostPID }}
-    {{- end }}
-    {{- if (ne .hostIPC nil) }}
-hostIPC: {{ .hostIPC }}
-    {{- else if (ne $general.hostIPC nil) }}
-hostIPC: {{ $general.hostIPC }}
-    {{- else if (ne $.Values.defaults.hostIPC nil) }}
-hostIPC: {{ $.Values.defaults.hostIPC }}
-    {{- end }}
-    {{- if (ne .shareProcessNamespace nil) }}
-shareProcessNamespace: {{ .shareProcessNamespace }}
-    {{- else if (ne $general.shareProcessNamespace nil) }}
-shareProcessNamespace: {{ $general.shareProcessNamespace }}
-    {{- else if (ne $.Values.defaults.shareProcessNamespace nil) }}
-shareProcessNamespace: {{ $.Values.defaults.shareProcessNamespace }}
-    {{- end }}
-    {{- if (ne .automountServiceAccountToken nil) }}
-automountServiceAccountToken: {{ .automountServiceAccountToken }}
-    {{- else if (ne $general.automountServiceAccountToken nil) }}
-automountServiceAccountToken: {{ $general.automountServiceAccountToken }}
-    {{- else if (ne $.Values.defaults.automountServiceAccountToken nil) }}
-automountServiceAccountToken: {{ $.Values.defaults.automountServiceAccountToken }}
-    {{- end }}
-    {{- if (ne .runtimeClassName nil) }}
-runtimeClassName: {{ .runtimeClassName }}
-    {{- else if (ne $general.runtimeClassName nil) }}
-runtimeClassName: {{ $general.runtimeClassName }}
-    {{- else if (ne $.Values.defaults.runtimeClassName nil) }}
-runtimeClassName: {{ $.Values.defaults.runtimeClassName }}
-    {{- end }}
-    {{- if (ne .overhead nil) }}
-overhead: {{- include "helpers.tplvalues.render" (dict "value" .overhead "context" $) | nindent 2 }}
-    {{- else if (ne $general.overhead nil) }}
-overhead: {{- include "helpers.tplvalues.render" (dict "value" $general.overhead "context" $) | nindent 2 }}
-    {{- else if (ne $.Values.defaults.overhead nil) }}
-overhead: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.overhead "context" $) | nindent 2 }}
-    {{- end }}
-    {{- if (ne .readinessGates nil) }}
-readinessGates: {{- include "helpers.tplvalues.render" (dict "value" .readinessGates "context" $) | nindent 2 }}
-    {{- else if (ne $general.readinessGates nil) }}
-readinessGates: {{- include "helpers.tplvalues.render" (dict "value" $general.readinessGates "context" $) | nindent 2 }}
-    {{- else if (ne $.Values.defaults.readinessGates nil) }}
-readinessGates: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.readinessGates "context" $) | nindent 2 }}
-    {{- end }}
-    {{- if (ne .schedulingGates nil) }}
-schedulingGates: {{- include "helpers.tplvalues.render" (dict "value" .schedulingGates "context" $) | nindent 2 }}
-    {{- else if (ne $general.schedulingGates nil) }}
-schedulingGates: {{- include "helpers.tplvalues.render" (dict "value" $general.schedulingGates "context" $) | nindent 2 }}
-    {{- else if (ne $.Values.defaults.schedulingGates nil) }}
-schedulingGates: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.schedulingGates "context" $) | nindent 2 }}
-    {{- end }}
-    {{- if (ne .os nil) }}
-os: {{- include "helpers.tplvalues.render" (dict "value" .os "context" $) | nindent 2 }}
-    {{- else if (ne $general.os nil) }}
-os: {{- include "helpers.tplvalues.render" (dict "value" $general.os "context" $) | nindent 2 }}
-    {{- else if (ne $.Values.defaults.os nil) }}
-os: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.os "context" $) | nindent 2 }}
-    {{- end }}
-    {{- $workloadContainerSecCtx := .containerSecurityContext -}}
-    {{- with .initContainers}}
-initContainers:
-      {{- range $idx, $ic := . }}
-        {{- with $ic.name }}
-- name: {{ include "helpers.tplvalues.render" ( dict "value" . "context" $) }}
-        {{- else }}
-- name: {{ printf "%s-init-%d" ($name | trunc 52 | trimSuffix "-") $idx }}
+    {{- /* Deep-merge pod securityContext: defaults (with deprecated `securityContext` alias) → general → workload. Each tier overrides previous keys; unset keys retain prior tier's defaults. Setting an empty dict at any tier clears the cascade below it (escape hatch). */ -}}
+    {{- $effectivePodSecCtx := dict -}}
+    {{- $defaultsPSC := $.Values.defaults.podSecurityContext -}}
+    {{- if (eq $defaultsPSC nil) }}{{ $defaultsPSC = $.Values.defaults.securityContext }}{{ end -}}
+    {{- with $defaultsPSC }}{{ $effectivePodSecCtx = mustMergeOverwrite $effectivePodSecCtx (deepCopy .) }}{{ end -}}
+    {{- if (and (kindIs "map" $generalPodSecurityContext) (eq (len $generalPodSecurityContext) 0)) }}{{ $effectivePodSecCtx = dict }}
+    {{- else if $generalPodSecurityContext }}{{ $effectivePodSecCtx = mustMergeOverwrite $effectivePodSecCtx (deepCopy $generalPodSecurityContext) }}{{ end -}}
+      {{- if (and (kindIs "map" $podSecurityContext) (eq (len $podSecurityContext) 0)) }}{{ $effectivePodSecCtx = dict }}
+      {{- else if $podSecurityContext }}{{ $effectivePodSecCtx = mustMergeOverwrite $effectivePodSecCtx (deepCopy $podSecurityContext) }}{{ end -}}
+        {{- if $effectivePodSecCtx }}
+securityContext: {{- include "helpers.tplvalues.render" (dict "value" $effectivePodSecCtx "context" $) | nindent 2 }}
         {{- end }}
-        {{- include "helpers.container.render" (dict "value" $ic "name" "" "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" false "workloadContainerSecurityContext" $workloadContainerSecCtx "isInitContainer" true) | indent 0 }}
-      {{- end }}{{- end }}
-      {{- if not .containers }}
+        {{- $pullSecrets := concat ($.Values.imagePullSecrets | default list) ($.Values.defaults.extraImagePullSecrets | default list) ($general.extraImagePullSecrets | default list) (.imagePullSecrets | default list) (.extraImagePullSecrets | default list) | uniq -}}
+        {{- if $pullSecrets }}
+imagePullSecrets:
+          {{- range $pullSecrets }}
+- name: {{ . }}
+          {{- end }}
+        {{- end }}
+        {{- $termGrace := 0 -}}
+        {{- $termGraceSet := false -}}
+        {{- if (ne .terminationGracePeriodSeconds nil) }}{{ $termGrace = .terminationGracePeriodSeconds }}{{ $termGraceSet = true }}{{ end -}}
+        {{- if and (not $termGraceSet) (ne $general.terminationGracePeriodSeconds nil) }}{{ $termGrace = $general.terminationGracePeriodSeconds }}{{ $termGraceSet = true }}{{ end -}}
+        {{- if and (not $termGraceSet) (ne $.Values.defaults.terminationGracePeriodSeconds nil) }}{{ $termGrace = $.Values.defaults.terminationGracePeriodSeconds }}{{ $termGraceSet = true }}{{ end -}}
+        {{- if $termGraceSet }}
+terminationGracePeriodSeconds: {{ $termGrace }}
+        {{- end }}
+        {{- if (ne .hostNetwork nil) }}
+hostNetwork: {{ .hostNetwork }}
+        {{- else if (ne $general.hostNetwork nil) }}
+hostNetwork: {{ $general.hostNetwork }}
+        {{- else if (ne $.Values.defaults.hostNetwork nil) }}
+hostNetwork: {{ $.Values.defaults.hostNetwork }}
+        {{- end }}
+        {{- if (ne .hostPID nil) }}
+hostPID: {{ .hostPID }}
+        {{- else if (ne $general.hostPID nil) }}
+hostPID: {{ $general.hostPID }}
+        {{- else if (ne $.Values.defaults.hostPID nil) }}
+hostPID: {{ $.Values.defaults.hostPID }}
+        {{- end }}
+        {{- if (ne .hostIPC nil) }}
+hostIPC: {{ .hostIPC }}
+        {{- else if (ne $general.hostIPC nil) }}
+hostIPC: {{ $general.hostIPC }}
+        {{- else if (ne $.Values.defaults.hostIPC nil) }}
+hostIPC: {{ $.Values.defaults.hostIPC }}
+        {{- end }}
+        {{- if (ne .shareProcessNamespace nil) }}
+shareProcessNamespace: {{ .shareProcessNamespace }}
+        {{- else if (ne $general.shareProcessNamespace nil) }}
+shareProcessNamespace: {{ $general.shareProcessNamespace }}
+        {{- else if (ne $.Values.defaults.shareProcessNamespace nil) }}
+shareProcessNamespace: {{ $.Values.defaults.shareProcessNamespace }}
+        {{- end }}
+        {{- if (ne .automountServiceAccountToken nil) }}
+automountServiceAccountToken: {{ .automountServiceAccountToken }}
+        {{- else if (ne $general.automountServiceAccountToken nil) }}
+automountServiceAccountToken: {{ $general.automountServiceAccountToken }}
+        {{- else if (ne $.Values.defaults.automountServiceAccountToken nil) }}
+automountServiceAccountToken: {{ $.Values.defaults.automountServiceAccountToken }}
+        {{- end }}
+        {{- if (ne .runtimeClassName nil) }}
+runtimeClassName: {{ .runtimeClassName }}
+        {{- else if (ne $general.runtimeClassName nil) }}
+runtimeClassName: {{ $general.runtimeClassName }}
+        {{- else if (ne $.Values.defaults.runtimeClassName nil) }}
+runtimeClassName: {{ $.Values.defaults.runtimeClassName }}
+        {{- end }}
+        {{- if (ne .overhead nil) }}
+overhead: {{- include "helpers.tplvalues.render" (dict "value" .overhead "context" $) | nindent 2 }}
+        {{- else if (ne $general.overhead nil) }}
+overhead: {{- include "helpers.tplvalues.render" (dict "value" $general.overhead "context" $) | nindent 2 }}
+        {{- else if (ne $.Values.defaults.overhead nil) }}
+overhead: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.overhead "context" $) | nindent 2 }}
+        {{- end }}
+        {{- if (ne .readinessGates nil) }}
+readinessGates: {{- include "helpers.tplvalues.render" (dict "value" .readinessGates "context" $) | nindent 2 }}
+        {{- else if (ne $general.readinessGates nil) }}
+readinessGates: {{- include "helpers.tplvalues.render" (dict "value" $general.readinessGates "context" $) | nindent 2 }}
+        {{- else if (ne $.Values.defaults.readinessGates nil) }}
+readinessGates: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.readinessGates "context" $) | nindent 2 }}
+        {{- end }}
+        {{- if (ne .schedulingGates nil) }}
+schedulingGates: {{- include "helpers.tplvalues.render" (dict "value" .schedulingGates "context" $) | nindent 2 }}
+        {{- else if (ne $general.schedulingGates nil) }}
+schedulingGates: {{- include "helpers.tplvalues.render" (dict "value" $general.schedulingGates "context" $) | nindent 2 }}
+        {{- else if (ne $.Values.defaults.schedulingGates nil) }}
+schedulingGates: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.schedulingGates "context" $) | nindent 2 }}
+        {{- end }}
+        {{- if (ne .os nil) }}
+os: {{- include "helpers.tplvalues.render" (dict "value" .os "context" $) | nindent 2 }}
+        {{- else if (ne $general.os nil) }}
+os: {{- include "helpers.tplvalues.render" (dict "value" $general.os "context" $) | nindent 2 }}
+        {{- else if (ne $.Values.defaults.os nil) }}
+os: {{- include "helpers.tplvalues.render" (dict "value" $.Values.defaults.os "context" $) | nindent 2 }}
+        {{- end }}
+        {{- $workloadContainerSecCtx := .containerSecurityContext -}}
+        {{- with .initContainers}}
+initContainers:
+          {{- range $idx, $ic := . }}
+            {{- with $ic.name }}
+- name: {{ include "helpers.tplvalues.render" ( dict "value" . "context" $) }}
+            {{- else }}
+- name: {{ printf "%s-init-%d" ($name | trunc 52 | trimSuffix "-") $idx }}
+            {{- end }}
+            {{- include "helpers.container.render" (dict "value" $ic "name" "" "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" false "workloadContainerSecurityContext" $workloadContainerSecCtx "workloadHealthCheck" $workloadHealthCheck "isInitContainer" true) | indent 0 }}
+          {{- end }}{{- end }}
+          {{- if not .containers }}
 containers:
 - name: {{ $name }}
-        {{- include "helpers.container.render" (dict "value" . "name" $name "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" true "enableMapPorts" true "useDefaultImage" true "autoPvcs" $autoPvcs "workloadContainerSecurityContext" .containerSecurityContext) | indent 0 }}
-      {{- else }}
-containers:
-        {{- range $idx, $ct := .containers }}
-          {{- with $ct.name }}
-- name: {{ include "helpers.tplvalues.render" ( dict "value" . "context" $) }}
+            {{- include "helpers.container.render" (dict "value" . "name" $name "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" true "enableMapPorts" true "useDefaultImage" true "autoPvcs" $autoPvcs "workloadContainerSecurityContext" .containerSecurityContext "workloadHealthCheck" $workloadHealthCheck) | indent 0 }}
           {{- else }}
+containers:
+            {{- range $idx, $ct := .containers }}
+              {{- with $ct.name }}
+- name: {{ include "helpers.tplvalues.render" ( dict "value" . "context" $) }}
+              {{- else }}
 - name: {{ printf "%s-%d" ($name | trunc 58 | trimSuffix "-") $idx }}
+              {{- end }}
+              {{- include "helpers.container.render" (dict "value" $ct "name" "" "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" false "autoPvcs" $autoPvcs "workloadContainerSecurityContext" $workloadContainerSecCtx "workloadHealthCheck" $workloadHealthCheck) | indent 0 }}
+            {{- end }}
           {{- end }}
-          {{- include "helpers.container.render" (dict "value" $ct "name" "" "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" false "autoPvcs" $autoPvcs "workloadContainerSecurityContext" $workloadContainerSecCtx) | indent 0 }}
-        {{- end }}
-      {{- end }}
-      {{- $vols := include "helpers.volumes.renderVolume" (dict "value" . "general" $general "context" $ "name" $name "autoPvcs" $autoPvcs) }}
+          {{- $vols := include "helpers.volumes.renderVolume" (dict "value" . "general" $general "context" $ "name" $name "autoPvcs" $autoPvcs) }}
 volumes:{{- if eq (trim $vols) "[]" }} []{{- else }}
 {{ regexReplaceAll "\n{2,}" ($vols | trim) "\n" }}{{- end }}
-    {{- end -}}
-  {{- end -}}
+        {{- end -}}
+      {{- end -}}

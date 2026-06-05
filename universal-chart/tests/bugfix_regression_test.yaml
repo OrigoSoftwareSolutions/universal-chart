@@ -98,3 +98,38 @@ tests:
       - equal:
           path: metadata.name
           value: myprefix-api
+
+  # ── diagnosticMode preserves init containers ─────────────────────
+  - it: diagnosticMode does NOT override init container command and args
+    set:
+      diagnosticMode:
+        enabled: true
+      deployments:
+        api:
+          image: nginx
+          imageTag: latest
+          initContainers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+              command: ["python", "manage.py", "migrate"]
+              args: ["--verbose"]
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].command
+          value:
+            - python
+            - manage.py
+            - migrate
+      - equal:
+          path: spec.template.spec.initContainers[0].args
+          value:
+            - --verbose
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value:
+            - sleep
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - infinity

@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.8.2](https://img.shields.io/badge/Version-1.8.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.0](https://img.shields.io/badge/Version-1.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -19,7 +19,7 @@ One Helm chart for everything. Instead of maintaining a separate chart per servi
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.8.2 \
+  --version 1.9.0 \
   -f my-values.yaml
 ```
 
@@ -432,8 +432,10 @@ hooks:
           - migrate
     kind: pre-upgrade              # default: pre-install,pre-upgrade
     weight: "-5"                   # default: 5
-    deletePolicy: before-hook-creation  # default: before-hook-creation
+    deletePolicy: before-hook-creation  # default: before-hook-creation,hook-succeeded
 ```
+
+> **Hook `backoffLimit` defaults to Kubernetes' `6` retries** because the chart only emits the field when you set it. A failing migration hook will retry six times before the hook itself is reported as failed — that can stretch a Helm upgrade by minutes and run side effects (mutating writes, lock acquisitions) more than once. **Set `backoffLimit: 0`** explicitly on hooks where retry is dangerous (database migrations, idempotency-sensitive scripts) so a single failure aborts the upgrade immediately.
 
 ---
 
@@ -926,6 +928,10 @@ serviceAccounts:
 ```
 
 Use `defaults.serviceAccountName: app-sa` or set `serviceAccountName` per workload to assign the ServiceAccount.
+
+> **`clusterRole.name` accepts any name verbatim — including built-in privileged roles** like `cluster-admin`, `admin`, `edit`. Pinning to those grants the workload broad cluster-wide access. Use `view` (read-only) when in doubt; create a custom ClusterRole with the minimum verbs/resources you actually need for anything else. Audit `clusterRole.name` values before merging.
+
+> **Pod token automount defaults to off in this chart.** `defaults.podSecurityContext` does not set `automountServiceAccountToken`, but the chart explicitly sets `automountServiceAccountToken: false` on the ServiceAccount object when `serviceAccountsGeneral.automountServiceAccountToken` / `serviceAccounts.<name>.automountServiceAccountToken` is unset. Workloads that need an in-pod token — Argo CD controllers, Workload Identity (Azure / GKE), service meshes that read SA tokens — must opt back in by setting `automountServiceAccountToken: true` on the workload (or the ServiceAccount), or they fail with empty `KUBERNETES_SERVICE_HOST` / 401 errors that look like RBAC issues but are token-mount issues.
 
 ---
 
@@ -2137,7 +2143,7 @@ Community charts wrap a single application with extensive `values.yaml` options.
 - Check `startingDeadlineSeconds` — if the cluster was down during the scheduled time and no deadline is set, the job may be skipped
 
 **Helm hook fails but deployment continues:**
-- Hooks default to `kind: pre-install,pre-upgrade` with `weight: 5`. If a hook should block the release, ensure `deletePolicy` is `before-hook-creation` (default) and the Job's exit code is non-zero on failure
+- Hooks default to `kind: pre-install,pre-upgrade` with `weight: 5`. If a hook should block the release, ensure `deletePolicy` is `before-hook-creation,hook-succeeded` (default) and the Job's exit code is non-zero on failure
 
 ### Debugging tools
 

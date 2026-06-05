@@ -174,3 +174,29 @@ tests:
       - equal:
           path: metadata.annotations.custom
           value: value
+
+  - it: defaults.hookAnnotations does NOT leak onto chart-generated <release>-envs ConfigMap
+    set:
+      defaults:
+        hookAnnotations:
+          custom.org/owner: platform
+      envs:
+        FOO: bar
+    asserts:
+      - documentIndex: 0
+        notExists:
+          path: metadata.annotations["custom.org/owner"]
+
+  - it: defaults.hookAnnotations does NOT leak onto user-defined ConfigMaps
+    set:
+      defaults:
+        hookAnnotations:
+          custom.org/owner: platform
+      configMaps:
+        app-config:
+          data:
+            FOO: bar
+    asserts:
+      - documentIndex: 0
+        notExists:
+          path: metadata.annotations["custom.org/owner"]
