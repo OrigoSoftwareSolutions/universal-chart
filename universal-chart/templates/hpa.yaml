@@ -1,3 +1,4 @@
+{{- $general := $.Values.hpasGeneral | default dict -}}
 {{- range $name, $hpa := .Values.hpas }}
   {{- if not (.disabled | default false) }}
 ---
@@ -22,31 +23,35 @@ spec:
     kind: {{ .kind | default "Deployment" }}
     name: {{ include "helpers.app.fullname" (dict "name" .name "context" $) }}
     {{- end }}
-  minReplicas: {{ .minReplicas | default 2 | int }}
-  maxReplicas: {{ .maxReplicas | default 3 | int }}
-    {{- if or (not (empty .targetCPU)) (not (empty .targetMemory)) .metrics }}
+  minReplicas: {{ dig "minReplicas" (dig "minReplicas" 2 $general) $hpa | int }}
+  maxReplicas: {{ dig "maxReplicas" (dig "maxReplicas" 3 $general) $hpa | int }}
+    {{- $targetCPU := dig "targetCPU" (dig "targetCPU" nil $general) $hpa -}}
+    {{- $targetMemory := dig "targetMemory" (dig "targetMemory" nil $general) $hpa -}}
+    {{- $metrics := dig "metrics" (dig "metrics" nil $general) $hpa -}}
+    {{- if or (not (empty $targetCPU)) (not (empty $targetMemory)) $metrics }}
   metrics:
-      {{- if not (empty .targetCPU) }}
+      {{- if not (empty $targetCPU) }}
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ .targetCPU }}
+          averageUtilization: {{ $targetCPU }}
       {{- end }}
-      {{- if not (empty .targetMemory) }}
+      {{- if not (empty $targetMemory) }}
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: {{ .targetMemory }}
+          averageUtilization: {{ $targetMemory }}
       {{- end }}
-      {{- if .metrics }}
-        {{- toYaml .metrics | nindent 4 }}
+      {{- with $metrics }}
+        {{- toYaml . | nindent 4 }}
       {{- end }}
     {{- end }}
-    {{- with .behavior }}
+    {{- $behavior := dig "behavior" (dig "behavior" nil $general) $hpa -}}
+    {{- with $behavior }}
   behavior:
       {{- toYaml . | nindent 4 }}
     {{- end }}
