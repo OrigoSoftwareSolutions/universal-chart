@@ -150,3 +150,25 @@ tests:
       - equal:
           path: spec.behavior.scaleDown.stabilizationWindowSeconds
           value: 300
+
+  - it: defaults minReplicas to 2 and maxReplicas to 3 when both are omitted
+    set:
+      hpas.web.scaleTargetRef.name: web
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 3
+
+  - it: renders a custom scaleTargetRef.apiVersion when set
+    set:
+      hpas.web.scaleTargetRef.name: web
+      hpas.web.scaleTargetRef.apiVersion: apps/v1beta1
+      hpas.web.minReplicas: 2
+      hpas.web.maxReplicas: 5
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef.apiVersion
+          value: apps/v1beta1
