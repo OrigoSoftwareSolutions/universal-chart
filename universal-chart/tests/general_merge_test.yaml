@@ -82,7 +82,7 @@ tests:
       - notExists:
           path: spec.template.spec.securityContext
 
-  - it: defaults.securityContext alias is respected at defaults tier (F3 fix)
+  - it: defaults.securityContext alias is respected at defaults tier
     values:
       - values/empty_defaults.yaml
     set:
@@ -101,7 +101,7 @@ tests:
           path: spec.template.spec.securityContext.runAsUser
           value: 999
 
-  - it: defaults.podSecurityContext takes precedence over defaults.securityContext (F3 fix)
+  - it: defaults.podSecurityContext takes precedence over defaults.securityContext
     values:
       - values/empty_defaults.yaml
     set:
@@ -614,7 +614,7 @@ tests:
       - notExists:
           path: spec.template.spec.affinity
 
-  - it: empty podAffinityPreset does not render empty podAffinity object (B4 fix)
+  - it: empty podAffinityPreset does not render empty podAffinity object
     set:
       podAffinityPreset: ""
       podAntiAffinityPreset: ""
@@ -990,3 +990,130 @@ tests:
       - matchRegex:
           path: spec.template.spec.containers[0].name
           pattern: ^a{63}$
+
+  # ── extraImagePullSecrets: general-tier cascade ───────────────────
+  - it: deploymentsGeneral.extraImagePullSecrets is included in pod imagePullSecrets
+    set:
+      deploymentsGeneral:
+        extraImagePullSecrets:
+          - general-secret
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: general-secret
+
+  - it: extraImagePullSecrets merges across all four tiers including general
+    set:
+      imagePullSecrets:
+        - global-secret
+      defaults:
+        extraImagePullSecrets:
+          - defaults-secret
+      deploymentsGeneral:
+        extraImagePullSecrets:
+          - general-secret
+      deployments:
+        web:
+          image: myapp:1.0
+          extraImagePullSecrets:
+            - workload-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: global-secret
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: defaults-secret
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: general-secret
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: workload-secret
+
+  # ── lifecycle: general-tier cascade ───────────────────────────────
+  - it: deploymentsGeneral.lifecycle is applied when instance has none
+    set:
+      deploymentsGeneral:
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "/app/drain.sh"]
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command
+          value:
+            - /bin/sh
+            - -c
+            - /app/drain.sh
+
+  - it: instance lifecycle overrides deploymentsGeneral.lifecycle
+    set:
+      deploymentsGeneral:
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "/app/general.sh"]
+      deployments:
+        web:
+          image: myapp:1.0
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "/app/instance.sh"]
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command
+          value:
+            - /bin/sh
+            - -c
+            - /app/instance.sh
+
+  - it: deploymentsGeneral.lifecycle replaces preStopSleep auto-injection
+    set:
+      defaults:
+        preStopSleep: 5
+      deploymentsGeneral:
+        lifecycle:
+          preStop:
+            httpGet:
+              path: /shutdown
+              port: 8080
+      deployments:
+        web:
+          image: myapp:1.0
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.httpGet.path
+          value: /shutdown
+
+  - it: deploymentsGeneral.lifecycle does not propagate to init containers
+    set:
+      deploymentsGeneral:
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "/app/drain.sh"]
+      deployments:
+        web:
+          image: myapp:1.0
+          initContainers:
+            - name: init
+              image: busybox
+              imageTag: latest
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers[0].lifecycle

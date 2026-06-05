@@ -67,7 +67,7 @@ tests:
           path: spec.http[0].route[0].destination.port.number
           value: 8080
 
-  - it: omits http route name when not set (M3 fix)
+  - it: omits http route name when not set
     capabilities:
       apiVersions:
         - networking.istio.io/v1

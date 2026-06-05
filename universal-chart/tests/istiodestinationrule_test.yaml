@@ -48,7 +48,7 @@ tests:
           path: spec.trafficPolicy.tls.mode
           value: ISTIO_MUTUAL
 
-  - it: omits trafficPolicy when not set (M4 fix)
+  - it: omits trafficPolicy when not set
     capabilities:
       apiVersions:
         - networking.istio.io/v1

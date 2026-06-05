@@ -38,7 +38,7 @@ spec:
       {{- include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $hook "general" $general "context" $) | nindent 6 }}
     spec:
       {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | trim | nindent 6 }}
-      restartPolicy: {{ .restartPolicy | default "Never" }}
+      restartPolicy: {{ .restartPolicy | default $general.restartPolicy | default "Never" }}
     {{- end -}}
   {{- end -}}
 {{- end -}}

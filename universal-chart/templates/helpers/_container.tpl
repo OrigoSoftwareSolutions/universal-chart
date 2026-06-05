@@ -66,12 +66,16 @@
     {{- if .lifecycle }}
   lifecycle: {{- include "helpers.tplvalues.render" ( dict "value" .lifecycle "context" $) | nindent 4 }}
     {{- else if not $isInitContainer }}
-      {{- $preStopSleep := $c.preStopSleep | default $general.preStopSleep | default $.Values.defaults.preStopSleep -}}
-      {{- if $preStopSleep }}
+      {{- if $general.lifecycle }}
+  lifecycle: {{- include "helpers.tplvalues.render" ( dict "value" $general.lifecycle "context" $) | nindent 4 }}
+      {{- else }}
+        {{- $preStopSleep := $c.preStopSleep | default $general.preStopSleep | default $.Values.defaults.preStopSleep -}}
+        {{- if $preStopSleep }}
   lifecycle:
     preStop:
       exec:
         command: ["sh", "-c", "sleep {{ $preStopSleep }}"]
+        {{- end }}
       {{- end }}
     {{- end }}
     {{- if not $.Values.diagnosticMode.enabled }}

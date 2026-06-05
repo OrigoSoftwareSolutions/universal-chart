@@ -69,8 +69,9 @@ spec:
       {{- end }}
         spec:
       {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | trim | nindent 10 }}
-          restartPolicy: {{ .restartPolicy | default "Never" }}
-      {{- if ne .commandDurationAlert nil }}
+          restartPolicy: {{ .restartPolicy | default $general.restartPolicy | default "Never" }}
+      {{- $cda := dig "commandDurationAlert" (dig "commandDurationAlert" nil $general) $job }}
+      {{- if ne $cda nil }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -86,12 +87,12 @@ spec:
     interval: 1m # period check for alerts
     rules:
     - alert: "cronjob-{{ $cjName }}-too-long-execution"
-      expr: '((time() - kube_job_status_start_time{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"}) and kube_job_status_active{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"} == 1) > {{ .commandDurationAlert }}'
+      expr: '((time() - kube_job_status_start_time{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"}) and kube_job_status_active{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"} == 1) > {{ $cda }}'
       for: 3m
       labels:
         severity: warning
       annotations:
-        message: "CronJob {{ $.Release.Namespace }}/{{ $cjName }} is taking more than {{ .commandDurationAlert }} to complete"
+        message: "CronJob {{ $.Release.Namespace }}/{{ $cjName }} is taking more than {{ $cda }} to complete"
       {{- end }}
     {{- end }}
   {{- end }}
