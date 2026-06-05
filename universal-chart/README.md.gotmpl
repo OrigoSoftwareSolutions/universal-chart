@@ -150,19 +150,17 @@ services:
 | `serviceAccounts.sa.role: {…}` | A **Role** + **RoleBinding** (or ClusterRole + ClusterRoleBinding) |
 | `cronJobs.etl.commandDurationAlert: 1800` | A **PrometheusRule** that fires if the job exceeds 30 min |
 
-### The 3-tier defaults cascade
+### Defaults: how settings merge
 
-Settings are merged in order of increasing specificity. A more-specific value always wins:
+The chart resolves each setting in order of increasing specificity. A more-specific value always wins:
 
 ```
 defaults:              ← applied to ALL workloads
-  └─ deploymentsGeneral:  ← applied to all Deployments
-       └─ deployments.api:   ← this specific Deployment
+  └─ <kind>General:       ← applied to all workloads of one kind (rarely needed)
+       └─ <instance>:       ← this specific workload
 ```
 
-Example: `defaults.resources` sets baseline CPU/memory → `deploymentsGeneral.replicas` sets replica count for all Deployments → `deployments.api.replicas` overrides it for just `api`.
-
-Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountsGeneral`.
+For most apps, two tiers is enough — set shared values in `defaults:` and per-workload values directly on the instance. The middle tier `*General:` exists for a specific niche case covered in **3-Tier Defaults Cascade** below.
 
 ### Single-container shorthand vs full form
 
@@ -1146,7 +1144,60 @@ imageUpdaters:
 
 ### 3-Tier Defaults Cascade
 
-Settings merge in order: `defaults` (global) → `deploymentsGeneral` (kind-level) → per-instance. Set shared config once, override where needed:
+The chart supports three tiers for any cascadable setting, resolved with the more-specific tier winning:
+
+```
+defaults:        ← applied to ALL workloads regardless of kind
+<kind>General:    ← applied to all instances of one kind (Deployment, CronJob, HPA, …)
+<instance>:        ← applied to one specific instance
+```
+
+#### When you actually need `*General`
+
+In nearly every case, you don't. Use `defaults:` for things every workload shares (security context, resource baseline, common annotations) and set per-workload values directly on the instance. That covers ~95% of the chart.
+
+`*General` exists for two narrow cases:
+
+**1. Kind-specific behavioral asymmetry that can't live at `defaults:`** — when the right default for one workload kind would be wrong for another. The chart itself ships exactly one such case:
+
+```yaml
+defaults:
+  usePredefinedAffinity: true     # sensible for long-running workloads (HA spread)
+
+cronJobsGeneral:
+  usePredefinedAffinity: false    # short-lived; pod anti-affinity wastes scheduler effort
+
+jobsGeneral:
+  usePredefinedAffinity: false    # same reasoning
+```
+
+Without `*General`, the chart would have to either pick one default that's wrong for half the workload kinds, or force every CronJob/Job author to remember to override.
+
+**2. Genuine DRY across many instances of the same kind in a multi-app values file** — when you have, say, 5+ HPAs and want them all to target 70% CPU per org policy:
+
+```yaml
+hpasGeneral:
+  targetCPU: 70                   # org-wide HPA scaling policy
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+
+hpas:
+  api: { scaleTargetRef: { name: api } }
+  worker: { scaleTargetRef: { name: worker } }
+  reports: { scaleTargetRef: { name: reports } }
+  # all three inherit targetCPU + behavior; each can override
+```
+
+Reach for `*General` when you find yourself with the same shape of problem.
+
+#### When NOT to use `*General` (anti-patterns)
+
+- **You have ≤2 instances of that kind.** The cost of an extra tier (readers must mentally merge three places to know what renders) only pays off when there are enough instances for DRY savings to dominate. With 1-2 of a kind, just put it on the instance.
+- **The same value applies to all workload kinds.** That's what `defaults:` is for. Don't fan a single value out across `deploymentsGeneral`, `statefulSetsGeneral`, etc.
+- **The setting is fundamentally per-instance** — anything that targets a specific resource (`scaleTargetRef`, `selector`, `serviceName`) belongs on the instance. The chart enforces this for `scaleTargetRef`; for other fields, use judgment.
+
+#### Resolution example
 
 ```yaml
 defaults:
@@ -1173,10 +1224,10 @@ deployments:
     resources:
       requests:
         cpu: 1
-        memory: 2Gi  # overrides defaults
+        memory: 2Gi           # overrides defaults
 ```
 
-Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountsGeneral`.
+Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountsGeneral`, `hpasGeneral`.
 
 ### Security Defaults
 

@@ -370,6 +370,10 @@ hpas: {}
 #     minReplicas: 2
 #     maxReplicas: 10
 #     targetCPU: 70
+
+# -- Shared defaults for all HPAs. Cascadable fields: `minReplicas`, `maxReplicas`,
+# `targetCPU`, `targetMemory`, `metrics`, `behavior`. `scaleTargetRef` stays per-instance.
+hpasGeneral: {}
 #     targetMemory: 80
 
 # -- Kubernetes PodDisruptionBudget resources. Each key becomes the resource name.

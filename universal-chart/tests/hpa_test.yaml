@@ -172,3 +172,106 @@ tests:
       - equal:
           path: spec.scaleTargetRef.apiVersion
           value: apps/v1beta1
+
+  - it: hpasGeneral.targetCPU cascades into all instances without their own override
+    set:
+      hpasGeneral:
+        targetCPU: 70
+      hpas:
+        api:
+          scaleTargetRef:
+            name: api
+        worker:
+          scaleTargetRef:
+            name: worker
+    asserts:
+      - documentIndex: 0
+        equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 70
+      - documentIndex: 1
+        equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 70
+
+  - it: instance targetCPU overrides hpasGeneral.targetCPU
+    set:
+      hpasGeneral:
+        targetCPU: 70
+      hpas:
+        api:
+          scaleTargetRef:
+            name: api
+          targetCPU: 90
+    asserts:
+      - equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 90
+
+  - it: hpasGeneral.behavior cascades and instance behavior overrides per-key
+    set:
+      hpasGeneral:
+        behavior:
+          scaleDown:
+            stabilizationWindowSeconds: 300
+      hpas:
+        api:
+          scaleTargetRef:
+            name: api
+    asserts:
+      - equal:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 300
+
+  - it: instance behavior fully replaces hpasGeneral.behavior (toYaml passthrough)
+    set:
+      hpasGeneral:
+        behavior:
+          scaleDown:
+            stabilizationWindowSeconds: 300
+      hpas:
+        api:
+          scaleTargetRef:
+            name: api
+          behavior:
+            scaleUp:
+              stabilizationWindowSeconds: 60
+    asserts:
+      - equal:
+          path: spec.behavior.scaleUp.stabilizationWindowSeconds
+          value: 60
+      - notExists:
+          path: spec.behavior.scaleDown
+
+  - it: hpasGeneral.minReplicas and maxReplicas cascade
+    set:
+      hpasGeneral:
+        minReplicas: 3
+        maxReplicas: 12
+      hpas:
+        api:
+          scaleTargetRef:
+            name: api
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 3
+      - equal:
+          path: spec.maxReplicas
+          value: 12
+
+  - it: hpasGeneral.targetMemory cascades
+    set:
+      hpasGeneral:
+        targetMemory: 80
+      hpas:
+        api:
+          scaleTargetRef:
+            name: api
+    asserts:
+      - equal:
+          path: spec.metrics[0].resource.name
+          value: memory
+      - equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 80

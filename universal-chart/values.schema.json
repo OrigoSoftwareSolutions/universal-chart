@@ -167,6 +167,7 @@
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/hpa" }
     },
+    "hpasGeneral": { "$ref": "#/$defs/hpaGeneral" },
     "pdbs": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/pdb" }
@@ -1172,6 +1173,26 @@
       },
       "then": {
         "required": ["scaleTargetRef"]
+      }
+    },
+    "hpaGeneral": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Shared defaults for all HPAs (cascadable: minReplicas, maxReplicas, targetCPU, targetMemory, behavior, metrics).",
+      "properties": {
+        "minReplicas": { "type": "integer", "minimum": 0 },
+        "maxReplicas": { "type": "integer", "minimum": 1 },
+        "targetCPU": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "targetMemory": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "metrics": {
+          "type": "array",
+          "description": "Default custom metrics for autoscaling."
+        },
+        "behavior": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Default autoscaler behavior configuration (scaleUp/scaleDown policies)."
+        }
       }
     },
     "pdb": {
