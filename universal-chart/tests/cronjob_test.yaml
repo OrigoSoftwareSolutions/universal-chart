@@ -69,7 +69,7 @@ tests:
           path: spec.concurrencyPolicy
           value: Forbid
 
-  - it: explicit concurrencyPolicy overrides singleOnly (B1 fix)
+  - it: explicit concurrencyPolicy overrides singleOnly
     set:
       cronJobs:
         cleanup:
@@ -85,7 +85,7 @@ tests:
           path: spec.concurrencyPolicy
           value: Replace
 
-  - it: concurrencyPolicy Allow can be set explicitly (B1 fix)
+  - it: concurrencyPolicy Allow can be set explicitly
     set:
       cronJobs:
         cleanup:
@@ -100,7 +100,7 @@ tests:
           path: spec.concurrencyPolicy
           value: Allow
 
-  - it: omits concurrencyPolicy when neither singleOnly nor concurrencyPolicy set (F2 suspend nil fix)
+  - it: omits concurrencyPolicy when neither singleOnly nor concurrencyPolicy set
     set:
       cronJobs:
         cleanup:
@@ -113,7 +113,7 @@ tests:
       - notExists:
           path: spec.concurrencyPolicy
 
-  - it: omits suspend when not set (F2 fix)
+  - it: omits suspend when not set
     set:
       cronJobs:
         cleanup:
@@ -126,7 +126,7 @@ tests:
       - notExists:
           path: spec.suspend
 
-  - it: emits suspend false when explicitly set (F2 fix)
+  - it: emits suspend false when explicitly set
     set:
       cronJobs:
         cleanup:
@@ -141,7 +141,7 @@ tests:
           path: spec.suspend
           value: false
 
-  - it: emits suspend true when set (F2 fix)
+  - it: emits suspend true when set
     set:
       cronJobs:
         cleanup:
@@ -284,3 +284,84 @@ tests:
       - equal:
           path: spec.timeZone
           value: "Europe/London"
+
+  # ── restartPolicy general-tier cascade ────────────────────────────
+  - it: cronJobsGeneral.restartPolicy overrides default Never
+    set:
+      cronJobsGeneral:
+        restartPolicy: OnFailure
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.restartPolicy
+          value: OnFailure
+
+  - it: instance restartPolicy overrides cronJobsGeneral
+    set:
+      cronJobsGeneral:
+        restartPolicy: OnFailure
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          restartPolicy: Never
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.restartPolicy
+          value: Never
+
+  # ── commandDurationAlert general-tier cascade ─────────────────────
+  - it: cronJobsGeneral.commandDurationAlert renders PrometheusRule with general value
+    set:
+      cronJobsGeneral:
+        commandDurationAlert: 1200
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: PrometheusRule
+        documentIndex: 1
+      - matchRegex:
+          path: spec.groups[0].rules[0].expr
+          pattern: "> 1200"
+        documentIndex: 1
+      - matchRegex:
+          path: spec.groups[0].rules[0].annotations.message
+          pattern: "more than 1200"
+        documentIndex: 1
+
+  - it: instance commandDurationAlert overrides cronJobsGeneral
+    set:
+      cronJobsGeneral:
+        commandDurationAlert: 1200
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          commandDurationAlert: 3600
+          containers:
+            - name: cleanup
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - hasDocuments:
+          count: 2
+      - matchRegex:
+          path: spec.groups[0].rules[0].expr
+          pattern: "> 3600"
+        documentIndex: 1

@@ -163,7 +163,7 @@ securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context
 securityContext: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
     {{- end }}
-    {{- $pullSecrets := concat ($.Values.imagePullSecrets | default list) ($.Values.defaults.extraImagePullSecrets | default list) (.imagePullSecrets | default list) (.extraImagePullSecrets | default list) | uniq -}}
+    {{- $pullSecrets := concat ($.Values.imagePullSecrets | default list) ($.Values.defaults.extraImagePullSecrets | default list) ($general.extraImagePullSecrets | default list) (.imagePullSecrets | default list) (.extraImagePullSecrets | default list) | uniq -}}
     {{- if $pullSecrets }}
 imagePullSecrets:
       {{- range $pullSecrets }}

@@ -234,3 +234,35 @@ tests:
       - equal:
           path: metadata.annotations["helm.sh/hook-weight"]
           value: "99"
+
+  # ── restartPolicy general-tier cascade ────────────────────────────
+  - it: hooksGeneral.restartPolicy overrides default Never
+    set:
+      hooksGeneral:
+        restartPolicy: OnFailure
+      hooks:
+        migration:
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: OnFailure
+
+  - it: instance restartPolicy overrides hooksGeneral
+    set:
+      hooksGeneral:
+        restartPolicy: OnFailure
+      hooks:
+        migration:
+          restartPolicy: Never
+          containers:
+            - name: migrate
+              image: myapp
+              imageTag: "1.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: Never
