@@ -2,7 +2,7 @@ suite: bugfix regressions
 templates:
   - deployment.yaml
 tests:
-  # ── Fix #1: diagnosticMode suppresses all probes ─────────────────────────
+  # ── diagnosticMode suppresses all probes ─────────────────────────
   - it: diagnosticMode suppresses healthCheck shorthand probes
     set:
       diagnosticMode.enabled: true
@@ -52,7 +52,7 @@ tests:
           path: spec.template.spec.containers[0].livenessProbe.httpGet.path
           value: /healthz
 
-  # ── Fix #2: shorthand image goes through tplvalues.render ────────────────
+  # ── shorthand image goes through tplvalues.render ────────────────
   - it: shorthand image renders template expressions
     set:
       deployments.api.image: "{{ .Release.Name }}-app"
@@ -61,7 +61,7 @@ tests:
           path: spec.template.spec.containers[0].image
           pattern: "^.*-app$"
 
-  # ── Fix #3: deterministic container names without randAlphaNum ────────────
+  # ── deterministic container names without randAlphaNum ────────────
   - it: nameless container gets deterministic index-based name
     values:
       - values/nameless_container.yaml
@@ -89,7 +89,7 @@ tests:
           path: spec.template.spec.containers[1].name
           value: web-1
 
-  # ── Fix #4: releasePrefix uses trimSuffix consistently ───────────────────
+  # ── releasePrefix uses trimSuffix consistently ───────────────────
   - it: releasePrefix applies consistently with trimSuffix
     set:
       releasePrefix: "myprefix"
