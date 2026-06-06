@@ -29,7 +29,7 @@ imagePullSecrets: []
 # Override the chart name used in resource name generation (uncomment to use).
 # nameOverride: ""
 
-# -- Diagnostic mode — overrides command/args on ALL containers (useful for debugging).
+# -- Diagnostic mode — overrides command/args on main containers only (init containers are not affected). Useful for debugging crash-looping pods.
 diagnosticMode:
   # -- Enable diagnostic mode globally.
   enabled: false
@@ -48,7 +48,7 @@ defaults:
   labels: {}
   # -- Annotations added to every resource's `metadata.annotations`.
   annotations: {}
-  # -- Default annotations for Helm hook resources.
+  # -- Annotations applied to hook Job resources only. Does NOT propagate to ConfigMaps or Secrets.
   hookAnnotations: {}
   #   helm.sh/hook: "pre-install,pre-upgrade"
   #   helm.sh/hook-weight: "-999"
