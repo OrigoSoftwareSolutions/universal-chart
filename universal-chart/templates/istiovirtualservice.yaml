@@ -48,6 +48,10 @@ spec:
     {{- with $httpRoute.timeout }}
       timeout: {{ . }}
     {{- end }}
+    {{- with $httpRoute.headers }}
+      headers:
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
     {{- with $httpRoute.rewrite }}
       rewrite:
       {{- toYaml . | nindent 8 }}
