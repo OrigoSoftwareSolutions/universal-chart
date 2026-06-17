@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.1](https://img.shields.io/badge/Version-1.9.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.2](https://img.shields.io/badge/Version-1.9.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -36,7 +36,7 @@ The chart itself works without any of these — simply omit those resource kinds
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.9.1 \
+  --version 1.9.2 \
   -f my-values.yaml
 ```
 
@@ -2461,7 +2461,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | istioDestinationRules | object | `{}` | Istio DestinationRule resources. Each key becomes the resource name. |
 | istioGateways | object | `{}` | Istio Gateway resources. Each key becomes the resource name. |
 | istioPeerAuthentications | object | `{}` | Istio PeerAuthentication resources (mTLS policy). Each key becomes the resource name. |
-| istioVirtualServices | object | `{}` | Istio VirtualService resources. Each key becomes the resource name. |
+| istioVirtualServices | object | `{}` | Istio VirtualService resources. Each key becomes the resource name. Supported http route fields: `match`, `route`, `timeout`, `retries`, `fault`, `rewrite`, `corsPolicy`, `headers`, `mirror`, `mirrorPercentage`. |
 | jobs | object | `{}` | Kubernetes Job resources (non-hook). Each key becomes the resource name. |
 | jobsGeneral | object | `{"usePredefinedAffinity":false}` | Shared defaults for all Jobs. |
 | nodeAffinityPreset | object | `{"key":"","type":"","values":[]}` | Node affinity preset configuration. |

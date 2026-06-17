@@ -427,6 +427,8 @@ istioGateways: {}
 #         hosts: ["nginx.example.com"]
 
 # -- Istio VirtualService resources. Each key becomes the resource name.
+# Supported http route fields: `match`, `route`, `timeout`, `retries`, `fault`,
+# `rewrite`, `corsPolicy`, `headers`, `mirror`, `mirrorPercentage`.
 istioVirtualServices: {}
 #   nginx:
 #     name: nginx-vs
@@ -438,6 +440,11 @@ istioVirtualServices: {}
 #           - destination:
 #               host: nginx-svc.default.svc.cluster.local
 #               port: { number: 80 }
+#         timeout: 30s
+#         headers:
+#           request:
+#             add:
+#               X-Custom-Header: "my-value"
 
 # -- Istio DestinationRule resources. Each key becomes the resource name.
 istioDestinationRules: {}
