@@ -2,7 +2,7 @@
 
 ![Version: 1.9.4](https://img.shields.io/badge/Version-1.9.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
-One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
+One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file. Each top-level key (`deployments:`, `services:`, `externalSecrets:`, …) holds a map — define as many instances of each type as you need under the same key.
 
 ## Supported Resources
 
@@ -159,6 +159,8 @@ services:
   cache:        ──────────────────►   Service     "my-release-cache"
 ```
 
+> **Key insight**: Every top-level key is a **map** — you can define 10 Deployments, 5 Services, and 20 ExternalSecrets in one values file. The chart renders each sub-key as a separate Kubernetes resource. There is no limit and no need for multiple files.
+
 ### What gets created automatically
 
 | You write… | Chart also creates… |
@@ -240,17 +242,61 @@ No abstraction layers, no surprises. Whatever you put in `spec:` is what Kuberne
 
 ### Recommended Configuration
 
-A workload definition can include many blocks, but most production services share a common set. Treat this as a checklist when defining a new workload:
+Each workload key is a map of instances. Define as many Deployments (or CronJobs, StatefulSets, …) as you need — every sub-key produces a separate resource:
+
+```yaml
+deployments:
+  api:    ...  # → Deployment "my-release-api"
+  worker:  ...  # → Deployment "my-release-worker"
+  cron:    ...  # → Deployment "my-release-cron"
+```
+
+For any single workload instance, most production services share a common set of config blocks. Treat this as a checklist when defining one:
 
 ```
 workload-key
-  image + imageTag           # Container image (required — no default)
-  resources                  # CPU/memory requests and limits (must be set explicitly)
-  healthCheck                # Startup + liveness + readiness probes (strongly recommended)
-  ports                      # Container ports (required for Services and health checks)
-  volumes + volumeMounts     # Storage — PVCs, ConfigMaps, Secrets (PVCs are not auto-mounted)
-  nodeSelector / affinity    # Pod placement constraints (built-in presets enabled by default)
-  tolerations                # Taint tolerance to schedule on tainted nodes
+  # ── Required ──────────────────────────────────────
+  image + imageTag             # Container image. No default — must be set explicitly.
+
+  # ── Resources & Health ────────────────────────────
+  resources                    # CPU/memory requests+limits. Chart provides no defaults.
+  healthCheck                  # Startup → liveness → readiness probes from one spec.
+  command                      # Override entrypoint for workers, batch jobs, sidecars.
+
+  # ── Scaling ───────────────────────────────────────
+  replicas                     # Pod count (default: 1). Pair with HPA for dynamic scaling.
+
+  # ── Networking ────────────────────────────────────
+  ports                        # Container ports (map `{name: port}` only creates containerPorts — define Services in `services:` block).
+
+  # ── Environment ───────────────────────────────────
+  env                          # Inline env vars, downward API, resource refs.
+  envConfigmaps / envSecrets   # Inject all keys from a ConfigMap/Secret as env vars.
+  envsFromConfigmap / Secret   # Cherry-pick + rename specific keys.
+
+  # ── Storage ───────────────────────────────────────
+  volumes + volumeMounts       # PVCs, ConfigMaps, Secrets — typed volume shorthand.
+
+  # ── Scheduling & Placement ────────────────────────
+  nodeSelector                 # Pin pods to specific node pools.
+  affinity / presets           # Pod affinity/anti-affinity (built-in defaults: both soft).
+  tolerations                  # Schedule on tainted nodes.
+  topologySpreadConstraints    # Spread pods across zones, hosts, or racks.
+
+  # ── Lifecycle ─────────────────────────────────────
+  strategy                     # Rolling update: maxSurge, maxUnavailable.
+  lifecycle                    # postStart / preStop hooks (replaces preStopSleep).
+  terminationGracePeriodSeconds # Drain window before SIGKILL (set > preStopSleep).
+  priorityClassName            # Scheduling priority relative to other workloads.
+
+  # ── Identity & Security ───────────────────────────
+  serviceAccountName            # Assign a ServiceAccount (pods default to automount: false).
+  podSecurityContext            # Pod-level security (default: runAsNonRoot, seccomp).
+  containerSecurityContext      # Container-level security (default: RO fs, no priv esc).
+
+  # ── Observability ─────────────────────────────────
+  podAnnotations               # Prometheus scrape, sidecar injection, config checksums.
+  podLabels                    # Custom labels for selection, cost allocation.
 ```
 
 The chart provides sensible defaults for security contexts and affinity — you only need to set values that differ from those. Resource requests and limits, however, must be set explicitly on each workload (or via `defaults`/`*General`). See the [Defaults Cascade](#defaults-how-settings-merge) section for how settings merge.
@@ -1752,7 +1798,6 @@ deployments:
   worker:
     image: registry.example.com/worker
     imageTag: "2.1.0"
-    service: false
     command: ["celery", "-A", "app", "worker"]
     resources:               # override defaults
       requests:
@@ -2293,9 +2338,8 @@ Previously a PDB key that didn't match any workload rendered silently and select
 - Or disable it per-workload: `containerSecurityContext: {readOnlyRootFilesystem: false}`
 
 **Service not created for my Deployment:**
-- Auto-Service requires `ports:` in **map** form: `ports: {http: 8080}` ✓
-- List form does NOT create a Service: `ports: [{containerPort: 8080}]` ✗
-- Explicitly suppressed? Check for `service: false`
+- Services are never auto-created from ports. Define them explicitly in the `services:` block with the appropriate port mapping.
+- Use list-form ports for multi-protocol Services: `ports: [{port: 8080, name: http}, {port: 9090, name: metrics}]`.
 
 **Health check probes failing:**
 - `healthCheck` only generates HTTP GET probes. If your app uses gRPC or TCP, use explicit `livenessProbe`/`readinessProbe` instead
