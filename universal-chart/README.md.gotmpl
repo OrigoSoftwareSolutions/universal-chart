@@ -51,7 +51,7 @@ deployments:
     imageTag: "1.0.0"
 ```
 
-That's it. This creates a Deployment with 1 replica, hardened security contexts, resource requests, and pod anti-affinity — all from the chart's built-in defaults. Add features as you need them.
+That's it. This creates a Deployment with 1 replica, hardened security contexts, and pod anti-affinity — all from the chart's built-in defaults. Resource requests and limits must be set explicitly; the chart provides no defaults for CPU or memory. Add features as you need them.
 
 ---
 
@@ -1275,7 +1275,7 @@ deployments:
   api:
     image: my-api
     imageTag: "1.0.0"
-    # inherits: 2 replicas, 100m/128Mi resources, istio sidecar annotation
+    # inherits: 2 replicas, istio sidecar annotation
 
   heavy-worker:
     image: my-worker
@@ -1284,7 +1284,7 @@ deployments:
     resources:
       requests:
         cpu: 1
-        memory: 2Gi           # overrides defaults
+        memory: 2Gi           # overrides deploymentsGeneral
 ```
 
 Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountsGeneral`, `hpasGeneral`.

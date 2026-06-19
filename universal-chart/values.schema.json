@@ -400,7 +400,7 @@
       "description": "Image pull policy."
     },
     "resources": {
-      "type": "object",
+      "type": ["object", "null"],
       "description": "Container resource requests/limits. Must be an object with requests and/or limits.",
       "additionalProperties": true,
       "properties": {
