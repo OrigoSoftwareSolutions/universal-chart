@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.3](https://img.shields.io/badge/Version-1.9.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.4](https://img.shields.io/badge/Version-1.9.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -36,7 +36,7 @@ The chart itself works without any of these — simply omit those resource kinds
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.9.3 \
+  --version 1.9.4 \
   -f my-values.yaml
 ```
 
@@ -51,7 +51,7 @@ deployments:
     imageTag: "1.0.0"
 ```
 
-That's it. This creates a Deployment with 1 replica, hardened security contexts, resource requests, and pod anti-affinity — all from the chart's built-in defaults. Add features as you need them.
+That's it. This creates a Deployment with 1 replica, hardened security contexts, and pod anti-affinity — all from the chart's built-in defaults. Resource requests and limits must be set explicitly; the chart provides no defaults for CPU or memory. Add features as you need them.
 
 ---
 
@@ -237,6 +237,25 @@ No abstraction layers, no surprises. Whatever you put in `spec:` is what Kuberne
 ---
 
 ## Workloads
+
+### Recommended Configuration
+
+A workload definition can include many blocks, but most production services share a common set. Treat this as a checklist when defining a new workload:
+
+```
+workload-key
+  image + imageTag           # Container image (required — no default)
+  resources                  # CPU/memory requests and limits (must be set explicitly)
+  healthCheck                # Startup + liveness + readiness probes (strongly recommended)
+  ports                      # Container ports (required for Services and health checks)
+  volumes + volumeMounts     # Storage — PVCs, ConfigMaps, Secrets (PVCs are not auto-mounted)
+  nodeSelector / affinity    # Pod placement constraints (built-in presets enabled by default)
+  tolerations                # Taint tolerance to schedule on tainted nodes
+```
+
+The chart provides sensible defaults for security contexts and affinity — you only need to set values that differ from those. Resource requests and limits, however, must be set explicitly on each workload (or via `defaults`/`*General`). See the [Defaults Cascade](#defaults-how-settings-merge) section for how settings merge.
+
+> **Tip**: Start with `image` + `imageTag` and add blocks as you need them. The chart's minimal starter creates a hardened Deployment from just those two fields.
 
 ### Deployments
 
@@ -1273,7 +1292,7 @@ deployments:
   api:
     image: my-api
     imageTag: "1.0.0"
-    # inherits: 2 replicas, 100m/128Mi resources, istio sidecar annotation
+    # inherits: 2 replicas, istio sidecar annotation
 
   heavy-worker:
     image: my-worker
@@ -1282,7 +1301,7 @@ deployments:
     resources:
       requests:
         cpu: 1
-        memory: 2Gi           # overrides defaults
+        memory: 2Gi           # overrides deploymentsGeneral
 ```
 
 Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountsGeneral`, `hpasGeneral`.
@@ -2359,7 +2378,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | daemonSets | object | `{}` | Kubernetes DaemonSet resources. Each key becomes the resource name. DaemonSets run one pod per node (no `replicas`). Uses `updateStrategy` instead of `strategy`. |
 | daemonSetsGeneral | object | `{}` | Shared defaults for all DaemonSets. |
 | defaultImagePullPolicy | string | `"IfNotPresent"` | Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`. |
-| defaults | object | `{"annotations":{},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"podSecurityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"128Mi"}},"revisionHistoryLimit":3,"usePredefinedAffinity":true}` | Default settings applied to all workload templates (labels, annotations, pod metadata, volumes, etc.) |
+| defaults | object | `{"annotations":{},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"podSecurityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"revisionHistoryLimit":3,"usePredefinedAffinity":true}` | Default settings applied to all workload templates (labels, annotations, pod metadata, volumes, etc.) |
 | defaults.annotations | object | `{}` | Annotations added to every resource's `metadata.annotations`. |
 | defaults.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Default container-level securityContext applied to every container. |
 | defaults.extraImagePullSecrets | list | `[]` | Additional image pull secrets appended to every pod spec. |
@@ -2371,7 +2390,6 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | defaults.podAnnotations | object | `{}` | Annotations added to pod templates. |
 | defaults.podLabels | object | `{}` | Labels added to pod templates. |
 | defaults.podSecurityContext | object | `{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Default pod-level securityContext applied to every pod spec. |
-| defaults.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Default resource requests/limits applied to containers when not overridden. No CPU limit by design — CPU throttling hurts tail latency more than it helps; set `limits.cpu` per-workload only when you have a concrete reason. Memory limit is 4× request to absorb allocation spikes (JVM/Node) without OOMKill — tighten per-workload once you've measured real footprint. |
 | defaults.revisionHistoryLimit | int | `3` | Default revisionHistoryLimit for Deployments and StatefulSets. Controls how many old ReplicaSets/ControllerRevisions are retained for rollback. Lower values reduce etcd/API-server load; set to 0 to disable rollback history entirely. |
 | defaults.usePredefinedAffinity | bool | `true` | Use the chart's built-in pod affinity/anti-affinity rules. |
 | deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form `{name: port}`) auto-creates containerPorts. Use list-form for multi-port definitions (e.g. different protocols). The full `containers:` list still works for multi-container workloads. |
