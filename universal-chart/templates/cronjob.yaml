@@ -1,86 +1,76 @@
-{{- if .Values.cronJobs -}}
-  {{- $general := $.Values.cronJobsGeneral -}}
-  {{- range $name, $job := .Values.cronJobs }}
-    {{- if not (.disabled | default false) }}
-      {{- $cjName := include "helpers.app.fullname" (dict "name" $name "context" $) }}
+{{- if .Values.cronJob }}
+  {{- $d := .Values.cronJob }}
+  {{- $name := $d.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+  {{- $cjName := $name }}
 ---
 apiVersion: {{ include "helpers.capabilities.cronJob.apiVersion" $ }}
 kind: CronJob
 metadata:
   name: {{ $cjName }}
   namespace: {{ $.Release.Namespace | quote }}
-      {{- include "helpers.workload.metadata" (dict "name" $name "value" $job "general" $general "context" $) | nindent 2 }}
+  {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "context" $) | nindent 2 }}
 spec:
-      {{- if not (eq .suspend nil) }}
-  suspend: {{ .suspend }}
-      {{- end }}
-  schedule: {{ include "helpers.tplvalues.render" (dict "value" .schedule "context" $) | quote }}
-      {{- $tz := dig "timeZone" (dig "timeZone" nil $general) $job }}
-      {{- with $tz }}
+  {{- if not (eq $d.suspend nil) }}
+  suspend: {{ $d.suspend }}
+  {{- end }}
+  schedule: {{ include "helpers.tplvalues.render" (dict "value" $d.schedule "context" $) | quote }}
+  {{- with $d.timeZone }}
   timeZone: {{ . | quote }}
-      {{- end }}
-      {{- $cp := dig "concurrencyPolicy" (dig "concurrencyPolicy" nil $general) $job -}}
-      {{- if $cp }}
+  {{- end }}
+  {{- $cp := $d.concurrencyPolicy }}
+  {{- if $cp }}
   concurrencyPolicy: {{ $cp }}
-      {{- else if .singleOnly }}
+  {{- else if $d.singleOnly }}
   concurrencyPolicy: Forbid
-      {{- end }}
-      {{- $sds := dig "startingDeadlineSeconds" (dig "startingDeadlineSeconds" nil $general) $job -}}
-      {{- if ne $sds nil }}
-  startingDeadlineSeconds: {{ $sds }}
-      {{- end }}
-      {{- $sjhl := dig "successfulJobsHistoryLimit" (dig "successfulJobsHistoryLimit" nil $general) $job -}}
-      {{- if ne $sjhl nil }}
-  successfulJobsHistoryLimit: {{ $sjhl }}
-      {{- end }}
-      {{- $fjhl := dig "failedJobsHistoryLimit" (dig "failedJobsHistoryLimit" nil $general) $job -}}
-      {{- if ne $fjhl nil }}
-  failedJobsHistoryLimit: {{ $fjhl }}
-      {{- end }}
+  {{- end }}
+  {{- with $d.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- with $d.successfulJobsHistoryLimit }}
+  successfulJobsHistoryLimit: {{ . }}
+  {{- end }}
+  {{- with $d.failedJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ . }}
+  {{- end }}
   jobTemplate:
     spec:
-      {{- $par := dig "parallelism" (dig "parallelism" nil $general) $job -}}
-      {{- if ne $par nil }}
-      parallelism: {{ $par }}
-      {{- end }}
-      {{- $comp := dig "completions" (dig "completions" nil $general) $job -}}
-      {{- if ne $comp nil }}
-      completions: {{ $comp }}
-      {{- end }}
-      {{- $ads := dig "activeDeadlineSeconds" (dig "activeDeadlineSeconds" nil $general) $job -}}
-      {{- if ne $ads nil }}
-      activeDeadlineSeconds: {{ $ads }}
-      {{- end }}
-      {{- $bol := dig "backoffLimit" (dig "backoffLimit" nil $general) $job -}}
-      {{- if ne $bol nil }}
-      backoffLimit: {{ $bol }}
-      {{- end }}
-      {{- $ttl := dig "ttlSecondsAfterFinished" (dig "ttlSecondsAfterFinished" nil $general) $job -}}
-      {{- if ne $ttl nil }}
-      ttlSecondsAfterFinished: {{ $ttl }}
-      {{- end }}
+  {{- with $d.parallelism }}
+      parallelism: {{ . }}
+  {{- end }}
+  {{- with $d.completions }}
+      completions: {{ . }}
+  {{- end }}
+  {{- with $d.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- with $d.backoffLimit }}
+      backoffLimit: {{ . }}
+  {{- end }}
+  {{- with $d.ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ . }}
+  {{- end }}
       template:
-      {{- $podTemplateMetadata := include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $job "general" $general "context" $) | trim }}
-      {{- if $podTemplateMetadata }}
         metadata:
-        {{- $podTemplateMetadata | nindent 10 }}
-      {{- else }}
-        metadata: {}
-      {{- end }}
+  {{- $podTemplateMetadata := include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $d "context" $) | trim }}
+  {{- if $podTemplateMetadata }}
+          {{- $podTemplateMetadata | nindent 10 }}
+  {{- else }}
+          {}
+  {{- end }}
         spec:
-      {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | trim | nindent 10 }}
-          restartPolicy: {{ .restartPolicy | default $general.restartPolicy | default "Never" }}
-      {{- $cda := dig "commandDurationAlert" (dig "commandDurationAlert" nil $general) $job }}
-      {{- if ne $cda nil }}
-        {{- $cdaLabels := dig "commandDurationAlertLabels" (dig "commandDurationAlertLabels" (dict "prometheus" "k8s" "role" "alert-rules") $general) $job }}
-        {{- $cdaRuleLabels := dig "commandDurationAlertRuleLabels" (dig "commandDurationAlertRuleLabels" (dict "severity" "warning") $general) $job }}
+  {{- include "helpers.pod" (dict "value" $d "name" $name "context" $) | trim | nindent 10 }}
+          restartPolicy: {{ $d.restartPolicy | default "Never" }}
+  {{- $cda := $d.commandDurationAlert }}
+  {{- if ne $cda nil }}
+    {{- $cdaLabels := $d.commandDurationAlertLabels | default (dict "prometheus" "k8s" "role" "alert-rules") }}
+    {{- $cdaRuleLabels := $d.commandDurationAlertRuleLabels | default (dict "severity" "warning") }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: cronjob-{{ $cjName }}
   labels:
-        {{- include "helpers.tplvalues.render" (dict "value" $cdaLabels "context" $) | nindent 4 }}
+    {{- include "helpers.tplvalues.render" (dict "value" $cdaLabels "context" $) | nindent 4 }}
   namespace: {{ $.Release.Namespace | quote }}
 spec:
   groups:
@@ -91,10 +81,8 @@ spec:
       expr: '((time() - kube_job_status_start_time{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"}) and kube_job_status_active{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"} == 1) > {{ $cda }}'
       for: 3m
       labels:
-        {{- include "helpers.tplvalues.render" (dict "value" $cdaRuleLabels "context" $) | nindent 8 }}
+    {{- include "helpers.tplvalues.render" (dict "value" $cdaRuleLabels "context" $) | nindent 8 }}
       annotations:
         message: "CronJob {{ $.Release.Namespace }}/{{ $cjName }} is taking more than {{ $cda }} to complete"
-      {{- end }}
-    {{- end }}
   {{- end }}
 {{- end }}

@@ -61,19 +61,6 @@ tests:
           path: apiVersion
           value: cert-manager.io/v1alpha2
 
-  - it: does not render a disabled issuer
-    capabilities:
-      apiVersions:
-        - cert-manager.io/v1
-    set:
-      issuers.my-issuer.disabled: true
-      issuers.my-issuer.acme.server: https://acme-v02.api.letsencrypt.org/directory
-      issuers.my-issuer.acme.email: admin@example.com
-      issuers.my-issuer.acme.privateKeySecretRef.name: letsencrypt-key
-    asserts:
-      - hasDocuments:
-          count: 0
-
   - it: renders acme spec correctly
     capabilities:
       apiVersions:

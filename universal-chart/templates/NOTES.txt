@@ -1,5 +1,11 @@
-{{- include "helpers.deprecation.notice" $ }}
-{{- include "helpers.deprecation.workload.imagePullSecrets" $ }}
-{{- include "helpers.deprecation.serviceMonitors" $ }}
-{{- include "helpers.deprecation.extraVolumeMounts" $ }}
-{{- include "helpers.deprecation.securityContext" $ }}
+Thank you for installing {{ .Chart.Name }} v{{ .Chart.Version }}.
+
+Release name: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+The chart has been deployed. Check the status of your resources:
+
+  kubectl get all -n {{ .Release.Namespace }}
+
+For ArgoCD Image Updater workloads, image tags are managed automatically.
+

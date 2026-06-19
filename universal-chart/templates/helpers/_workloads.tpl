@@ -1,73 +1,3 @@
-{{- define "helpers.workloads.envs" -}}
-  {{- $ctx := .context -}}
-  {{- $general := .general -}}
-  {{- $v := .value -}}
-  {{- if or (or (or $v.envsFromConfigmap $v.envsFromSecret) $v.env) (or (or $general.envsFromConfigmap $general.envsFromSecret) $general.env)}}
-env:
-    {{- with $general.envsFromConfigmap }}
-      {{- include "helpers.configmaps.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
-    {{- end -}}
-    {{- with $v.envsFromConfigmap }}
-      {{- include "helpers.configmaps.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
-    {{- end -}}
-    {{- with $general.envsFromSecret }}
-      {{- include "helpers.secrets.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
-    {{- end -}}
-    {{- with $v.envsFromSecret }}
-      {{- include "helpers.secrets.includeEnv" ( dict "value" . "context" $ctx) | nindent 2 }}
-    {{- end -}}
-    {{- with $general.env }}
-      {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
-    {{- end -}}
-    {{- with $v.env }}
-      {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-
-{{- define "helpers.workloads.envsFrom" -}}
-  {{- $ctx := .context -}}
-  {{- $general := .general -}}
-  {{- $v := .value -}}
-  {{- $cmRefs := list -}}
-  {{- with $general.envConfigmaps -}}
-    {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
-  {{- end -}}
-  {{- with $v.envConfigmaps -}}
-    {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
-  {{- end -}}
-  {{- $secRefs := list -}}
-  {{- with $general.envSecrets -}}
-    {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
-  {{- end -}}
-  {{- with $v.envSecrets -}}
-    {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
-  {{- end -}}
-  {{- $hasGlobalEnvs := or (not (empty $ctx.Values.envs)) (not (empty $ctx.Values.envsString)) -}}
-  {{- if $hasGlobalEnvs -}}
-    {{- $cmRefs = prepend $cmRefs (include "helpers.app.fullname" (dict "name" "envs" "context" $ctx)) -}}
-  {{- end -}}
-  {{- $hasGlobalSecretEnvs := or (not (empty $ctx.Values.secretEnvs)) (not (empty $ctx.Values.secretEnvsString)) -}}
-  {{- if $hasGlobalSecretEnvs -}}
-    {{- $secRefs = prepend $secRefs (include "helpers.app.fullname" (dict "name" "secret-envs" "context" $ctx)) -}}
-  {{- end -}}
-  {{- if or $cmRefs (or $secRefs (or $general.envFrom $v.envFrom)) }}
-envFrom:
-    {{- with $cmRefs }}
-      {{- include "helpers.configmaps.includeEnvConfigmap" ( dict "value" . "context" $ctx) | nindent 2 }}
-    {{- end -}}
-    {{- with $secRefs }}
-      {{- include "helpers.secrets.includeEnvSecret" ( dict "value" . "context" $ctx) | nindent 2 }}
-    {{- end -}}
-    {{- with $general.envFrom }}
-      {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
-    {{- end -}}
-    {{- with $v.envFrom }}
-      {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) | nindent 2 }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-
 {{- define "helpers.workload.checksum" -}}
 {{ . | toString | sha256sum }}
 {{- end -}}
@@ -81,26 +11,20 @@ the annotation hash changes, triggering a rolling restart.
 
 Expects a dict:
 value   — the workload instance (e.g. $d inside range)
-general — the *General block (e.g. $general)
 context — the root context ($)
 
 Controlled by:
 defaults.autoChecksum  (bool, default true)  — global opt-out
 <instance>.autoChecksum (bool)                — per-workload override
-<general>.autoChecksum  (bool)                — per-kind override
 */}}
 {{- define "helpers.workload.autoChecksums" -}}
   {{- $ctx := .context -}}
-  {{- $general := .general -}}
   {{- $v := .value -}}
 
-  {{- /* Three-level merge for the autoChecksum flag: instance > general > defaults (true) */}}
+  {{- /* Two-level merge for the autoChecksum flag: instance > defaults (true) */}}
   {{- $enabled := true -}}
   {{- if hasKey $ctx.Values.defaults "autoChecksum" -}}
     {{- $enabled = $ctx.Values.defaults.autoChecksum -}}
-  {{- end -}}
-  {{- if hasKey $general "autoChecksum" -}}
-    {{- $enabled = $general.autoChecksum -}}
   {{- end -}}
   {{- if hasKey $v "autoChecksum" -}}
     {{- $enabled = $v.autoChecksum -}}
@@ -112,41 +36,19 @@ defaults.autoChecksum  (bool, default true)  — global opt-out
     (cherry-pick valueFrom). All hold rendered Kubernetes resource names
     (verbatim). */}}
     {{- $cmRefs := list -}}
-    {{- with $general.envConfigmaps -}}
-      {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
-    {{- end -}}
     {{- with $v.envConfigmaps -}}
       {{- range . }}{{ $cmRefs = append $cmRefs . }}{{ end -}}
-    {{- end -}}
-    {{- with $general.envsFromConfigmap -}}
-      {{- range $envVar, $ref := . }}{{- if kindIs "map" $ref }}{{- with $ref.name }}{{ $cmRefs = append $cmRefs . }}{{ end }}{{ end }}{{ end -}}
     {{- end -}}
     {{- with $v.envsFromConfigmap -}}
       {{- range $envVar, $ref := . }}{{- if kindIs "map" $ref }}{{- with $ref.name }}{{ $cmRefs = append $cmRefs . }}{{ end }}{{ end }}{{ end -}}
     {{- end -}}
     {{- $secRefs := list -}}
-    {{- with $general.envSecrets -}}
-      {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
-    {{- end -}}
     {{- with $v.envSecrets -}}
       {{- range . }}{{ $secRefs = append $secRefs . }}{{ end -}}
-    {{- end -}}
-    {{- with $general.envsFromSecret -}}
-      {{- range $envVar, $ref := . }}{{- if kindIs "map" $ref }}{{- with $ref.name }}{{ $secRefs = append $secRefs . }}{{ end }}{{ end }}{{ end -}}
     {{- end -}}
     {{- with $v.envsFromSecret -}}
       {{- range $envVar, $ref := . }}{{- if kindIs "map" $ref }}{{- with $ref.name }}{{ $secRefs = append $secRefs . }}{{ end }}{{ end }}{{ end -}}
     {{- end -}}
-
-    {{- /* Global envs ConfigMap (chart-managed, name "<release>-envs") —
-    always checksummed when present, even if the user didn't list it
-    explicitly, because the chart auto-injects its envFrom. */}}
-    {{- if or (not (empty $ctx.Values.envs)) (not (empty $ctx.Values.envsString)) }}
-checksum/configmap-envs: {{ printf "%v%v" $ctx.Values.envs $ctx.Values.envsString | sha256sum }}
-    {{- end }}
-    {{- if or (not (empty $ctx.Values.secretEnvs)) (not (empty $ctx.Values.secretEnvsString)) }}
-checksum/secret-secret-envs: {{ printf "%v%v" $ctx.Values.secretEnvs $ctx.Values.secretEnvsString | sha256sum }}
-    {{- end }}
 
     {{- /* Chart-managed ConfigMaps referenced explicitly. Match by rendered
     K8s name: the user writes the actual name in envConfigmaps, so we

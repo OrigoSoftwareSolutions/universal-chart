@@ -1,48 +1,37 @@
-{{- range $name, $pdb := .Values.pdbs }}
-  {{- if not (.disabled | default false) }}
-    {{- if not (or (hasKey $pdb "minAvailable") (hasKey $pdb "maxUnavailable")) }}
-      {{- fail (printf "pdbs.%s: must set either minAvailable or maxUnavailable" $name) }}
-    {{- end }}
-    {{- /* PDB selector is built from app.kubernetes.io/component=<pdb-key>, which is set on
-    Deployment/StatefulSet/DaemonSet pods derived from the matching workload key. A PDB whose
-    key has no matching workload silently selects zero pods — drains complete instantly,
-    defeating the PDB. Fail loudly at template time. */ -}}
-    {{- $hasMatchingWorkload := false -}}
-    {{- if hasKey (default dict $.Values.deployments) $name }}{{ $hasMatchingWorkload = true }}{{ end -}}
-    {{- if hasKey (default dict $.Values.statefulSets) $name }}{{ $hasMatchingWorkload = true }}{{ end -}}
-    {{- if hasKey (default dict $.Values.daemonSets) $name }}{{ $hasMatchingWorkload = true }}{{ end -}}
-    {{- if not $hasMatchingWorkload }}
-      {{- fail (printf "pdbs.%s: no matching workload found in deployments/statefulSets/daemonSets. PDB key MUST match a workload key — its selector targets app.kubernetes.io/component=%s, which is set only on pods of the same-named workload. Add the matching workload, rename the PDB, or remove this PDB." $name $name) }}
-    {{- end }}
+{{- if .Values.pdb }}
+  {{- $pdb := .Values.pdb }}
+  {{- $name := $pdb.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+  {{- if not (or (hasKey $pdb "minAvailable") (hasKey $pdb "maxUnavailable")) }}
+    {{- fail (printf "pdb: must set either minAvailable or maxUnavailable") }}
+  {{- end }}
 ---
 kind: PodDisruptionBudget
 apiVersion: {{ include "helpers.capabilities.pdb.apiVersion" $ }}
 metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  name: {{ $name }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
-    {{- include "helpers.app.labels" $ | nindent 4 }}
-    {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
-    {{- if or $annots .annotations }}
+  {{- include "helpers.app.labels" $ | nindent 4 }}
+  {{- with $pdb.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+  {{- if or $annots $pdb.annotations }}
   annotations:
-      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
-      {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- end }}
+    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+    {{- with $pdb.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- end }}
 spec:
-    {{- if hasKey $pdb "minAvailable" }}
-  minAvailable: {{ .minAvailable }}
-    {{- else if hasKey $pdb "maxUnavailable" }}
-  maxUnavailable: {{ .maxUnavailable }}
-    {{- end }}
-    {{- with .unhealthyPodEvictionPolicy }}
-      {{- if semverCompare ">=1.27-0" $.Capabilities.KubeVersion.GitVersion }}
+  {{- if hasKey $pdb "minAvailable" }}
+  minAvailable: {{ $pdb.minAvailable }}
+  {{- else if hasKey $pdb "maxUnavailable" }}
+  maxUnavailable: {{ $pdb.maxUnavailable }}
+  {{- end }}
+  {{- with $pdb.unhealthyPodEvictionPolicy }}
+    {{- if semverCompare ">=1.27-0" $.Capabilities.KubeVersion.GitVersion }}
   unhealthyPodEvictionPolicy: {{ . }}
-      {{- end }}
     {{- end }}
+  {{- end }}
   selector:
     matchLabels:
-    {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}
-    {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end -}}
-  {{- end }}
-{{- end -}}
+  {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}
+  {{- with $pdb.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end -}}
+{{- end }}

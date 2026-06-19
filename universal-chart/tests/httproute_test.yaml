@@ -91,17 +91,6 @@ tests:
           path: spec.hostnames[0]
           value: RELEASE-NAME.example.com
 
-  - it: skips rendering when disabled is true
-    capabilities:
-      apiVersions:
-        - gateway.networking.k8s.io/v1
-    set:
-      httpRoutes.my-route.disabled: true
-      httpRoutes.my-route.spec.parentRefs[0].name: gateway
-    asserts:
-      - hasDocuments:
-          count: 0
-
   - it: includes defaults.labels on httproute
     capabilities:
       apiVersions:

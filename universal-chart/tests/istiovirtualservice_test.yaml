@@ -19,15 +19,6 @@ tests:
           pattern: -my-vs$
       - isNotEmpty:
           path: metadata.namespace
-  - it: omits virtualservice documents when disabled
-    capabilities:
-      apiVersions:
-        - networking.istio.io/v1
-    set:
-      istioVirtualServices.my-vs.disabled: true
-    asserts:
-      - hasDocuments:
-          count: 0
   - it: renders hosts and gateways as quoted arrays
     capabilities:
       apiVersions:

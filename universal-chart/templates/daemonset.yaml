@@ -1,32 +1,31 @@
-{{- $general := $.Values.daemonSetsGeneral -}}
-{{- range $name, $d := .Values.daemonSets }}
-  {{- if not (.disabled | default false) }}
-    {{- $merged := mustMergeOverwrite (deepCopy $general) $d }}
+{{- if .Values.daemonset }}
+  {{- $d := .Values.daemonset }}
+  {{- $name := $d.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
 ---
 apiVersion: {{ include "helpers.capabilities.daemonSet.apiVersion" $ }}
 kind: DaemonSet
 metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  name: {{ $name }}
   namespace: {{ $.Release.Namespace | quote }}
-    {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "general" $general "context" $) | nindent 2 }}
+  {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "context" $) | nindent 2 }}
 spec:
-    {{- $rhl := dig "revisionHistoryLimit" (dig "revisionHistoryLimit" $.Values.defaults.revisionHistoryLimit $general) $d }}
-    {{- if ne $rhl nil }}
+  {{- $rhl := $d.revisionHistoryLimit | default $.Values.defaults.revisionHistoryLimit }}
+  {{- if ne $rhl nil }}
   revisionHistoryLimit: {{ $rhl | int }}
-    {{- end }}
-    {{- with $merged.updateStrategy }}
+  {{- end }}
+  {{- with $d.updateStrategy }}
   updateStrategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
-    {{- end }}
-    {{- if ne $merged.minReadySeconds nil }}
-  minReadySeconds: {{ $merged.minReadySeconds }}
-    {{- end }}
+  {{- end }}
+  {{- if $d.minReadySeconds }}
+  minReadySeconds: {{ $d.minReadySeconds }}
+  {{- end }}
   selector:
     matchLabels:
-    {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}
-    {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end }}
+  {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}
+  {{- with $d.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end }}
   template:
-    metadata:{{- include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $d "general" $general "context" $ "selectorLabels" true "extraSelectorLabels" $d.extraSelectorLabels) | nindent 6 }}
+    metadata:
+  {{- include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $d "context" $ "selectorLabels" true "extraSelectorLabels" $d.extraSelectorLabels) | nindent 6 }}
     spec:
-    {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "extraLabels" .extraSelectorLabels "context" $) | trim | nindent 6 }}
-  {{- end }}
+  {{- include "helpers.pod" (dict "value" $d "name" $name "extraLabels" $d.extraSelectorLabels "context" $) | trim | nindent 6 }}
 {{- end }}

@@ -1,59 +1,57 @@
-{{- $general := $.Values.hpasGeneral | default dict -}}
-{{- range $name, $hpa := .Values.hpas }}
-  {{- if not (.disabled | default false) }}
+{{- if .Values.hpa }}
+  {{- $hpa := .Values.hpa }}
+  {{- $name := $hpa.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
 ---
 kind: HorizontalPodAutoscaler
 apiVersion: {{ include "helpers.capabilities.hpa.apiVersion" $ }}
 metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  name: {{ $name }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
-    {{- include "helpers.app.labels" $ | nindent 4 }}
-    {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
-    {{- if or $annots .annotations }}
+  {{- include "helpers.app.labels" $ | nindent 4 }}
+  {{- with $hpa.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+  {{- if or $annots $hpa.annotations }}
   annotations:
-      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
-      {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- end }}
+    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+    {{- with $hpa.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- end }}
 spec:
-    {{- with .scaleTargetRef }}
+  {{- with $hpa.scaleTargetRef }}
   scaleTargetRef:
     apiVersion: {{ .apiVersion | default "apps/v1" }}
     kind: {{ .kind | default "Deployment" }}
-    name: {{ include "helpers.app.fullname" (dict "name" .name "context" $) }}
-    {{- end }}
-  minReplicas: {{ dig "minReplicas" (dig "minReplicas" 2 $general) $hpa | int }}
-  maxReplicas: {{ dig "maxReplicas" (dig "maxReplicas" 3 $general) $hpa | int }}
-    {{- $targetCPU := dig "targetCPU" (dig "targetCPU" nil $general) $hpa -}}
-    {{- $targetMemory := dig "targetMemory" (dig "targetMemory" nil $general) $hpa -}}
-    {{- $metrics := dig "metrics" (dig "metrics" nil $general) $hpa -}}
-    {{- if or (not (empty $targetCPU)) (not (empty $targetMemory)) $metrics }}
+    name: {{ .name | default $name }}
+  {{- end }}
+  minReplicas: {{ $hpa.minReplicas | default 2 | int }}
+  maxReplicas: {{ $hpa.maxReplicas | default 3 | int }}
+  {{- $targetCPU := $hpa.targetCPU }}
+  {{- $targetMemory := $hpa.targetMemory }}
+  {{- $metrics := $hpa.metrics }}
+  {{- if or (not (empty $targetCPU)) (not (empty $targetMemory)) $metrics }}
   metrics:
-      {{- if not (empty $targetCPU) }}
+    {{- if not (empty $targetCPU) }}
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
           averageUtilization: {{ $targetCPU }}
-      {{- end }}
-      {{- if not (empty $targetMemory) }}
+    {{- end }}
+    {{- if not (empty $targetMemory) }}
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
           averageUtilization: {{ $targetMemory }}
-      {{- end }}
-      {{- with $metrics }}
-        {{- toYaml . | nindent 4 }}
-      {{- end }}
     {{- end }}
-    {{- $behavior := dig "behavior" (dig "behavior" nil $general) $hpa -}}
-    {{- with $behavior }}
-  behavior:
+    {{- with $metrics }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- end }}
-{{- end -}}
+  {{- with $hpa.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

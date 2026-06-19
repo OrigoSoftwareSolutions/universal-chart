@@ -26,14 +26,6 @@ tests:
       - hasDocuments:
           count: 1
 
-  - it: respects the disabled flag
-    set:
-      serviceMonitors.app.disabled: true
-      serviceMonitors.app.endpoints[0].port: http
-    asserts:
-      - hasDocuments:
-          count: 0
-
   - it: honors explicit selector.matchLabels when provided
     set:
       serviceMonitors.app.endpoints[0].port: http

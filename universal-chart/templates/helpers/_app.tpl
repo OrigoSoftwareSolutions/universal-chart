@@ -12,15 +12,11 @@ Create chart name and version as used by the chart label.
 {{/*
 Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
+If .name is set, it's appended to the app name.
 */}}
 {{- define "helpers.app.fullname" -}}
   {{- if .name -}}
-    {{- if .context.Values.releasePrefix -}}
-      {{- printf "%s-%s" .context.Values.releasePrefix .name | trunc 63 | trimSuffix "-" -}}
-    {{- else -}}
-      {{- printf "%s-%s" (include "helpers.app.name" .context) .name | trunc 63 | trimSuffix "-" -}}
-    {{- end -}}
+    {{- printf "%s-%s" (include "helpers.app.name" .context) .name | trunc 63 | trimSuffix "-" -}}
   {{- else -}}
     {{- include "helpers.app.name" .context -}}
   {{- end -}}
@@ -46,8 +42,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 
 {{/*
 Workload-specific selector labels. Includes base selectorLabels plus
-app.kubernetes.io/component derived from the workload $name so that
-multiple workloads in the same release get unique selectors.
+app.kubernetes.io/component derived from the workload name.
 Expects dict with: name (string), context ($ root).
 */}}
 {{- define "helpers.app.workloadSelectorLabels" -}}
@@ -85,5 +80,5 @@ applied directly in helm-hooks.yaml.
   {{- $defaultAnnotations := include "helpers.app.defaultAnnotations" .context | fromYaml }}
   {{- $userValues := .value | fromYaml }}
   {{- $mergedValues := mustMergeOverwrite $defaultAnnotations $userValues }}
-{{- $mergedValues | toYaml -}}
+{{ $mergedValues | toYaml -}}
 {{- end -}}

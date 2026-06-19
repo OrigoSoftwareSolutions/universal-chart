@@ -1,0 +1,381 @@
+suite: universal-chart v2 singular blocks
+tests:
+  - it: renders a deployment with defaults
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: nginx
+
+  - it: renders deployment with custom name
+    templates:
+      - deployment.yaml
+    set:
+      deployment.name: my-app
+      deployment.image: nginx
+    asserts:
+      - equal:
+          path: metadata.name
+          value: my-app
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: my-app
+
+  - it: deployment with replicas and imageTag
+    templates:
+      - deployment.yaml
+    set:
+      deployment.name: web
+      deployment.image: myapp
+      deployment.imageTag: "1.2.3"
+      deployment.replicas: 3
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: myapp:1.2.3
+
+  - it: deployment with ports shorthand
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+      deployment.ports:
+        http: 8080
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+
+  - it: deployment with env vars
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+      deployment.env:
+        - name: FOO
+          value: bar
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FOO
+            value: bar
+
+  - it: deployment with healthCheck shorthand
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+      deployment.healthCheck:
+        path: /healthz
+        port: 8080
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[0].startupProbe
+      - exists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - exists:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: deployment with resources
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+      deployment.resources.requests.cpu: 100m
+      deployment.resources.requests.memory: 128Mi
+      deployment.resources.limits.memory: 256Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 100m
+
+  - it: deployment with custom strategy
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+      deployment.strategy.type: RollingUpdate
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+
+  - it: deployment inherits revisionHistoryLimit from defaults
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 3
+
+  - it: deployment overrides revisionHistoryLimit
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+      deployment.revisionHistoryLimit: 10
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 10
+  - it: renders a statefulset
+    templates:
+      - statefulset.yaml
+    set:
+      statefulset.image: nginx
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME
+
+  - it: statefulset with serviceName and volumeClaimTemplates
+    templates:
+      - statefulset.yaml
+    set:
+      statefulset.name: my-sts
+      statefulset.image: postgres:16
+      statefulset.serviceName: my-sts-svc
+    asserts:
+      - equal:
+          path: spec.serviceName
+          value: my-sts-svc
+  - it: renders a daemonset
+    templates:
+      - daemonset.yaml
+    set:
+      daemonset.image: fluentd
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - notExists:
+          path: spec.replicas
+  - it: renders a job
+    templates:
+      - job.yaml
+    set:
+      job.image: migration
+      job.restartPolicy: Never
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: Never
+
+  - it: job with ttlSecondsAfterFinished
+    templates:
+      - job.yaml
+    set:
+      job.image: migration
+      job.ttlSecondsAfterFinished: 120
+    asserts:
+      - equal:
+          path: spec.ttlSecondsAfterFinished
+          value: 120
+  - it: renders a cronjob
+    templates:
+      - cronjob.yaml
+    set:
+      cronJob.image: reporter
+      cronJob.schedule: "0 2 * * *"
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: spec.schedule
+          value: "0 2 * * *"
+
+  - it: cronjob with concurrencyPolicy
+    templates:
+      - cronjob.yaml
+    set:
+      cronJob.image: reporter
+      cronJob.schedule: "*/15 * * * *"
+      cronJob.concurrencyPolicy: Replace
+    asserts:
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Replace
+  - it: renders a service
+    templates:
+      - svc.yaml
+    set:
+      service.ports:
+        - port: 80
+          targetPort: 8080
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME
+
+  - it: service with custom name and ports
+    templates:
+      - svc.yaml
+    set:
+      service.name: my-svc
+      service.ports:
+        - name: http
+          port: 443
+          targetPort: 8080
+    asserts:
+      - equal:
+          path: metadata.name
+          value: my-svc
+      - equal:
+          path: spec.ports[0].port
+          value: 443
+
+  - it: service with LoadBalancer type
+    templates:
+      - svc.yaml
+    set:
+      service.type: LoadBalancer
+      service.ports:
+        - port: 80
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+  - it: renders a serviceaccount with role
+    templates:
+      - serviceaccount.yaml
+    set:
+      serviceAccount.name: my-sa
+      serviceAccount.role.name: my-role
+      serviceAccount.role.rules:
+        - apiGroups: [""]
+          resources: [pods]
+          verbs: [get, list]
+    asserts:
+      - isKind:
+          of: ServiceAccount
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: my-sa
+        documentIndex: 0
+  - it: renders an HPA
+    templates:
+      - hpa.yaml
+    set:
+      hpa.minReplicas: 2
+      hpa.maxReplicas: 10
+      hpa.scaleTargetRef.name: my-app
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 10
+  - it: renders a PDB with minAvailable
+    templates:
+      - pdb.yaml
+    set:
+      pdb.minAvailable: 1
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: spec.minAvailable
+          value: 1
+  - it: renders a PVC
+    templates:
+      - pvc.yaml
+    set:
+      pvc.accessModes:
+        - ReadWriteOnce
+      pvc.size: 10Gi
+    asserts:
+      - isKind:
+          of: PersistentVolumeClaim
+      - equal:
+          path: spec.resources.requests.storage
+          value: 10Gi
+  - it: renders an externalSecret
+    templates:
+      - externalsecrets.yaml
+    set:
+      externalSecret.spec.refreshInterval: 1h
+      externalSecret.spec.secretStoreRef.name: cluster-secret-store
+      externalSecret.spec.secretStoreRef.kind: ClusterSecretStore
+      externalSecret.spec.target.name: my-secret
+    asserts:
+      - isKind:
+          of: ExternalSecret
+      - equal:
+          path: spec.refreshInterval
+          value: 1h
+  - it: renders an imageUpdater
+    templates:
+      - imageupdater.yaml
+    set:
+      imageUpdater.applicationName: my-argocd-app
+      imageUpdater.images:
+        - alias: app
+          imageName: ghcr.io/origo/myapp
+          manifestTargets:
+            helm:
+              name: deployment.image
+              tag: deployment.imageTag
+    asserts:
+      - isKind:
+          of: ImageUpdater
+      - equal:
+          path: metadata.namespace
+          value: argocd
+  - it: renders configmaps
+    templates:
+      - configmap.yaml
+    set:
+      configMaps:
+        app-config:
+          data:
+            KEY: value
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - matchRegex:
+          path: metadata.name
+          pattern: 'app-config$'
+  - it: renders secrets
+    templates:
+      - secret.yaml
+    set:
+      secrets:
+        db-secrets:
+          type: Opaque
+          data:
+            password: bXlwYXNz
+    asserts:
+      - isKind:
+          of: Secret
+      - equal:
+          path: type
+          value: Opaque

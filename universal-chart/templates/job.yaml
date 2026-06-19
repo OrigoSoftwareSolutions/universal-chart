@@ -1,64 +1,52 @@
-{{- if .Values.jobs -}}
-  {{- $general := $.Values.jobsGeneral -}}
-  {{- $jobs := list -}}
-  {{- if kindIs "string" .Values.jobs -}}
-{{- $jobs = fromYaml .Values.jobs -}}
-  {{- else if kindIs "map" .Values.jobs -}}
-{{- $jobs = .Values.jobs -}}
-  {{- end -}}
-  {{- range $name, $job := $jobs }}
-    {{- if not (.disabled | default false) }}
-      {{- $jobName := include "helpers.app.fullname" (dict "name" $name "context" $) }}
+{{- if .Values.job }}
+  {{- $d := .Values.job }}
+  {{- $name := $d.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+  {{- $jobName := $name }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ $jobName }}
   namespace: {{ $.Release.Namespace | quote }}
-      {{- include "helpers.workload.metadata" (dict "name" $name "value" $job "general" $general "context" $) | nindent 2 }}
+  {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "context" $) | nindent 2 }}
 spec:
-      {{- $par := dig "parallelism" (dig "parallelism" nil $general) $job -}}
-      {{- if ne $par nil }}
-  parallelism: {{ $par }}
-      {{- end }}
-      {{- $comp := dig "completions" (dig "completions" nil $general) $job -}}
-      {{- if ne $comp nil }}
-  completions: {{ $comp }}
-      {{- end }}
-      {{- $ads := dig "activeDeadlineSeconds" (dig "activeDeadlineSeconds" nil $general) $job -}}
-      {{- if ne $ads nil }}
-  activeDeadlineSeconds: {{ $ads }}
-      {{- end }}
-      {{- $bol := dig "backoffLimit" (dig "backoffLimit" nil $general) $job -}}
-      {{- if ne $bol nil }}
-  backoffLimit: {{ $bol }}
-      {{- end }}
-      {{- $ttl := dig "ttlSecondsAfterFinished" (dig "ttlSecondsAfterFinished" nil $general) $job -}}
-      {{- if ne $ttl nil }}
-  ttlSecondsAfterFinished: {{ $ttl }}
-      {{- end }}
+  {{- with $d.parallelism }}
+  parallelism: {{ . }}
+  {{- end }}
+  {{- with $d.completions }}
+  completions: {{ . }}
+  {{- end }}
+  {{- with $d.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- with $d.backoffLimit }}
+  backoffLimit: {{ . }}
+  {{- end }}
+  {{- with $d.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ . }}
+  {{- end }}
   template:
-      {{- $podTemplateMetadata := include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $job "general" $general "context" $) | trim }}
-      {{- if $podTemplateMetadata }}
     metadata:
+  {{- $podTemplateMetadata := include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $d "context" $) | trim }}
+  {{- if $podTemplateMetadata }}
       {{- $podTemplateMetadata | nindent 6 }}
-      {{- else }}
-    metadata: {}
-      {{- end }}
+  {{- else }}
+      {}
+  {{- end }}
     spec:
-      {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "context" $) | trim | nindent 6 }}
-      restartPolicy: {{ .restartPolicy | default $general.restartPolicy | default "Never" }}
-      {{- $cda := dig "commandDurationAlert" (dig "commandDurationAlert" nil $general) $job }}
-      {{- if ne $cda nil }}
-        {{- $cdaLabels := dig "commandDurationAlertLabels" (dig "commandDurationAlertLabels" (dict "prometheus" "k8s" "role" "alert-rules") $general) $job }}
-        {{- $cdaRuleLabels := dig "commandDurationAlertRuleLabels" (dig "commandDurationAlertRuleLabels" (dict "severity" "warning") $general) $job }}
+  {{- include "helpers.pod" (dict "value" $d "name" $name "context" $) | trim | nindent 6 }}
+      restartPolicy: {{ $d.restartPolicy | default "Never" }}
+  {{- $cda := $d.commandDurationAlert }}
+  {{- if ne $cda nil }}
+    {{- $cdaLabels := $d.commandDurationAlertLabels | default (dict "prometheus" "k8s" "role" "alert-rules") }}
+    {{- $cdaRuleLabels := $d.commandDurationAlertRuleLabels | default (dict "severity" "warning") }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: job-{{ $jobName }}
   labels:
-        {{- include "helpers.tplvalues.render" (dict "value" $cdaLabels "context" $) | nindent 4 }}
+    {{- include "helpers.tplvalues.render" (dict "value" $cdaLabels "context" $) | nindent 4 }}
   namespace: {{ $.Release.Namespace | quote }}
 spec:
   groups:
@@ -69,10 +57,8 @@ spec:
       expr: '((time() - kube_job_status_start_time{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $jobName }}(-.*)?"}) and kube_job_status_active{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $jobName }}(-.*)?"} == 1) > {{ $cda }}'
       for: 3m
       labels:
-        {{- include "helpers.tplvalues.render" (dict "value" $cdaRuleLabels "context" $) | nindent 8 }}
+    {{- include "helpers.tplvalues.render" (dict "value" $cdaRuleLabels "context" $) | nindent 8 }}
       annotations:
         message: "Job {{ $.Release.Namespace }}/{{ $jobName }} is taking more than {{ $cda }} to complete"
-      {{- end }}
-    {{- end }}
   {{- end }}
 {{- end }}

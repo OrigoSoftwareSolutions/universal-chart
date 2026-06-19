@@ -1,44 +1,44 @@
-{{- range $name, $val := .Values.imageUpdaters }}
-  {{- if not ($val.disabled | default false) }}
+{{- if .Values.imageUpdater }}
+  {{- $img := .Values.imageUpdater }}
+  {{- $name := $img.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
 ---
 apiVersion: argocd-image-updater.argoproj.io/v1alpha1
 kind: ImageUpdater
 metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
-  namespace: {{ include "helpers.tplvalues.render" (dict "value" ($val.metadataNamespace | default "argocd") "context" $) | quote }}
+  name: {{ $name }}
+  namespace: {{ include "helpers.tplvalues.render" (dict "value" ($img.metadataNamespace | default "argocd") "context" $) | quote }}
   labels:
-    {{- include "helpers.app.labels" $ | nindent 4 }}
-    {{- with $val.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
-    {{- if or $annots $val.annotations }}
+  {{- include "helpers.app.labels" $ | nindent 4 }}
+  {{- with $img.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+  {{- if or $annots $img.annotations }}
   annotations:
-      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
-      {{- with $val.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- end }}
+    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+    {{- with $img.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- end }}
 spec:
   applicationRefs:
-    - namePattern: {{ include "helpers.tplvalues.render" (dict "value" $val.applicationName "context" $) | quote }}
+    - namePattern: {{ include "helpers.tplvalues.render" (dict "value" $img.applicationName "context" $) | quote }}
       images:
-    {{- range $val.images }}
+  {{- range $img.images }}
         - alias: {{ .alias }}
           imageName: {{ .imageName }}
           commonUpdateSettings:
             updateStrategy: {{ .updateStrategy | default "latest" }}
-      {{- with .allowTags }}
+    {{- with .allowTags }}
             allowTags: {{ . | quote }}
-      {{- end }}
-      {{- with .ignoreTags }}
+    {{- end }}
+    {{- with .ignoreTags }}
             ignoreTags:
-        {{- toYaml . | nindent 14 }}
-      {{- end }}
-      {{- with .manifestTargets }}
+      {{- toYaml . | nindent 14 }}
+    {{- end }}
+    {{- with .manifestTargets }}
           manifestTargets:
-        {{- toYaml . | nindent 12 }}
-      {{- end }}
+      {{- toYaml . | nindent 12 }}
     {{- end }}
-    {{- with $val.writeBackConfig }}
+  {{- end }}
+  {{- with $img.writeBackConfig }}
   writeBackConfig:
-      {{- toYaml . | nindent 4 }}
-    {{- end }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}
