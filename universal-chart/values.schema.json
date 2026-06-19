@@ -1077,7 +1077,7 @@
     "pvc": {
       "type": "object",
       "additionalProperties": false,
-      "description": "PersistentVolumeClaim instance. Set mountPath to auto-mount into workload containers.",
+      "description": "PersistentVolumeClaim instance.",
       "properties": {
         "disabled": { "type": "boolean" },
         "accessModes": {
@@ -1094,18 +1094,9 @@
           "enum": ["Filesystem", "Block"]
         },
         "volumeName": { "type": "string" },
-        "mountPath": { "type": "string", "description": "Auto-mount path in workload containers. Omit to skip auto-mounting." },
-        "subPath": { "type": "string", "description": "Sub-path within the volume to mount." },
-        "subPathExpr": { "type": "string", "description": "Sub-path expression using downward API." },
-        "readOnly": { "type": "boolean", "description": "Mount the volume read-only." },
         "keepOnDelete": {
           "type": "boolean",
           "description": "Add helm.sh/resource-policy: keep to prevent deletion on helm uninstall."
-        },
-        "workloads": {
-          "type": "array",
-          "description": "If set, PVC volume/mount is only injected into workloads whose name matches an entry in this list. Empty list means inject into no workload.",
-          "items": { "type": "string" }
         },
         "labels": { "type": "object", "additionalProperties": { "type": "string" } },
         "annotations": { "type": "object", "additionalProperties": { "type": "string" } },

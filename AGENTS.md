@@ -115,11 +115,11 @@ Define as `{{- define "helpers.<group>.<name>" -}}…{{- end -}}`.
 | File | Key helpers (verified against source) |
 |---|---|
 | `_app.tpl` | `helpers.app.fullname`, `.name`, `.chart`, `.labels`, `.selectorLabels`, `.workloadSelectorLabels`, `.genericSelectorLabels`, `.annotations`, `.defaultAnnotations`, `.defaultHookAnnotations` |
-| `_pod.tpl` | `helpers.pod` — the single pod spec used by **every** workload (~110 lines). Changes here ripple to deployments, statefulsets, daemonsets, jobs, cronjobs, and hooks — test all six. |
+| `_pod.tpl` | `helpers.pod` — the single pod spec used by **every** workload (~280 lines). Changes here ripple to deployments, statefulsets, daemonsets, jobs, cronjobs, and hooks — test all six. |
 | `_container.tpl` | `helpers.container.render` — single-container shorthand expansion. |
 | `_workloads.tpl` | `helpers.workload.metadata`, `.podTemplateMetadata`, `.checksum`, `.autoChecksums`, `.healthCheckProbe`, `.singleContainerPorts`; `helpers.workloads.envs`, `.envsFrom` (note the plural `workloads`). |
-| `_volumes.tpl` | `helpers.volumes.typed`, `.renderVolume`, `.renderVolumeMounts`, `.autoPvcVolumes`, `.autoPvcMounts`. |
-| `_capabilities.tpl` | `helpers.capabilities.<kind>.apiVersion` — semver-based API resolution per kind. |
+| `_volumes.tpl` | `helpers.volumes.typed`, `.renderVolume`, `.renderVolumeMounts`. |
+| `_capabilities.tpl` | `helpers.capabilities.<kind>.apiVersion` — `.Capabilities.APIVersions.Has`-based API version resolution per kind (capability-check, not semver). |
 | `_configmaps.tpl` / `_secrets.tpl` | `decode`/`encode`, `renderConfigMap`/`render`, `includeEnv*` for envFrom injection. |
 | `_affinities.tpl` | `helpers.affinities.pods{.soft,.hard,.labelSelector}`, `helpers.affinities.nodes{.soft,.hard}`. |
 | `_deprecations.tpl` | `helpers.deprecation.notice` + per-field deprecation warnings. |

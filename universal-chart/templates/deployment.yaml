@@ -32,6 +32,6 @@ spec:
   template:
     metadata:{{- include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $d "general" $general "context" $ "selectorLabels" true "extraSelectorLabels" $d.extraSelectorLabels) | nindent 6 }}
     spec:
-    {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "extraLabels" .extraSelectorLabels "context" $ "autoPvcs" true) | trim | nindent 6 }}
+    {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "extraLabels" .extraSelectorLabels "context" $) | trim | nindent 6 }}
   {{- end }}
 {{- end }}

@@ -165,7 +165,7 @@ services:
 |---|---|
 | `deployments.api.ports: {http: 8080}` | A matching ClusterIP **Service** with port `http:8080` (see [Single-container shorthand vs full form](#single-container-shorthand-vs-full-form) for full auto-Service conditions) |
 | `deployments.api.healthCheck: {path: /healthz}` | **Startup**, **liveness**, and **readiness** probes |
-| `pvcs.data.mountPath: /data` | A **PVC**; for Deployments/StatefulSets/DaemonSets, a pod **volume** and (when `mountPath` is set) a **volumeMount**. Jobs/CronJobs/Hooks excluded. `workloads:` narrows which workloads receive the volume. |
+| `pvcs.<name>` | A **PersistentVolumeClaim** resource. Reference it manually via `volumes:` with `type: pvc` and `claimName:` on workloads. |
 | `serviceAccounts.sa.role: {…}` | A **Role** + **RoleBinding** (or ClusterRole + ClusterRoleBinding) when `rules` are set; binds to an existing role when only `name` is set |
 | `cronJobs.etl.commandDurationAlert: 1800` | A **PrometheusRule** that fires if the job exceeds 30 min |
 
@@ -359,7 +359,7 @@ For full control, set `livenessProbe`, `readinessProbe`, `startupProbe` directly
 
 ### StatefulSets
 
-Same shorthand as Deployments. Adds `volumeClaimTemplates` and uses `updateStrategy` instead of `strategy`. The `serviceName` defaults to the workload key name (matching the auto-generated Service):
+Same shorthand as Deployments. Adds `volumeClaimTemplates` and uses `updateStrategy` instead of `strategy`. The `serviceName` defaults to the workload key name:
 
 > **`serviceName` authoring**: write the **bare service key** (e.g., `postgres-headless`); the chart wraps it with the release prefix to produce the rendered name (e.g., `my-release-postgres-headless`). To match the auto-generated Service from `ports:`, use the workload key name.
 
@@ -595,7 +595,7 @@ secrets:
 
 ### PersistentVolumeClaims
 
-PVCs are **auto-mounted** as volumes into every Deployment, StatefulSet, and DaemonSet. Add `mountPath` to also inject a `volumeMount`:
+PersistentVolumeClaim resources are created from the `pvcs:` block. They are not automatically mounted into workloads — reference them manually via `volumes:` with `type: pvc` and `claimName:` on each workload.
 
 > **`disabled: true` on an installed PVC is destructive by default.** Helm reconciles by diffing rendered manifests against release state — the moment a PVC disappears from the rendered output, `helm upgrade` deletes the live PVC. If the bound PV's StorageClass uses `reclaimPolicy: Delete` (the default for most cloud StorageClasses, including Azure `managed-csi`), the underlying disk is destroyed too.
 >
@@ -613,52 +613,18 @@ pvcs:
       - ReadWriteOnce
     size: 10Gi
     storageClassName: gp3
-    mountPath: /data          # auto-mount into every container
-    subPath: app              # optional: sub-directory within the volume
-    readOnly: false           # optional: default false
 
   shared-cache:
     accessModes:
       - ReadWriteMany
     size: 5Gi
-    # no mountPath = volume is added but not mounted (manual volumeMount needed)
 
   old-pvc:
-    disabled: true            # skipped entirely — no volume, no mount
+    disabled: true            # skipped entirely
     accessModes:
       - ReadWriteOnce
     size: 1Gi
 ```
-
-Hooks, Jobs, and CronJobs are excluded from auto-mounting.
-
-#### Scope a PVC to specific workloads only
-
-By default a PVC is auto-mounted into *every* Deployment / StatefulSet / DaemonSet in the release. Set `workloads:` to a list of workload names to scope it down — useful when one PVC is owned by one workload and other workloads in the same release shouldn't see it (e.g. `RWO` volumes that block scheduling on multi-AZ workloads, or stateful directories you don't want appearing in unrelated containers).
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-  worker:
-    image: my-worker
-    imageTag: "1.0.0"
-
-pvcs:
-  api-cache:
-    accessModes: [ReadWriteOnce]
-    size: 5Gi
-    mountPath: /cache
-    workloads: [api]            # mounted only into the `api` Deployment
-
-  shared:
-    accessModes: [ReadWriteMany]
-    size: 1Gi
-    mountPath: /shared
-    # workloads: omitted → mounted into both `api` and `worker`
-```
-
 
 ### StorageClasses
 
@@ -698,13 +664,13 @@ storageClasses:
 
 Instead of raw Kubernetes volume specs, use simplified `type` + `name`:
 
-| `type` | Required sub-field | Optional sub-fields |
+| `type` | Name sub-field (defaults to volume name) | Optional sub-fields |
 |---|---|---|
-| `configMap` | `configMapName` | — |
-| `secret` | `secretName` | — |
-| `emptyDir` | — | — |
+| `configMap` | `configMapName` | `defaultMode`, `items` |
+| `secret` | `secretName` | `items` |
+| `emptyDir` | — | `sizeLimit`, `medium` |
 | `pvc` | `claimName` | — |
-| `hostPath` | `path` | — |
+| `hostPath` | `path` | `hostPathType` |
 
 ```yaml
 deployments:
@@ -2291,7 +2257,7 @@ Community charts wrap a single application with extensive `values.yaml` options.
 | `ingress.enabled` + `ingress.hosts` | `httpRoutes:` or `istioVirtualServices:` |
 | `resources.requests` | `resources.requests` (same) |
 | `env` / `extraEnvVars` | `env:` / `envs:` / `envConfigmaps:` |
-| `persistence.enabled` + `persistence.size` | `pvcs:` block with `mountPath` |
+| `persistence.enabled` + `persistence.size` | `pvcs:` block |
 | `podSecurityContext` | `podSecurityContext` (same) |
 | `serviceAccount.create` | `serviceAccounts:` block |
 
@@ -2349,7 +2315,6 @@ Previously a PDB key that didn't match any workload rendered silently and select
 
 **Volumes show `<no value>` or mount errors:**
 - Typed volumes need the correct sub-field: `configMapName` for configMap, `secretName` for secret, `claimName` for pvc
-- PVC auto-mounting only applies to Deployments, StatefulSets, and DaemonSets — not Jobs, CronJobs, or Hooks
 
 **"Unable to run as non-root" errors:**
 - Default `podSecurityContext` sets `runAsNonRoot: true`. Override for images that need root:

@@ -342,20 +342,12 @@ persistentVolumes: {}
 #       persistentVolumeReclaimPolicy: Retain
 
 # -- Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name.
-# PVCs are automatically added to the `volumes` block in each workload (excluding hooks).
-# Set `mountPath` on a PVC to also auto-mount it into every container.
-# Set `workloads` to limit auto-mounting to specific workload names.
-# Set `keepOnDelete` to retain the PVC on uninstall.
+# PVCs are NOT automatically mounted — reference them manually via `volumes:` with `type: pvc` and `claimName:`.
 pvcs: {}
 #   app-data:
 #     accessModes: [ReadWriteOnce]
 #     size: 8Gi
-#     mountPath: /data           # auto-mounts this PVC into every container
 #     # keepOnDelete: true
-#     # workloads: [web]         # optional: mount only into these workloads
-#     # workloads: []            # optional: mount into no workloads
-#     # subPath: ""              # optional: mount a sub-path of the volume
-#     # readOnly: false          # optional: mount read-only
 
 # =============================================================================
 # @section Autoscaling & Availability
