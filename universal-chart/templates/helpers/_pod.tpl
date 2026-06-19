@@ -18,9 +18,18 @@
     {{- else if (ne $.Values.defaults.healthCheck nil) }}{{ $workloadHealthCheck = $.Values.defaults.healthCheck }}
     {{- end -}}
     {{- if (ne .serviceAccountName nil) }}
-      {{- with .serviceAccountName }}
-serviceAccountName: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
-      {{- end }}
+      {{- $resolvedSAName := .serviceAccountName -}}
+      {{- /* Auto-resolve serviceAccountName if it matches a key in serviceAccounts */}}
+      {{- if $.Values.serviceAccounts -}}
+        {{- if kindIs "map" $.Values.serviceAccounts -}}
+          {{- if hasKey $.Values.serviceAccounts $resolvedSAName -}}
+            {{- $resolvedSAName = include "helpers.app.fullname" (dict "name" $resolvedSAName "context" $) -}}
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+      {{- if $resolvedSAName -}}
+serviceAccountName: {{ $resolvedSAName }}
+      {{- end -}}
     {{- else if (ne $general.serviceAccountName nil) }}
       {{- with $general.serviceAccountName }}
 serviceAccountName: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
