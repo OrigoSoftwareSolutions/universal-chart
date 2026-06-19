@@ -239,6 +239,26 @@ No abstraction layers, no surprises. Whatever you put in `spec:` is what Kuberne
 
 ## Workloads
 
+### Recommended Configuration
+
+A workload definition can include many blocks, but most production services share a common set. Treat this as a checklist when defining a new workload:
+
+```
+workload-key
+  image + imageTag           # Container image (required — no default)
+  resources                  # CPU/memory requests and limits (must be set explicitly)
+  healthCheck                # Startup + liveness + readiness probes (strongly recommended)
+  ports                      # Container ports (required for Services and health checks)
+  volumes + volumeMounts     # Storage — PVCs, ConfigMaps, Secrets (PVCs are not auto-mounted)
+  nodeSelector / affinity    # Pod placement constraints (built-in presets enabled by default)
+  tolerations                # Taint tolerance to schedule on tainted nodes
+```
+
+The chart provides sensible defaults for security contexts and affinity — you only need to set values that differ from those. Resource requests and limits, however, must be set explicitly on each workload (or via `defaults`/`*General`). See the [Defaults Cascade](#defaults-how-settings-merge) section for how settings merge.
+
+> **Tip**: Start with `image` + `imageTag` and add blocks as you need them. The chart's minimal starter creates a hardened Deployment from just those two fields.
+
+
 ### Deployments
 
 #### Single-container shorthand
