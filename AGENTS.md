@@ -69,7 +69,6 @@ and if `values.yaml` changed, `README.md` was regenerated and committed.
 - **`disabled: true`** on any instance suppresses rendering — keep it inside the `range` after the guard so `---` doesn't leak.
 - **`workload` (singular) on Services and ServiceMonitors** scopes the default selector to one workload via `app.kubernetes.io/component` (defaults to the resource key when omitted; mirror the pattern in [svc.yaml:3,94](file:///home/dzhi/git/origo/universal-chart/universal-chart/templates/svc.yaml#L3) when adding new selector-bearing kinds). **`workloads` (plural) on PVCs** scopes PVC auto-mount injection to listed workload names.
 - **`keepOnDelete: true`** on PVCs and Secrets adds `helm.sh/resource-policy: keep`.
-- **`autoservices.yaml`** generates Services from workload `ports:` in **map form** only (`ports: {http: 8080}`). List form (`ports: [{containerPort: …}]`) does NOT auto-create a Service. `service: false` on the workload suppresses it.
 - **Auto-checksums** (`helpers.workload.autoChecksums`) only annotate chart-managed ConfigMaps/Secrets referenced via `envConfigmaps`/`envSecrets`. External (ESO etc.) sources need Reloader. Opt-out via `autoChecksum: false` at `defaults`, `*General`, or instance level.
 - **`extra.yaml`** renders the top-level `extraDeploy:` escape hatch — string values are template-rendered against `$`.
 - **Defaults cascade** (workloads): `defaults` → `<kind>General` → instance, merged with `dig`. CRD passthrough resources have NO cascade — `spec:` is `toYaml`d verbatim.
