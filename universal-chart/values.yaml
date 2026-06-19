@@ -169,22 +169,22 @@ nodeAffinityPreset:
 # @section Environment Variables
 # =============================================================================
 
-# -- Non-secret environment variables injected via ConfigMap envFrom.
+# -- Non-secret environment variables injected via `envFrom` into ALL workloads automatically.
 envs: {}
 #   BAR: foo
 #   TEST: "true"
 
 # -- Non-secret environment variables as a raw YAML string (for multiline or special chars).
-envsString: ""
+# Injected via `envFrom` into ALL workloads automatically.
 # envsString: |
 #   BAR2: foo2
 
-# -- Secret environment variables injected via Secret envFrom.
+# -- Secret environment variables injected via `envFrom` into ALL workloads automatically.
 secretEnvs: {}
 #   DB_PASSWORD: s3cret
 
 # -- Secret environment variables as a raw YAML string.
-secretEnvsString: ""
+# Injected via `envFrom` into ALL workloads automatically.
 # secretEnvsString: |
 #   API_KEY: abc123
 

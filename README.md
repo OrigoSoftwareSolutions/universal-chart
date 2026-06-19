@@ -2380,8 +2380,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | diagnosticMode.args | list | `["infinity"]` | Args override applied to every container. |
 | diagnosticMode.command | list | `["sleep"]` | Command override applied to every container. |
 | diagnosticMode.enabled | bool | `false` | Enable diagnostic mode globally. |
-| envs | object | `{}` | Non-secret environment variables injected via ConfigMap envFrom. |
-| envsString | string | `""` | Non-secret environment variables as a raw YAML string (for multiline or special chars). |
+| envs | object | `{}` | Non-secret environment variables injected via `envFrom` into ALL workloads automatically. |
 | externalSecrets | object | `{}` | External Secrets Operator ExternalSecret resources. Each key becomes the resource name. |
 | extraDeploy | object | `{}` | Raw Kubernetes manifests to deploy alongside chart resources. Supports template expressions. |
 | hooks | object | `{}` | Helm lifecycle hook Jobs (pre/post-install/upgrade). Each key becomes the hook name. |
@@ -2409,8 +2408,7 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | pvcs | object | `{}` | Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name. PVCs are NOT automatically mounted — reference them manually via `volumes:` with `type: pvc` and `claimName:`. |
 | releasePrefix | string | `""` | Prefix prepended to all resource names. Leave empty to disable. |
-| secretEnvs | object | `{}` | Secret environment variables injected via Secret envFrom. |
-| secretEnvsString | string | `""` | Secret environment variables as a raw YAML string. |
+| secretEnvs | object | `{}` | Secret environment variables injected via `envFrom` into ALL workloads automatically. |
 | secretStores | object | `{}` | External Secrets Operator SecretStore resources (namespace-scoped). Each key becomes the resource name. |
 | secrets | object | `{}` | Kubernetes Secret resources. Each key becomes the resource name. |
 | serviceAccounts | object | `{}` | Kubernetes ServiceAccount resources. Each key becomes the resource name. |
