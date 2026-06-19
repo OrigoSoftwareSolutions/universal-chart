@@ -1,41 +1,139 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "universal-chart values",
-  "description": "Schema for Origo universal-chart values validation",
+  "title": "universal-chart v2 values",
+  "description": "Schema for Origo universal-chart v2.0.0+ — singular-block pattern.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "releasePrefix": {
-      "type": "string",
-      "description": "Prefix prepended to all resource names. Leave empty to disable."
-    },
     "defaultImagePullPolicy": {
-      "$ref": "#/$defs/imagePullPolicy"
+      "type": "string",
+      "enum": ["Always", "IfNotPresent", "Never"],
+      "description": "Fallback image pull policy."
     },
     "imagePullSecrets": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Image pull secret names referenced in every pod spec."
+      "description": "Image pull secret names."
+    },
+    "nameOverride": {
+      "type": "string",
+      "description": "Override the chart name used in resource name generation."
     },
     "diagnosticMode": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "enabled": { "type": "boolean" },
-        "command": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "args": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
+        "command": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "type": "string" } }
       }
     },
+    "defaults": { "$ref": "#/$defs/defaults" },
+    "podAffinityPreset": {
+      "type": "string",
+      "enum": ["soft", "hard", ""]
+    },
+    "podAntiAffinityPreset": {
+      "type": "string",
+      "enum": ["soft", "hard", ""]
+    },
+    "nodeAffinityPreset": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["soft", "hard", ""] },
+        "key": { "type": "string" },
+        "values": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "deployment": { "$ref": "#/$defs/workload" },
+    "statefulset": { "$ref": "#/$defs/workload" },
+    "daemonset": { "$ref": "#/$defs/workload" },
+    "job": { "$ref": "#/$defs/workload" },
+    "cronJob": { "$ref": "#/$defs/workload" },
+    "service": { "$ref": "#/$defs/service" },
+    "serviceAccount": { "$ref": "#/$defs/serviceAccount" },
+    "hpa": { "$ref": "#/$defs/hpa" },
+    "pdb": { "$ref": "#/$defs/pdb" },
+    "pvc": { "$ref": "#/$defs/pvc" },
+    "externalSecret": { "$ref": "#/$defs/externalSecret" },
+    "imageUpdater": { "$ref": "#/$defs/imageUpdater" },
+    "configMaps": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/configMap" }
+    },
+    "secrets": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/secret" }
+    },
+    "persistentVolumes": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "storageClasses": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "certificates": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "issuers": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "clusterIssuers": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "secretStores": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "clusterSecretStores": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "clusterExternalSecrets": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "istioGateways": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "istioVirtualServices": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "istioDestinationRules": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "istioPeerAuthentications": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "istioAuthorizationPolicies": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "serviceMonitors": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "httpRoutes": {
+      "type": "object",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    },
+    "extraDeploy": {
+      "type": "object",
+      "additionalProperties": {},
+      "description": "Raw Kubernetes manifests keyed by name."
+    }
+  },
+  "$defs": {
     "defaults": {
       "type": "object",
-      "additionalProperties": true,
-      "description": "Default settings applied to all workload templates.",
       "properties": {
         "labels": { "type": "object", "additionalProperties": { "type": "string" } },
         "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
@@ -50,247 +148,170 @@
         "serviceAccountName": { "type": "string" },
         "hostAliases": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
         "priorityClassName": { "type": "string" },
-        "dnsPolicy": {
-          "type": "string",
-          "enum": ["ClusterFirst", "Default", "ClusterFirstWithHostNet", "None"]
-        },
-        "tolerations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "dnsPolicy": { "type": "string", "enum": ["ClusterFirst", "Default", "ClusterFirstWithHostNet", "None"] },
+        "dnsConfig": { "type": "object", "additionalProperties": true },
         "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
-        "volumes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": true,
-            "properties": {
-              "configMapName": { "type": "string" },
-              "secretName": { "type": "string" },
-              "claimName": { "type": "string" }
-            }
-          }
-        },
-        "volumeMounts": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "tolerations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "topologySpreadConstraints": { "type": "array" },
+        "volumes": { "type": "array" },
+        "volumeMounts": { "type": "array" },
         "resources": { "$ref": "#/$defs/resources" },
         "podSecurityContext": { "$ref": "#/$defs/podSecurityContext" },
         "containerSecurityContext": { "$ref": "#/$defs/containerSecurityContext" },
         "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
         "preStopSleep": { "type": "integer", "minimum": 0 },
+        "revisionHistoryLimit": { "type": "integer", "minimum": 0 },
+        "healthCheck": { "$ref": "#/$defs/healthCheck" },
         "hostNetwork": { "type": "boolean" },
         "hostPID": { "type": "boolean" },
         "hostIPC": { "type": "boolean" },
         "shareProcessNamespace": { "type": "boolean" },
-        "autoChecksum": { "type": "boolean", "description": "Enable/disable automatic checksum annotations globally." },
-        "topologySpreadConstraints": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/topologySpreadConstraint" }
-        },
-        "revisionHistoryLimit": { "type": "integer", "minimum": 0, "description": "Default revisionHistoryLimit for Deployments and StatefulSets." },
-        "dnsConfig": { "type": "object", "additionalProperties": true, "description": "Default pod DNS configuration." },
-        "healthCheck": { "$ref": "#/$defs/healthCheck", "description": "Default health check shorthand cascaded into all workloads (defaults → <kind>General → workload). Workloads with explicit startup/liveness/readiness probes are not affected; init containers never inherit." }
+        "automountServiceAccountToken": { "type": "boolean" },
+        "runtimeClassName": { "type": "string" },
+        "overhead": { "type": "object", "additionalProperties": true },
+        "readinessGates": { "type": "array" },
+        "schedulingGates": { "type": "array" },
+        "os": { "type": "object", "additionalProperties": true },
+        "progressDeadlineSeconds": { "type": "integer", "minimum": 0 }
       }
     },
-    "podAffinityPreset": {
-      "type": "string",
-      "enum": ["soft", "hard", ""],
-      "description": "Pod affinity preset"
-    },
-    "podAntiAffinityPreset": {
-      "type": "string",
-      "enum": ["soft", "hard", ""],
-      "description": "Pod anti-affinity preset"
-    },
-    "nodeAffinityPreset": {
+    "workload": {
       "type": "object",
-      "additionalProperties": true,
+      "description": "Singular workload block (deployment, statefulset, daemonset, job, cronJob). Use .name to set a custom resource name; defaults to Release.Name.",
       "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["soft", "hard", ""]
+        "name": { "type": "string", "description": "Resource name. Defaults to Release.Name." },
+        "image": { "type": "string", "description": "Container image (single-container shorthand)." },
+        "imageTag": { "type": ["string", "number"], "description": "Image tag." },
+        "imagePullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] },
+        "replicas": { "type": "integer", "minimum": 0 },
+        "ports": {
+          "type": "object",
+          "description": "Container ports map (name→port or name→{port,protocol})."
         },
-        "key": { "type": "string" },
-        "values": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
+        "containers": { "type": "array", "items": { "$ref": "#/$defs/container" } },
+        "initContainers": { "type": "array", "items": { "$ref": "#/$defs/container" } },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "env": { "type": "array", "items": { "$ref": "#/$defs/envEntry" } },
+        "envFrom": { "type": "array" },
+        "envConfigmaps": { "type": "array", "items": { "type": "string" } },
+        "envSecrets": { "type": "array", "items": { "type": "string" } },
+        "envsFromConfigmap": { "type": "object" },
+        "envsFromSecret": { "type": "object" },
+        "resources": { "$ref": "#/$defs/resources" },
+        "healthCheck": { "$ref": "#/$defs/healthCheck" },
+        "podSecurityContext": { "$ref": "#/$defs/podSecurityContext" },
+        "securityContext": { "$ref": "#/$defs/podSecurityContext", "description": "Deprecated alias for podSecurityContext." },
+        "containerSecurityContext": { "$ref": "#/$defs/containerSecurityContext" },
+        "affinity": { "type": "object", "additionalProperties": true },
+        "usePredefinedAffinity": { "type": "boolean" },
+        "serviceAccountName": { "type": "string" },
+        "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
+        "tolerations": { "type": "array" },
+        "topologySpreadConstraints": { "type": "array" },
+        "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
+        "preStopSleep": { "type": "integer", "minimum": 0 },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "extraSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "extraImagePullSecrets": { "type": "array", "items": { "type": "string" } },
+        "imagePullSecrets": { "type": "array", "items": { "type": "string" }, "description": "Deprecated: use extraImagePullSecrets." },
+        "volumes": { "type": "array" },
+        "extraVolumes": { "type": "array" },
+        "volumeMounts": { "type": "array" },
+        "extraVolumeMounts": { "type": "array" },
+        "strategy": { "type": "object", "additionalProperties": true },
+        "updateStrategy": { "type": "object", "additionalProperties": true },
+        "revisionHistoryLimit": { "type": "integer", "minimum": 0 },
+        "minReadySeconds": { "type": "integer", "minimum": 0 },
+        "progressDeadlineSeconds": { "type": "integer", "minimum": 0 },
+        "serviceName": { "type": "string", "description": "Governing service name for StatefulSets." },
+        "volumeClaimTemplates": { "type": "array" },
+        "podManagementPolicy": { "type": "string" },
+        "restartPolicy": { "type": "string" },
+        "schedule": { "type": "string", "description": "CronJob schedule expression." },
+        "timeZone": { "type": "string" },
+        "concurrencyPolicy": { "type": "string", "enum": ["Allow", "Forbid", "Replace"] },
+        "singleOnly": { "type": "boolean" },
+        "suspend": { "type": "boolean" },
+        "startingDeadlineSeconds": { "type": "integer", "minimum": 0 },
+        "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+        "failedJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+        "parallelism": { "type": "integer", "minimum": 0 },
+        "completions": { "type": "integer", "minimum": 0 },
+        "backoffLimit": { "type": "integer", "minimum": 0 },
+        "activeDeadlineSeconds": { "type": "integer", "minimum": 0 },
+        "ttlSecondsAfterFinished": { "type": "integer", "minimum": 0 },
+        "commandDurationAlert": { "type": "integer", "minimum": 0 },
+        "commandDurationAlertLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "commandDurationAlertRuleLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "lifecycle": { "type": "object", "additionalProperties": true },
+        "dnsConfig": { "type": "object", "additionalProperties": true },
+        "dnsPolicy": { "type": "string" },
+        "hostAliases": { "type": "array" },
+        "priorityClassName": { "type": "string" },
+        "hostNetwork": { "type": "boolean" },
+        "hostPID": { "type": "boolean" },
+        "hostIPC": { "type": "boolean" },
+        "shareProcessNamespace": { "type": "boolean" },
+        "automountServiceAccountToken": { "type": "boolean" },
+        "runtimeClassName": { "type": "string" },
+        "overhead": { "type": "object", "additionalProperties": true },
+        "readinessGates": { "type": "array" },
+        "schedulingGates": { "type": "array" },
+        "os": { "type": "object", "additionalProperties": true },
+        "startupProbe": { "type": "object", "additionalProperties": true },
+        "livenessProbe": { "type": "object", "additionalProperties": true },
+        "readinessProbe": { "type": "object", "additionalProperties": true }
       }
     },
-    "envs": { "type": "object", "additionalProperties": true },
-    "secretEnvs": { "type": "object", "additionalProperties": true },
-    "envsString": { "type": "string" },
-    "secretEnvsString": { "type": "string" },
-    "deployments": {
+    "container": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/workload" }
-    },
-    "deploymentsGeneral": { "$ref": "#/$defs/workloadGeneral" },
-    "statefulSets": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/workload" }
-    },
-    "statefulSetsGeneral": { "$ref": "#/$defs/workloadGeneral" },
-    "daemonSets": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/workload" }
-    },
-    "daemonSetsGeneral": { "$ref": "#/$defs/workloadGeneral" },
-    "cronJobs": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/cronJob" }
-    },
-    "cronJobsGeneral": { "$ref": "#/$defs/workloadGeneral" },
-    "jobs": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/job" }
-    },
-    "jobsGeneral": { "$ref": "#/$defs/workloadGeneral" },
-    "hooks": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/workload" }
-    },
-    "hooksGeneral": { "$ref": "#/$defs/workloadGeneral" },
-    "services": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/service" }
-    },
-    "configMaps": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "secrets": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/secret" }
-    },
-    "pvcs": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/pvc" }
-    },
-    "hpas": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/hpa" }
-    },
-    "hpasGeneral": { "$ref": "#/$defs/hpaGeneral" },
-    "pdbs": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/pdb" }
-    },
-    "serviceAccounts": {
-      "type": "object",
-      "additionalProperties": true
-    },
-    "serviceAccountsGeneral": {
-      "type": "object",
-      "additionalProperties": true
-    },
-    "externalSecrets": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "secretStores": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "clusterSecretStores": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "clusterExternalSecrets": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "certificates": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "issuers": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "clusterIssuers": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "httpRoutes": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "istioVirtualServices": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "istioGateways": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "istioDestinationRules": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "istioPeerAuthentications": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "istioAuthorizationPolicies": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "serviceMonitors": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" }
-    },
-    "imageUpdaters": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/imageUpdater" }
-    },
-    "nameOverride": {
-      "type": "string",
-      "description": "Override the chart name used in resource name generation."
-    },
-    "persistentVolumes": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" },
-      "description": "Kubernetes PersistentVolume resources (cluster-scoped). Thin passthrough — spec goes directly to the resource."
-    },
-    "storageClasses": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/disableable" },
-      "description": "Kubernetes StorageClass resources (cluster-scoped). Standard StorageClass fields are passed through directly."
-    },
-    "extraDeploy": {
-      "type": "object",
-      "additionalProperties": {},
-      "description": "Raw Kubernetes manifests keyed by name. Values support Helm template expressions."
-    }
-  },
-  "$defs": {
-    "disableable": {
-      "type": "object",
-      "additionalProperties": true,
+      "description": "Container definition for multi-container workloads.",
       "properties": {
-        "disabled": { "type": "boolean" }
+        "name": { "type": "string" },
+        "image": { "type": "string" },
+        "imageTag": { "type": ["string", "number"] },
+        "imagePullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "ports": { "type": "array" },
+        "env": { "type": "array" },
+        "envFrom": { "type": "array" },
+        "resources": { "$ref": "#/$defs/resources" },
+        "securityContext": { "$ref": "#/$defs/containerSecurityContext" },
+        "livenessProbe": { "type": "object", "additionalProperties": true },
+        "readinessProbe": { "type": "object", "additionalProperties": true },
+        "startupProbe": { "type": "object", "additionalProperties": true },
+        "lifecycle": { "type": "object", "additionalProperties": true },
+        "volumeMounts": { "type": "array" }
       }
     },
     "service": {
       "type": "object",
-      "additionalProperties": false,
-      "description": "Kubernetes Service instance.",
       "properties": {
-        "disabled": { "type": "boolean" },
-        "type": {
-          "type": "string",
-          "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"],
-          "description": "Service type."
-        },
-        "externalTrafficPolicy": {
-          "type": "string",
-          "enum": ["Cluster", "Local"],
-          "description": "External traffic policy for NodePort/LoadBalancer services."
-        },
-        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
-        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"] },
+        "clusterIP": { "type": "string" },
+        "externalName": { "type": "string" },
+        "loadBalancerIP": { "type": "string" },
+        "loadBalancerClass": { "type": "string" },
+        "allocateLoadBalancerNodePorts": { "type": "boolean" },
+        "loadBalancerSourceRanges": { "type": "array", "items": { "type": "string" } },
+        "externalTrafficPolicy": { "type": "string", "enum": ["Cluster", "Local"] },
+        "healthCheckNodePort": { "type": "integer" },
+        "sessionAffinity": { "type": "string", "enum": ["None", "ClientIP"] },
+        "sessionAffinityConfig": { "type": "object", "additionalProperties": true },
+        "ipFamilies": { "type": "array", "items": { "type": "string", "enum": ["IPv4", "IPv6"] } },
+        "ipFamilyPolicy": { "type": "string", "enum": ["SingleStack", "PreferDualStack", "RequireDualStack"] },
+        "externalIPs": { "type": "array", "items": { "type": "string" } },
+        "publishNotReadyAddresses": { "type": "boolean" },
         "ports": {
           "type": "array",
           "items": {
             "type": "object",
-            "additionalProperties": true,
             "properties": {
               "name": { "type": "string" },
               "port": { "type": "integer" },
@@ -300,171 +321,139 @@
             }
           }
         },
-        "clusterIP": { "type": "string", "description": "ClusterIP to assign. Set to None for headless services." },
-        "externalName": { "type": "string", "description": "External DNS name for ExternalName services." },
-        "loadBalancerIP": { "type": "string", "description": "Static IP for LoadBalancer services." },
-        "loadBalancerClass": { "type": "string", "description": "LoadBalancer implementation class." },
-        "allocateLoadBalancerNodePorts": { "type": "boolean", "description": "Whether to allocate node ports for LoadBalancer services." },
-        "loadBalancerSourceRanges": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "CIDRs allowed to access LoadBalancer services."
-        },
-        "healthCheckNodePort": { "type": "integer", "description": "Health check node port for LoadBalancer services with externalTrafficPolicy: Local." },
-        "externalIPs": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "External IPs that route to Service endpoints."
-        },
-        "selector": {
-          "type": "object",
-          "additionalProperties": { "type": "string" },
-          "description": "Explicit Service selector labels. Used verbatim when set. ExternalName services omit selectors."
-        },
-        "workload": {
-          "type": "string",
-          "description": "Target workload name for component-level pod selection. Defaults to the service key name when selector is not explicitly set."
-        },
+        "selector": { "type": "object", "additionalProperties": { "type": "string" } },
         "extraSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "publishNotReadyAddresses": {
-          "type": "boolean",
-          "description": "Publish not-ready pod addresses in the Service."
-        },
-        "sessionAffinity": {
-          "type": "string",
-          "enum": ["None", "ClientIP"],
-          "description": "Session affinity mode for the Service."
-        },
-        "sessionAffinityConfig": {
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "automountServiceAccountToken": { "type": "boolean" },
+        "imagePullSecrets": { "type": "array" },
+        "secrets": { "type": "array" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "role": { "type": "object", "properties": { "name": { "type": "string" }, "rules": { "type": "array" } } },
+        "clusterRole": { "type": "object", "properties": { "name": { "type": "string" }, "rules": { "type": "array" } } }
+      }
+    },
+    "hpa": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "scaleTargetRef": {
           "type": "object",
-          "additionalProperties": true,
-          "description": "Session affinity configuration for the Service."
-        },
-        "ipFamilies": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["IPv4", "IPv6"]
-          },
-          "description": "IP families for the Service."
-        },
-        "ipFamilyPolicy": {
-          "type": "string",
-          "enum": ["SingleStack", "PreferDualStack", "RequireDualStack"],
-          "description": "IP family policy for the Service."
-        }
-      }
-    },
-    "cronJob": {
-      "allOf": [
-        { "$ref": "#/$defs/workload" },
-        {
-          "if": {
-            "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
-          },
-          "then": {
-            "required": ["schedule"]
+          "properties": {
+            "name": { "type": "string" },
+            "kind": { "type": "string" },
+            "apiVersion": { "type": "string" }
           }
-        }
-      ],
-      "properties": {
-        "schedule": { "type": "string", "description": "Cron schedule expression (required)." },
-        "startingDeadlineSeconds": { "type": "integer", "minimum": 0, "description": "Deadline in seconds for starting the job if it misses its scheduled time." },
-        "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0, "description": "Number of successful finished jobs to retain." },
-        "failedJobsHistoryLimit": { "type": "integer", "minimum": 0, "description": "Number of failed finished jobs to retain." },
-        "singleOnly": { "type": "boolean", "description": "Shorthand for concurrencyPolicy: Forbid." },
-        "concurrencyPolicy": {
-          "type": "string",
-          "enum": ["Allow", "Forbid", "Replace"],
-          "description": "Concurrency policy for CronJob. Overrides singleOnly when set."
         },
-        "suspend": { "type": "boolean", "description": "Suspend the CronJob." },
-        "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Seconds threshold — creates a PrometheusRule that fires when CronJob execution exceeds this duration." },
-        "commandDurationAlertLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Labels applied to the PrometheusRule resource (replaces the default {prometheus: k8s, role: alert-rules}). Set this to match your kube-prometheus-stack.ruleSelector." },
-        "commandDurationAlertRuleLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Labels applied to the alert rule itself (replaces the default {severity: warning}). Used by Alertmanager routing." }
+        "minReplicas": { "type": "integer", "minimum": 0 },
+        "maxReplicas": { "type": "integer", "minimum": 1 },
+        "targetCPU": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "targetMemory": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "metrics": { "type": "array" },
+        "behavior": { "type": "object", "additionalProperties": true },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
       }
     },
-    "job": {
-      "allOf": [
-        { "$ref": "#/$defs/workload" }
-      ],
+    "pdb": {
+      "type": "object",
       "properties": {
-        "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Seconds threshold — creates a PrometheusRule that fires when Job execution exceeds this duration." },
-        "commandDurationAlertLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Labels applied to the PrometheusRule resource (replaces the default {prometheus: k8s, role: alert-rules}). Set this to match your kube-prometheus-stack.ruleSelector." },
-        "commandDurationAlertRuleLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Labels applied to the alert rule itself (replaces the default {severity: warning}). Used by Alertmanager routing." }
+        "name": { "type": "string" },
+        "minAvailable": { "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }] },
+        "maxUnavailable": { "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }] },
+        "unhealthyPodEvictionPolicy": { "type": "string", "enum": ["IfHealthyBudget", "AlwaysAllow"] },
+        "extraSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
       }
     },
-    "imagePullPolicy": {
-      "type": "string",
-      "enum": ["Always", "IfNotPresent", "Never"],
-      "description": "Image pull policy."
+    "pvc": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "accessModes": { "type": "array" },
+        "size": { "type": "string" },
+        "storageClassName": { "type": "string" },
+        "volumeMode": { "type": "string", "enum": ["Filesystem", "Block"] },
+        "volumeName": { "type": "string" },
+        "keepOnDelete": { "type": "boolean" },
+        "selector": { "type": "object", "additionalProperties": true },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "externalSecret": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "spec": { "type": "object", "additionalProperties": true },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "imageUpdater": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "applicationName": { "type": "string" },
+        "metadataNamespace": { "type": "string" },
+        "images": { "type": "array" },
+        "writeBackConfig": { "type": "object", "additionalProperties": true },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "configMap": {
+      "type": "object",
+      "properties": {
+        "data": { "type": "object" },
+        "binaryData": { "type": "object" },
+        "immutable": { "type": "boolean" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "secret": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "data": { "type": "object" },
+        "stringData": { "type": "object" },
+        "immutable": { "type": "boolean" },
+        "keepOnDelete": { "type": "boolean" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
     },
     "resources": {
       "type": ["object", "null"],
-      "description": "Container resource requests/limits. Must be an object with requests and/or limits.",
-      "additionalProperties": true,
       "properties": {
-        "requests": {
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "cpu": { "type": ["string", "number"] },
-            "memory": { "type": "string" }
-          }
-        },
-        "limits": {
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "cpu": { "type": ["string", "number"] },
-            "memory": { "type": "string" }
-          }
-        }
+        "requests": { "type": "object", "properties": { "cpu": { "type": ["string", "number"] }, "memory": { "type": "string" } } },
+        "limits": { "type": "object", "properties": { "cpu": { "type": ["string", "number"] }, "memory": { "type": "string" } } }
       }
     },
     "podSecurityContext": {
       "type": "object",
-      "additionalProperties": true,
-      "description": "Pod-level security context.",
       "properties": {
         "runAsNonRoot": { "type": "boolean" },
         "runAsUser": { "type": "integer" },
         "runAsGroup": { "type": "integer" },
         "fsGroup": { "type": "integer" },
-        "fsGroupChangePolicy": {
-          "type": "string",
-          "enum": ["Always", "OnRootMismatch"]
-        },
-        "seccompProfile": {
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": ["RuntimeDefault", "Localhost", "Unconfined"]
-            }
-          }
-        },
-        "supplementalGroups": {
-          "type": "array",
-          "items": { "type": "integer" }
-        },
-        "sysctls": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": { "type": "string" },
-              "value": { "type": "string" }
-            }
-          }
-        }
+        "fsGroupChangePolicy": { "type": "string", "enum": ["Always", "OnRootMismatch"] },
+        "seccompProfile": { "type": "object", "properties": { "type": { "type": "string", "enum": ["RuntimeDefault", "Localhost", "Unconfined"] } } },
+        "supplementalGroups": { "type": "array", "items": { "type": "integer" } },
+        "sysctls": { "type": "array" }
       }
     },
     "containerSecurityContext": {
       "type": "object",
-      "additionalProperties": true,
-      "description": "Container-level security context.",
       "properties": {
         "allowPrivilegeEscalation": { "type": "boolean" },
         "readOnlyRootFilesystem": { "type": "boolean" },
@@ -474,58 +463,20 @@
         "privileged": { "type": "boolean" },
         "capabilities": {
           "type": "object",
-          "additionalProperties": true,
           "properties": {
-            "add": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "drop": {
-              "type": "array",
-              "items": { "type": "string" }
-            }
+            "add": { "type": "array", "items": { "type": "string" } },
+            "drop": { "type": "array", "items": { "type": "string" } }
           }
         },
-        "seccompProfile": {
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": ["RuntimeDefault", "Localhost", "Unconfined"]
-            }
-          }
-        }
-      }
-    },
-    "topologySpreadConstraint": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Topology spread constraint for pod scheduling.",
-      "properties": {
-        "maxSkew": { "type": "integer", "minimum": 1 },
-        "topologyKey": { "type": "string" },
-        "whenUnsatisfiable": {
-          "type": "string",
-          "enum": ["DoNotSchedule", "ScheduleAnyway"]
-        },
-        "labelSelector": {
-          "type": "object",
-          "additionalProperties": true
-        }
+        "seccompProfile": { "type": "object", "properties": { "type": { "type": "string", "enum": ["RuntimeDefault", "Localhost", "Unconfined"] } } }
       }
     },
     "healthCheck": {
       "type": "object",
-      "additionalProperties": true,
-      "description": "Health check shorthand — generates liveness, readiness, and startup probes.",
       "properties": {
         "path": { "type": "string" },
         "port": { "type": ["integer", "string"] },
-        "scheme": {
-          "type": "string",
-          "enum": ["HTTP", "HTTPS"]
-        },
+        "scheme": { "type": "string", "enum": ["HTTP", "HTTPS"] },
         "initialDelaySeconds": { "type": "integer", "minimum": 0 },
         "periodSeconds": { "type": "integer", "minimum": 1 },
         "timeoutSeconds": { "type": "integer", "minimum": 1 },
@@ -533,791 +484,12 @@
         "failureThreshold": { "type": "integer", "minimum": 1 }
       }
     },
-    "container": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Container definition used in the containers list.",
-      "properties": {
-        "name": { "type": "string" },
-        "image": { "type": "string" },
-        "imageTag": { "type": ["string", "number"] },
-        "imagePullPolicy": { "$ref": "#/$defs/imagePullPolicy" },
-        "command": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "args": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "ports": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": true,
-            "properties": {
-              "name": { "type": "string" },
-              "containerPort": { "type": "integer" },
-              "protocol": { "type": "string", "enum": ["TCP", "UDP", "SCTP"] }
-            }
-          }
-        },
-        "resources": { "$ref": "#/$defs/resources" },
-        "securityContext": { "$ref": "#/$defs/containerSecurityContext" },
-        "envs": { "type": "object" },
-        "envsFrom": { "type": "object" },
-        "volumeMounts": { "type": "array" },
-        "livenessProbe": { "type": "object", "additionalProperties": true },
-        "readinessProbe": { "type": "object", "additionalProperties": true },
-        "startupProbe": { "type": "object", "additionalProperties": true },
-        "lifecycle": { "type": "object", "additionalProperties": true }
-      }
-    },
-    "workload": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Workload instance (Deployment, StatefulSet, DaemonSet, CronJob, Job, Hook).",
-      "if": {
-        "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
-      },
-      "then": {
-        "anyOf": [
-          { "required": ["image"] },
-          { "required": ["containers"] }
-        ]
-      },
-      "properties": {
-        "disabled": { "type": "boolean" },
-        "replicas": { "type": "integer", "minimum": 0 },
-        "image": { "type": "string" },
-        "imageTag": { "type": ["string", "number"] },
-        "imagePullPolicy": { "$ref": "#/$defs/imagePullPolicy" },
-        "ports": {
-          "description": "Single-container shorthand: map of name→port or name→{port, protocol}. Creates containerPorts and a Service.",
-          "type": "object",
-          "additionalProperties": {
-            "oneOf": [
-              { "type": "integer" },
-              {
-                "type": "object",
-                "properties": {
-                  "port": { "type": "integer" },
-                  "protocol": { "type": "string", "enum": ["TCP", "UDP", "SCTP"] }
-                },
-                "required": ["port"],
-                "additionalProperties": false
-              }
-            ]
-          }
-        },
-        "resources": { "$ref": "#/$defs/resources" },
-        "healthCheck": { "$ref": "#/$defs/healthCheck" },
-        "podSecurityContext": { "$ref": "#/$defs/podSecurityContext" },
-        "securityContext": {
-          "$ref": "#/$defs/podSecurityContext",
-          "description": "Deprecated alias for podSecurityContext. Prefer podSecurityContext for pod-level settings."
-        },
-        "containerSecurityContext": { "$ref": "#/$defs/containerSecurityContext" },
-        "topologySpreadConstraints": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/topologySpreadConstraint" }
-        },
-        "containers": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/container" }
-        },
-        "initContainers": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/container" }
-        },
-        "command": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "args": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "serviceAccountName": { "type": "string" },
-        "usePredefinedAffinity": { "type": "boolean" },
-        "affinity": { "type": "object", "additionalProperties": true, "description": "Custom pod affinity/anti-affinity rules. Overrides predefined affinity." },
-        "hostAliases": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
-        "priorityClassName": { "type": "string" },
-        "dnsPolicy": { "type": "string", "description": "DNS policy for pods. Supports template expressions." },
-        "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
-        "tolerations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
-        "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
-        "parallelism": { "type": "integer", "minimum": 0, "description": "Number of pods running at the same time (Jobs/Hooks)." },
-        "completions": { "type": "integer", "minimum": 0, "description": "Number of successful completions required (Jobs/Hooks)." },
-        "activeDeadlineSeconds": { "type": "integer", "minimum": 0, "description": "Maximum duration in seconds before the Job is terminated." },
-        "backoffLimit": { "type": "integer", "minimum": 0, "description": "Number of retries before marking a Job as failed." },
-        "ttlSecondsAfterFinished": { "type": "integer", "minimum": 0, "description": "TTL for cleaning up finished Jobs." },
-        "progressDeadlineSeconds": { "type": "integer", "minimum": 0, "description": "Maximum time for a Deployment to make progress before considered failed." },
-        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
-        "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
-        "serviceName": {
-          "type": "string",
-          "description": "Governing service name for StatefulSets. Defaults to the workload key name."
-        },
-        "imagePullSecrets": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Deprecated: use extraImagePullSecrets instead. Image pull secret names for this workload."
-        },
-        "extraImagePullSecrets": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Additional image pull secrets for this workload, merged with top-level and defaults."
-        },
-        "env": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/envEntry" },
-          "description": "Inline env entries (Kubernetes spec format)."
-        },
-        "envFrom": {
-          "type": "array",
-          "description": "Raw envFrom entries (Kubernetes spec format)."
-        },
-        "envConfigmaps": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "ConfigMap names to inject via envFrom. Names are used verbatim — write the actual Kubernetes ConfigMap name."
-        },
-        "envSecrets": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Secret names to inject via envFrom. Names are used verbatim — write the actual Kubernetes Secret name."
-        },
-        "envsFromConfigmap": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Cherry-pick individual keys from ConfigMaps as env vars."
-        },
-        "envsFromSecret": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Cherry-pick individual keys from Secrets as env vars."
-        },
-        "volumes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": true,
-            "properties": {
-              "configMapName": { "type": "string" },
-              "secretName": { "type": "string" },
-              "claimName": { "type": "string" }
-            }
-          },
-          "description": "Typed volumes (configMap, secret, pvc, emptyDir, hostPath)."
-        },
-        "extraVolumes": {
-          "type": "array",
-          "description": "Additional raw volumes appended to pod spec."
-        },
-        "volumeMounts": {
-          "type": "array",
-          "items": { "type": "object", "additionalProperties": true },
-          "description": "Volume mounts for containers."
-        },
-        "extraSelectorLabels": {
-          "type": "object",
-          "additionalProperties": { "type": "string" },
-          "description": "Additional selector labels for workload matching."
-        },
-        "strategy": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Deployment update strategy."
-        },
-        "updateStrategy": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "StatefulSet/DaemonSet update strategy."
-        },
-        "revisionHistoryLimit": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Number of old ReplicaSets to retain."
-        },
-        "volumeClaimTemplates": {
-          "type": "array",
-          "description": "VolumeClaimTemplates for StatefulSets."
-        },
-        "schedule": {
-          "type": "string",
-          "description": "Cron schedule expression (CronJobs)."
-        },
-        "timeZone": {
-          "type": "string",
-          "description": "Time zone for CronJob schedule (e.g. America/New_York). Requires K8s 1.27+."
-        },
-        "singleOnly": {
-          "type": "boolean",
-          "description": "Shorthand for concurrencyPolicy: Forbid (CronJobs)."
-        },
-        "concurrencyPolicy": {
-          "type": "string",
-          "enum": ["Allow", "Forbid", "Replace"],
-          "description": "Concurrency policy for CronJob. Overrides singleOnly when set."
-        },
-        "suspend": {
-          "type": "boolean",
-          "description": "Suspend scheduling (CronJobs)."
-        },
-        "startingDeadlineSeconds": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Deadline in seconds for starting the job if it misses its scheduled time."
-        },
-        "commandDurationAlert": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Seconds threshold for PrometheusRule alert on long-running jobs."
-        },
-        "commandDurationAlertLabels": {
-          "type": "object",
-          "additionalProperties": { "type": "string" },
-          "description": "Labels applied to the PrometheusRule resource (replaces the default {prometheus: k8s, role: alert-rules}). Set this to match your kube-prometheus-stack.ruleSelector."
-        },
-        "commandDurationAlertRuleLabels": {
-          "type": "object",
-          "additionalProperties": { "type": "string" },
-          "description": "Labels applied to the alert rule itself (replaces the default {severity: warning}). Used by Alertmanager routing."
-        },
-        "autoChecksum": {
-          "type": "boolean",
-          "description": "Enable/disable automatic checksum annotations for envConfigmaps/envSecrets."
-        },
-        "restartPolicy": {
-          "type": "string",
-          "description": "Restart policy for Job/CronJob/Hook pods."
-        },
-        "lifecycle": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Container lifecycle hooks (preStop, postStart)."
-        },
-        "dnsConfig": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Pod DNS configuration."
-        },
-        "minReadySeconds": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Minimum seconds a pod should be ready before considered available."
-        },
-        "podManagementPolicy": {
-          "type": "string",
-          "description": "Pod management policy for StatefulSets (OrderedReady or Parallel)."
-        },
-        "successfulJobsHistoryLimit": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Number of successful finished jobs to retain (CronJobs)."
-        },
-        "failedJobsHistoryLimit": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Number of failed finished jobs to retain (CronJobs)."
-        },
-        "kind": {
-          "type": "string",
-          "description": "Helm hook kind (e.g. pre-install,pre-upgrade). Used by hooks only."
-        },
-        "weight": {
-          "type": ["string", "integer"],
-          "description": "Helm hook weight. Used by hooks only."
-        },
-        "deletePolicy": {
-          "type": "string",
-          "description": "Helm hook delete policy. Used by hooks only."
-        },
-        "startupProbe": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Custom startup probe (overrides healthCheck shorthand)."
-        },
-        "livenessProbe": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Custom liveness probe (overrides healthCheck shorthand)."
-        },
-        "readinessProbe": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Custom readiness probe (overrides healthCheck shorthand)."
-        },
-        "preStopSleep": { "type": "integer", "minimum": 0, "description": "Seconds to sleep in preStop hook. Overrides defaults.preStopSleep for this workload." },
-        "hostNetwork": { "type": "boolean", "description": "Use the host network namespace for this pod. Required for DaemonSets that sniff host traffic." },
-        "hostPID": { "type": "boolean", "description": "Use the host PID namespace. Allows processes to see host-level PIDs." },
-        "hostIPC": { "type": "boolean", "description": "Use the host IPC namespace." },
-        "shareProcessNamespace": { "type": "boolean", "description": "Share a single process namespace between all containers in the pod." },
-        "automountServiceAccountToken": { "type": "boolean", "description": "Controls whether a service account token is automatically mounted into the pod. Overrides the ServiceAccount-level default." },
-        "runtimeClassName": { "type": "string", "description": "Name of the RuntimeClass object to use. Required for gVisor, Kata Containers, WASM runtimes, etc." },
-        "overhead": { "type": "object", "additionalProperties": true, "description": "Resource overhead associated with running a pod (used by RuntimeClass)." },
-        "readinessGates": { "type": "array", "items": { "type": "object", "additionalProperties": true }, "description": "Additional conditions to be evaluated for pod readiness." },
-        "schedulingGates": { "type": "array", "items": { "type": "object", "additionalProperties": true }, "description": "Scheduling gates that must be cleared before the pod is eligible for scheduling." },
-        "os": { "type": "object", "additionalProperties": true, "description": "OS-specific settings for the pod (e.g. {name: linux} or {name: windows})." }
-      }
-    },
-    "workloadGeneral": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Shared defaults for a workload kind (*General). Merged with per-instance values.",
-      "properties": {
-        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
-        "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
-        "resources": { "$ref": "#/$defs/resources" },
-        "podSecurityContext": { "$ref": "#/$defs/podSecurityContext" },
-        "securityContext": {
-          "$ref": "#/$defs/podSecurityContext",
-          "description": "Deprecated alias for podSecurityContext. Prefer podSecurityContext for pod-level settings."
-        },
-        "containerSecurityContext": { "$ref": "#/$defs/containerSecurityContext" },
-        "topologySpreadConstraints": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/topologySpreadConstraint" }
-        },
-        "usePredefinedAffinity": { "type": "boolean" },
-        "affinity": { "type": "object", "additionalProperties": true, "description": "Custom pod affinity/anti-affinity rules. Overrides predefined affinity." },
-        "serviceAccountName": { "type": "string" },
-        "hostAliases": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
-        "priorityClassName": { "type": "string" },
-        "dnsPolicy": { "type": "string", "description": "DNS policy for pods. Supports template expressions." },
-        "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
-        "tolerations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
-        "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
-        "parallelism": { "type": "integer", "minimum": 0 },
-        "completions": { "type": "integer", "minimum": 0 },
-        "activeDeadlineSeconds": { "type": "integer", "minimum": 0 },
-        "backoffLimit": { "type": "integer", "minimum": 0 },
-        "ttlSecondsAfterFinished": { "type": "integer", "minimum": 0 },
-        "progressDeadlineSeconds": { "type": "integer", "minimum": 0 },
-        "replicas": { "type": "integer", "minimum": 0 },
-        "revisionHistoryLimit": { "type": "integer", "minimum": 0 },
-        "timeZone": { "type": "string", "description": "Default time zone for CronJob schedules." },
-        "env": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/envEntry" },
-          "description": "Default inline env entries."
-        },
-        "envFrom": { "type": "array", "description": "Default raw envFrom entries." },
-        "envConfigmaps": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Default ConfigMap names to inject via envFrom. Names are used verbatim."
-        },
-        "envSecrets": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Default Secret names to inject via envFrom. Names are used verbatim."
-        },
-        "envsFromConfigmap": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Default cherry-pick keys from ConfigMaps as env vars."
-        },
-        "envsFromSecret": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Default cherry-pick keys from Secrets as env vars."
-        },
-        "volumes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": true,
-            "properties": {
-              "configMapName": { "type": "string" },
-              "secretName": { "type": "string" },
-              "claimName": { "type": "string" }
-            }
-          },
-          "description": "Default typed volumes."
-        },
-        "extraVolumes": { "type": "array", "description": "Default extra raw volumes." },
-        "volumeMounts": {
-          "type": "array",
-          "items": { "type": "object", "additionalProperties": true },
-          "description": "Default volume mounts."
-        },
-        "extraVolumeMounts": { "type": "array", "description": "Default extra volume mounts." },
-        "autoChecksum": {
-          "type": "boolean",
-          "description": "Enable/disable automatic checksum annotations for this workload kind."
-        },
-        "startingDeadlineSeconds": { "type": "integer", "minimum": 0 },
-        "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0 },
-        "failedJobsHistoryLimit": { "type": "integer", "minimum": 0 },
-        "dnsConfig": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Pod DNS configuration (options, searches, nameservers)."
-        },
-        "minReadySeconds": { "type": "integer", "minimum": 0 },
-        "extraImagePullSecrets": { "type": "array", "items": { "type": "string" } },
-        "preStopSleep": { "type": "integer", "minimum": 0 },
-        "hostNetwork": { "type": "boolean" },
-        "hostPID": { "type": "boolean" },
-        "hostIPC": { "type": "boolean" },
-        "shareProcessNamespace": { "type": "boolean" },
-        "automountServiceAccountToken": { "type": "boolean", "description": "Controls whether a service account token is automatically mounted into pods of this kind." },
-        "runtimeClassName": { "type": "string", "description": "Name of the RuntimeClass object to use." },
-        "overhead": { "type": "object", "additionalProperties": true, "description": "Resource overhead for pods of this kind (used by RuntimeClass)." },
-        "readinessGates": { "type": "array", "items": { "type": "object", "additionalProperties": true }, "description": "Additional pod readiness conditions." },
-        "schedulingGates": { "type": "array", "items": { "type": "object", "additionalProperties": true }, "description": "Scheduling gates for pods of this kind." },
-        "os": { "type": "object", "additionalProperties": true, "description": "OS-specific settings for pods of this kind." },
-        "deletePolicy": { "type": "string", "description": "Default Helm hook delete policy for all hooks in this release (e.g. before-hook-creation,hook-succeeded)." },
-        "kind": { "type": "string", "description": "Default Helm hook kind for all hooks (e.g. pre-install,pre-upgrade)." },
-        "weight": { "type": ["string", "integer"], "description": "Default Helm hook weight for all hooks." },
-        "restartPolicy": { "type": "string", "description": "Default restart policy for Job/CronJob/Hook pods." },
-        "commandDurationAlert": { "type": "integer", "minimum": 0, "description": "Default seconds threshold for PrometheusRule alert on long-running jobs." },
-        "commandDurationAlertLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Default labels for the PrometheusRule resource (replaces chart default when set)." },
-        "commandDurationAlertRuleLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Default labels for the alert rule itself (replaces chart default when set)." },
-        "podManagementPolicy": { "type": "string", "description": "Default pod management policy for StatefulSets (OrderedReady or Parallel)." },
-        "lifecycle": { "type": "object", "additionalProperties": true, "description": "Default container lifecycle hooks (preStop, postStart)." },
-        "startupProbe": { "type": "object", "additionalProperties": true, "description": "Default custom startup probe." },
-        "livenessProbe": { "type": "object", "additionalProperties": true, "description": "Default custom liveness probe." },
-        "readinessProbe": { "type": "object", "additionalProperties": true, "description": "Default custom readiness probe." },
-        "healthCheck": { "$ref": "#/$defs/healthCheck", "description": "Default health check shorthand for all workloads of this kind." },
-        "concurrencyPolicy": { "type": "string", "enum": ["Allow", "Forbid", "Replace"], "description": "Default concurrency policy for CronJobs of this kind." },
-        "strategy": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Default Deployment update strategy for workloads of this kind."
-        },
-        "updateStrategy": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Default StatefulSet/DaemonSet update strategy for workloads of this kind."
-        }
-      }
-    },
-    "pvc": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "PersistentVolumeClaim instance.",
-      "properties": {
-        "disabled": { "type": "boolean" },
-        "accessModes": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany", "ReadWriteOncePod"]
-          }
-        },
-        "size": { "type": "string", "description": "Storage size (default: 1Gi)." },
-        "storageClassName": { "type": "string" },
-        "volumeMode": {
-          "type": "string",
-          "enum": ["Filesystem", "Block"]
-        },
-        "volumeName": { "type": "string" },
-        "keepOnDelete": {
-          "type": "boolean",
-          "description": "Add helm.sh/resource-policy: keep to prevent deletion on helm uninstall."
-        },
-        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
-        "selector": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Label selector for PVC binding to a specific PV."
-        }
-      }
-    },
-    "secret": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Kubernetes Secret instance.",
-      "properties": {
-        "disabled": { "type": "boolean" },
-        "type": { "type": "string", "description": "Secret type." },
-        "data": { "type": "object", "additionalProperties": { "type": "string" } },
-        "stringData": { "type": "object", "additionalProperties": { "type": "string" } },
-        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
-        "keepOnDelete": {
-          "type": "boolean",
-          "description": "Add helm.sh/resource-policy: keep to prevent deletion on helm uninstall."
-        },
-        "immutable": {
-          "type": "boolean",
-          "description": "Mark the Secret as immutable. Prevents data changes and improves kubelet performance at scale."
-        }
-      }
-    },
-    "hpa": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "HorizontalPodAutoscaler instance.",
-      "properties": {
-        "disabled": { "type": "boolean" },
-        "scaleTargetRef": {
-          "type": "object",
-          "required": ["name"],
-          "properties": {
-            "name": { "type": "string" },
-            "kind": { "type": "string", "enum": ["Deployment", "StatefulSet"] },
-            "apiVersion": { "type": "string" }
-          }
-        },
-        "minReplicas": { "type": "integer", "minimum": 0 },
-        "maxReplicas": { "type": "integer", "minimum": 1 },
-        "targetCPU": { "type": "integer", "minimum": 1, "maximum": 100 },
-        "targetMemory": { "type": "integer", "minimum": 1, "maximum": 100 },
-        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
-        "metrics": {
-          "type": "array",
-          "description": "Custom metrics for autoscaling."
-        },
-        "behavior": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Autoscaler behavior configuration (scaleUp/scaleDown policies)."
-        }
-      },
-      "if": {
-        "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
-      },
-      "then": {
-        "required": ["scaleTargetRef"]
-      }
-    },
-    "hpaGeneral": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Shared defaults for all HPAs (cascadable: minReplicas, maxReplicas, targetCPU, targetMemory, behavior, metrics).",
-      "properties": {
-        "minReplicas": { "type": "integer", "minimum": 0 },
-        "maxReplicas": { "type": "integer", "minimum": 1 },
-        "targetCPU": { "type": "integer", "minimum": 1, "maximum": 100 },
-        "targetMemory": { "type": "integer", "minimum": 1, "maximum": 100 },
-        "metrics": {
-          "type": "array",
-          "description": "Default custom metrics for autoscaling."
-        },
-        "behavior": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Default autoscaler behavior configuration (scaleUp/scaleDown policies)."
-        }
-      }
-    },
-    "pdb": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "PodDisruptionBudget instance.",
-      "properties": {
-        "disabled": { "type": "boolean" },
-        "minAvailable": {
-          "oneOf": [
-            { "type": "integer", "minimum": 0 },
-            { "type": "string", "pattern": "^(\\d+%|\\d+)$" }
-          ]
-        },
-        "maxUnavailable": {
-          "oneOf": [
-            { "type": "integer", "minimum": 0 },
-            { "type": "string", "pattern": "^(\\d+%|\\d+)$" }
-          ]
-        },
-        "unhealthyPodEvictionPolicy": {
-          "type": "string",
-          "enum": ["IfHealthyBudget", "AlwaysAllow"]
-        },
-        "extraSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
-      },
-      "if": {
-        "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
-      },
-      "then": {
-        "anyOf": [
-          {
-            "required": ["minAvailable"],
-            "not": { "required": ["maxUnavailable"] }
-          },
-          {
-            "required": ["maxUnavailable"],
-            "not": { "required": ["minAvailable"] }
-          }
-        ]
-      }
-    },
     "envEntry": {
       "type": "object",
-      "description": "Individual environment variable with support for valueFrom.",
       "properties": {
         "name": { "type": "string" },
         "value": { "type": ["string", "number", "boolean"] },
-        "valueFrom": {
-          "type": "object",
-          "properties": {
-            "configMapKeyRef": {
-              "type": "object",
-              "properties": {
-                "name": { "type": "string" },
-                "key": { "type": "string" },
-                "optional": { "type": "boolean" }
-              },
-              "required": ["name", "key"]
-            },
-            "secretKeyRef": {
-              "type": "object",
-              "properties": {
-                "name": { "type": "string" },
-                "key": { "type": "string" },
-                "optional": { "type": "boolean" }
-              },
-              "required": ["name", "key"]
-            },
-            "resourceFieldRef": {
-              "type": "object",
-              "properties": {
-                "containerName": { "type": "string" },
-                "resource": { "type": "string" },
-                "divisor": { "type": ["string", "number"] }
-              },
-              "required": ["resource"]
-            },
-            "fieldRef": {
-              "type": "object",
-              "properties": {
-                "apiVersion": { "type": "string" },
-                "fieldPath": { "type": "string" }
-              },
-              "required": ["fieldPath"]
-            }
-          }
-        }
-      },
-      "required": ["name"]
-    },
-    "envMap": {
-      "type": "object",
-      "additionalProperties": { "type": ["string", "number", "boolean"] }
-    },
-    "envFromConfigmap": {
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "keys": {
-          "oneOf": [
-            { "type": "string" },
-            { "type": "array", "items": { "type": "string" } },
-            {
-              "type": "object",
-              "additionalProperties": { "type": "string" }
-            }
-          ]
-        }
-      },
-      "required": ["name"]
-    },
-    "envFromSecret": {
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "keys": {
-          "oneOf": [
-            { "type": "string" },
-            { "type": "array", "items": { "type": "string" } },
-            {
-              "type": "object",
-              "additionalProperties": { "type": "string" }
-            }
-          ]
-        }
-      },
-      "required": ["name"]
-    },
-    "envConfigmaps": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/envFromConfigmap" }
-    },
-    "envSecrets": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/envFromSecret" }
-    },
-    "imageUpdater": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Argo CD Image Updater instance.",
-      "properties": {
-        "disabled": { "type": "boolean" },
-        "applicationName": { "type": "string", "description": "Argo CD Application name pattern to target." },
-        "metadataNamespace": { "type": "string", "description": "Namespace where the ImageUpdater CR itself is created (default: argocd). Must match the namespace where target Applications live, since AIU v1.2+ defaults to namespace scope." },
-        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
-        "images": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "alias": { "type": "string" },
-              "imageName": { "type": "string" },
-              "updateStrategy": { "type": "string", "enum": ["semver", "latest", "newest-build", "alphabetical", "digest", "name"], "description": "Argo CD Image Updater image-update strategy. Valid values per AIU v1.2.0 CRD: semver (v1.2 CRD default), latest, newest-build, alphabetical, digest, name." },
-              "allowTags": { "type": "string" },
-              "ignoreTags": { "type": "array", "items": { "type": "string" } },
-              "manifestTargets": {
-                "type": "object",
-                "additionalProperties": false,
-                "description": "Required. Tells AIU exactly which Helm value keys to write the new image/tag into. There is no chart-level default — universal-chart hosts N deployments per release, so a root-level fallback would be ambiguous. Use deployments.<name>.image / deployments.<name>.imageTag so AIU writes land on the exact path the chart reads.",
-                "oneOf": [
-                  { "required": ["helm"] },
-                  { "required": ["kustomize"] }
-                ],
-                "properties": {
-                  "helm": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "oneOf": [
-                      { "required": ["spec"] },
-                      { "required": ["name", "tag"] }
-                    ],
-                    "properties": {
-                      "name": { "type": "string", "description": "Dot-separated path to the Helm value key for the image repository (e.g. deployments.api.image)." },
-                      "tag": { "type": "string", "description": "Dot-separated path to the Helm value key for the image tag (e.g. deployments.api.imageTag)." },
-                      "spec": { "type": "string", "description": "Dot-separated path to a Helm value key that holds the full image reference. Mutually exclusive with name/tag." }
-                    }
-                  },
-                  "kustomize": {
-                    "type": "object",
-                    "additionalProperties": true,
-                    "required": ["name"],
-                    "properties": {
-                      "name": { "type": "string" }
-                    }
-                  }
-                }
-              }
-            },
-            "required": ["alias", "imageName", "manifestTargets"]
-          }
-        },
-        "writeBackConfig": {
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "method": { "type": "string" }
-          }
-        }
-      },
-      "if": {
-        "not": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] }
-      },
-      "then": {
-        "required": ["applicationName", "images"]
+        "valueFrom": { "type": "object", "additionalProperties": true }
       }
     }
   }

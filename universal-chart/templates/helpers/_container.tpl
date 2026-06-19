@@ -1,6 +1,5 @@
 {{- define "helpers.container.render" -}}
   {{- $ := .context -}}
-  {{- $general := .general -}}
   {{- $name := .name -}}
   {{- $c := .value -}}
   {{- $enableHealthCheck := .enableHealthCheckShorthand -}}
@@ -12,7 +11,7 @@
   {{- $isInitContainer := .isInitContainer | default false -}}
   {{- with $c -}}
     {{- if $useDefaultImage }}
-      {{- $image := include "helpers.tplvalues.render" (dict "value" (required (printf "deployments.%s (or matching workload kind): .image is required. Root-level defaultImage/defaultImageTag fallbacks were removed in chart 1.7.3 — set deployments.%s.image (and deployments.%s.imageTag) explicitly so AIU writes are unambiguous." $name $name $name) .image) "context" $) -}}
+      {{- $image := include "helpers.tplvalues.render" (dict "value" (required (printf "Workload: .image is required.") .image) "context" $) -}}
       {{- $hasEmbeddedTag := regexMatch "^([^/]+/)*[^/:]+:[^/]+$" $image -}}
       {{- if and (not .imageTag) $hasEmbeddedTag }}
   image: {{ $image }}
@@ -33,10 +32,9 @@
       {{- end }}
     {{- end }}
   imagePullPolicy: {{ include "helpers.tplvalues.render" (dict "value" (.imagePullPolicy | default $.Values.defaultImagePullPolicy) "context" $) }}
-    {{- /* Deep-merge container securityContext: defaults → general → workload → container. Each tier overrides previous keys; unset keys retain prior tier's secure defaults so adding a single capability does not strip allowPrivilegeEscalation: false / readOnlyRootFilesystem: true / capabilities.drop. */ -}}
+    {{- /* Deep-merge container securityContext: defaults → workload → container. Each tier overrides previous keys. */ -}}
     {{- $effectiveContainerSecCtx := dict -}}
     {{- with $.Values.defaults.containerSecurityContext }}{{ $effectiveContainerSecCtx = mustMergeOverwrite $effectiveContainerSecCtx (deepCopy .) }}{{ end -}}
-    {{- with $general.containerSecurityContext }}{{ $effectiveContainerSecCtx = mustMergeOverwrite $effectiveContainerSecCtx (deepCopy .) }}{{ end -}}
     {{- with $workloadContainerSecurityContext }}{{ $effectiveContainerSecCtx = mustMergeOverwrite $effectiveContainerSecCtx (deepCopy .) }}{{ end -}}
     {{- with .securityContext }}{{ $effectiveContainerSecCtx = mustMergeOverwrite $effectiveContainerSecCtx (deepCopy .) }}{{ end -}}
     {{- if $effectiveContainerSecCtx }}
@@ -52,10 +50,12 @@
     {{- else if .command }}
   command: {{- include "helpers.tplvalues.render" ( dict "value" .command "context" $) | nindent 2 }}
     {{- end }}
-    {{- $envs := include "helpers.workloads.envs" (dict "value" . "general" $general "context" $) | trim -}}
-    {{- if $envs }}{{ $envs | nindent 2 }}{{- end }}
-    {{- $envsFrom := include "helpers.workloads.envsFrom" (dict "value" . "general" $general "context" $) | trim -}}
-    {{- if $envsFrom }}{{ $envsFrom | nindent 2 }}{{- end }}
+    {{- with .env }}
+  env: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+    {{- end }}
+    {{- with .envFrom }}
+  envFrom: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+    {{- end }}
     {{- if and $enableMapPorts (kindIs "map" .ports) }}
   ports: {{- include "helpers.workload.singleContainerPorts" .ports | trim | nindent 2 }}
     {{- else }}
@@ -66,16 +66,12 @@
     {{- if .lifecycle }}
   lifecycle: {{- include "helpers.tplvalues.render" ( dict "value" .lifecycle "context" $) | nindent 4 }}
     {{- else if not $isInitContainer }}
-      {{- if $general.lifecycle }}
-  lifecycle: {{- include "helpers.tplvalues.render" ( dict "value" $general.lifecycle "context" $) | nindent 4 }}
-      {{- else }}
-        {{- $preStopSleep := $c.preStopSleep | default $general.preStopSleep | default $.Values.defaults.preStopSleep -}}
-        {{- if $preStopSleep }}
+      {{- $preStopSleep := $c.preStopSleep | default $.Values.defaults.preStopSleep -}}
+      {{- if $preStopSleep }}
   lifecycle:
     preStop:
       exec:
         command: ["sh", "-c", "sleep {{ $preStopSleep }}"]
-        {{- end }}
       {{- end }}
     {{- end }}
     {{- if not $.Values.diagnosticMode.enabled }}
@@ -101,12 +97,10 @@
     {{- end }}
     {{- if .resources }}
   resources: {{- include "helpers.tplvalues.render" ( dict "value" .resources "context" $) | nindent 4 }}
-    {{- else if $general.resources }}
-  resources: {{- include "helpers.tplvalues.render" ( dict "value" $general.resources "context" $) | nindent 4 }}
     {{- else if $.Values.defaults.resources }}
   resources: {{- include "helpers.tplvalues.render" ( dict "value" $.Values.defaults.resources "context" $) | nindent 4 }}
     {{- end }}
-    {{- $vmounts := include "helpers.volumes.renderVolumeMounts" (dict "value" . "general" $general "context" $ "name" $workloadName) }}
+    {{- $vmounts := include "helpers.volumes.renderVolumeMounts" (dict "value" . "context" $) }}
   volumeMounts:{{- if eq (trim $vmounts) "[]" }} []{{- else }}{{ $vmounts | trim | nindent 2 }}{{- end }}
   {{- end -}}
 {{- end -}}

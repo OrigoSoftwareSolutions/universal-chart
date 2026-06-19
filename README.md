@@ -1,1170 +1,421 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.5](https://img.shields.io/badge/Version-1.9.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.6](https://img.shields.io/badge/Version-1.9.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
-One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file. Each top-level key (`deployments:`, `services:`, `externalSecrets:`, …) holds a map — define as many instances of each type as you need under the same key.
+One Helm chart, one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
+
+> **1.9.6 is a breaking change from v1.x.** The multi-workload dict-iteration pattern, `*General` sections, `releasePrefix`, auto-generated `envs`/`secretEnvs`, and `hooks` have been removed. See the [migration guide](#migration-from-v1x) below.
+
+---
 
 ## Supported Resources
 
-| Core Workloads | Networking | Storage & Config | CRDs |
+| Core Workload | Networking | Storage & Config | CRDs |
 |---|---|---|---|
-| Deployment | Service | ConfigMap | ExternalSecret / ClusterExternalSecret |
+| Deployment | Service | ConfigMap | ExternalSecret |
 | StatefulSet | HTTPRoute (Gateway API) | Secret | SecretStore / ClusterSecretStore |
-| DaemonSet | Istio VirtualService | PersistentVolumeClaim | Certificate / Issuer / ClusterIssuer |
-| CronJob / Job | Istio Gateway | ServiceAccount | PrometheusRule |
-| Helm Hooks | ServiceMonitor | PersistentVolume | ImageUpdater (Argo CD) |
-| HPA / PDB | | | Istio DestinationRule / PeerAuthentication / AuthorizationPolicy |
+| DaemonSet | Istio VirtualService | PVC | Certificate / Issuer / ClusterIssuer |
+| CronJob / Job | Istio Gateway | StorageClass / PV | PrometheusRule (via job) |
+| HPA / PDB | ServiceMonitor | ServiceAccount | ImageUpdater (Argo CD) |
+| | | | Istio DestinationRule / PeerAuthentication / AuthorizationPolicy |
 
-## Prerequisites
+## Quick Start
 
-- Helm 4.2.0 or later ([install](https://helm.sh/docs/intro/install/))
-- A configured kubecontext pointing at the target cluster
+```yaml
+# values.yaml
+deployment:
+  image: nginx
+  imageTag: "1.25"
+  replicas: 2
+  ports:
+    http: 8080
+  healthCheck:
+    path: /healthz
+    port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
 
-**Optional controllers** — required only if you use the resource kinds listed:
-
-| Controller | Required for |
-|---|---|
-| [External Secrets Operator](https://external-secrets.io/) | `externalSecrets`, `secretStores`, `clusterSecretStores`, `clusterExternalSecrets` |
-| [cert-manager](https://cert-manager.io/) | `certificates`, `issuers`, `clusterIssuers` |
-| [Gateway API CRDs](https://gateway-api.sigs.k8s.io/guides/) | `httpRoutes` |
-| [Istio](https://istio.io/latest/docs/setup/install/) | `istioVirtualServices`, `istioGateways`, `istioDestinationRules`, `istioPeerAuthentications`, `istioAuthorizationPolicies` |
-| [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) | `serviceMonitors` and `commandDurationAlert` PrometheusRules |
-
-The chart itself works without any of these — simply omit those resource kinds if the controller is absent.
-
-## Install
+service:
+  ports:
+    - port: 80
+      targetPort: 8080
+```
 
 ```bash
-helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.9.5 \
-  -f my-values.yaml
+helm install my-app oci://ghcr.io/origosoftwaresolutions/universal-chart \
+  --values values.yaml \
+  --namespace my-ns
 ```
-
-## Minimal Starter
-
-The absolute minimum to deploy a working container:
-
-```yaml
-deployments:
-  myapp:
-    image: registry.example.com/myapp
-    imageTag: "1.0.0"
-```
-
-That's it. This creates a Deployment with 1 replica, hardened security contexts, and pod anti-affinity — all from the chart's built-in defaults. Resource requests and limits must be set explicitly; the chart provides no defaults for CPU or memory. Add features as you need them.
 
 ---
 
-## Quick Start — Realistic Web Service
+## Architecture
 
-This single values file creates a Deployment, Service, HPA, PDB, CronJob, ExternalSecret, and environment variables:
+### Singular Blocks
+
+Every resource type is a **singular block** — not a dict of instances. The chart creates at most one of each kind per release:
 
 ```yaml
-# ── Deployment ──
-deployments:
-  api:
-    image: registry.example.com/my-api
-    imageTag: "1.4.2"
-    replicas: 2
-    ports:
-      http: 8080
-    healthCheck:
-      path: /healthz
-    resources:
-      requests:
-        cpu: 250m
-        memory: 256Mi
-      limits:
-        memory: 512Mi
+deployment:          # ← singular block (was `deployments:`)
+  image: nginx
+  replicas: 2
 
-# ── Autoscaling ──
-hpas:
-  api:
-    scaleTargetRef:
-      name: api
-    minReplicas: 2
-    maxReplicas: 8
-    targetCPU: 70
+service:             # ← singular block (was `services:`)
+  ports:
+    - port: 80
 
-# ── Availability ──
-pdbs:
-  api:
-    minAvailable: 1
+hpa:                 # ← singular block (was `hpas:`)
+  minReplicas: 2
+  maxReplicas: 10
+```
 
-# ── Scheduled work ──
-cronJobs:
-  cleanup:
-    schedule: "0 3 * * *"
-    image: registry.example.com/my-api
-    imageTag: "1.4.2"
-    command: ["python", "manage.py", "cleanup", "--older-than", "30d"]
+### Dict-Based Resources
 
-# ── Secrets from Azure Key Vault (requires External Secrets Operator) ──
-secretStores:
-  azure:
+Resources that are naturally multiple per release use the **dict pattern** (one key per instance):
+
+```yaml
+configMaps:           # ← dict (unchanged from v1)
+  app-config:
+    data:
+      KEY: value
+  other-config:
+    data:
+      FOO: bar
+
+certificates:         # ← dict
+  my-cert:
     spec:
-      provider:
-        azurekv:
-          vaultUrl: "https://my-vault.vault.azure.net"
-          authType: WorkloadIdentity
-          serviceAccountRef:
-            name: eso-sa
-
-externalSecrets:
-  api-secrets:
-    spec:
-      refreshInterval: 1h
-      secretStoreRef:
-        name: azure
-        kind: SecretStore
-      target:
-        name: api-secrets
-      data:
-        - secretKey: DB_PASSWORD
-          remoteRef:
-            key: prod-api-db-password
-
-# ── Environment variables ──
-envs:
-  LOG_LEVEL: info
-  API_BASE_URL: https://api.example.com
-
-secretEnvs:
-  SESSION_SECRET: change-me-in-real-life
+      secretName: my-tls
+      issuerRef:
+        name: letsencrypt
+        kind: ClusterIssuer
+      dnsNames: [example.com]
 ```
 
-**Note**: The `secretStores` and `externalSecrets` blocks in this example require [External Secrets Operator](https://external-secrets.io/) to be installed. Remove them if you are not using ESO.
+### Resource Naming
 
-Everything below explains each feature in detail with copy-pasteable examples.
-
----
-
-## How It Works
-
-### Mental model
-
-Think of this chart as a **resource factory**. Each top-level key in your values file (`deployments`, `cronJobs`, `services`, …) is a resource type. Each sub-key under it becomes one Kubernetes resource named `<release>-<key>` (or `<releasePrefix>-<key>` if set):
-
-```
-values.yaml                          Kubernetes
-─────────                            ──────────
-deployments:
-  api:          ──────────────────►   Deployment  "my-release-api"
-  worker:       ──────────────────►   Deployment  "my-release-worker"
-
-cronJobs:
-  cleanup:      ──────────────────►   CronJob     "my-release-cleanup"
-
-services:
-  cache:        ──────────────────►   Service     "my-release-cache"
-```
-
-> **Key insight**: Every top-level key is a **map** — you can define 10 Deployments, 5 Services, and 20 ExternalSecrets in one values file. The chart renders each sub-key as a separate Kubernetes resource. There is no limit and no need for multiple files.
-
-### What gets created automatically
-
-| You write… | Chart also creates… |
-|---|---|
-| `deployments.api.healthCheck: {path: /healthz}` | **Startup**, **liveness**, and **readiness** probes |
-| `pvcs.<name>` | A **PersistentVolumeClaim** resource. Reference it manually via `volumes:` with `type: pvc` and `claimName:` on workloads. |
-| `serviceAccounts.sa.role: {…}` | A **Role** + **RoleBinding** (or ClusterRole + ClusterRoleBinding) when `rules` are set; binds to an existing role when only `name` is set |
-| `cronJobs.etl.commandDurationAlert: 1800` | A **PrometheusRule** that fires if the job exceeds 30 min |
-
-### Defaults: how settings merge
-
-The chart resolves each setting in order of increasing specificity. A more-specific value always wins:
-
-```
-defaults:              ← applied to ALL workloads
-  └─ <kind>General:       ← applied to all workloads of one kind (rarely needed)
-       └─ <instance>:       ← this specific workload
-```
-
-For most apps, two tiers is enough — set shared values in `defaults:` and per-workload values directly on the instance. The middle tier `*General:` exists for a specific niche case covered in [3-Tier Defaults Cascade](#3-tier-defaults-cascade) below.
-
-`*General` is useful when two workload kinds need different defaults for the same setting — for example, all your CronJobs should have affinity disabled while Deployments keep it on.
-
-### Single-container shorthand vs full form
-
-Most workloads have one container. The chart lets you skip the `containers:` list and set `image`, `ports`, `resources`, `healthCheck`, `command`, etc. directly on the workload:
+Singular blocks use **literal names**:
 
 ```yaml
-# Shorthand (one container) — chart names the container after the workload key
-deployments:
-  api:
-    image: myapp
-    imageTag: "1.0.0"
-    ports:
-      http: 8080
-    healthCheck:
-      path: /healthz       # → startup + liveness + readiness probes
-    resources:
-      requests: {cpu: 100m, memory: 128Mi}
+deployment:
+  name: my-app       # → K8s resource named "my-app"
+  image: nginx
 
-# Full form (multi-container) — you control container names
-deployments:
-  api:
-    containers:
-      - name: app
-        image: myapp
-        imageTag: "1.0.0"
-        ports:
-          - name: http
-            containerPort: 8080
-      - name: sidecar
-        image: envoy
-        imageTag: "v1.28"
+service:
+  # name omitted     # → defaults to .Release.Name (the Helm release name)
+  ports:
+    - port: 80
 ```
 
-### CRD resources: thin passthrough
-
-For CRD-based resources (ExternalSecret, HTTPRoute, SecretStore, Certificate, etc.), the chart uses thin passthrough — you write `spec:` and it goes directly to the Kubernetes resource unchanged:
+Dict-based resources use `{release-name}-{key}`:
 
 ```yaml
-secretStores:
-  azure:
-    spec:                    # ← passed through to the K8s resource as-is
-      provider:
-        azurekv:
-          vaultUrl: "https://my-vault.vault.azure.net"
-          authType: WorkloadIdentity
-          serviceAccountRef:
-            name: eso-sa
+configMaps:
+  app-config:        # → K8s resource named "my-app-app-config"
+    data:
+      KEY: value
 ```
-
-No abstraction layers, no surprises. Whatever you put in `spec:` is what Kubernetes sees.
-
-> **Important**: This chart does not validate CRD-specific `spec:` fields. Malformed values, unsupported fields, or wrong API versions will fail at Kubernetes apply time — not during `helm template` or `helm lint`. Refer to the CRD controller's own documentation for spec validation. If the controller is absent, `helm install` succeeds but the CRD resource will be ignored or error.
 
 ---
 
 ## Workloads
 
-### Recommended Configuration
+Pick **one** workload type per release. All share the same base configuration fields.
 
-Each workload key is a map of instances. Define as many Deployments (or CronJobs, StatefulSets, …) as you need — every sub-key produces a separate resource:
-
-```yaml
-deployments:
-  api:    ...  # → Deployment "my-release-api"
-  worker:  ...  # → Deployment "my-release-worker"
-  cron:    ...  # → Deployment "my-release-cron"
-```
-
-For any single workload instance, most production services share a common set of config blocks. Treat this as a checklist when defining one:
-
-```
-workload-key
-  # ── Required ──────────────────────────────────────
-  image + imageTag             # Container image. No default — must be set explicitly.
-
-  # ── Resources & Health ────────────────────────────
-  resources                    # CPU/memory requests+limits. Chart provides no defaults.
-  healthCheck                  # Startup → liveness → readiness probes from one spec.
-  command                      # Override entrypoint for workers, batch jobs, sidecars.
-
-  # ── Scaling ───────────────────────────────────────
-  replicas                     # Pod count (default: 1). Pair with HPA for dynamic scaling.
-
-  # ── Networking ────────────────────────────────────
-  ports                        # Container ports (map `{name: port}` only creates containerPorts — define Services in `services:` block).
-
-  # ── Environment ───────────────────────────────────
-  env                          # Inline env vars, downward API, resource refs.
-  envConfigmaps / envSecrets   # Inject all keys from a ConfigMap/Secret as env vars.
-  envsFromConfigmap / Secret   # Cherry-pick + rename specific keys.
-
-  # ── Storage ───────────────────────────────────────
-  volumes + volumeMounts       # PVCs, ConfigMaps, Secrets — typed volume shorthand.
-
-  # ── Scheduling & Placement ────────────────────────
-  nodeSelector                 # Pin pods to specific node pools.
-  affinity / presets           # Pod affinity/anti-affinity (built-in defaults: both soft).
-  tolerations                  # Schedule on tainted nodes.
-  topologySpreadConstraints    # Spread pods across zones, hosts, or racks.
-
-  # ── Lifecycle ─────────────────────────────────────
-  strategy                     # Rolling update: maxSurge, maxUnavailable.
-  lifecycle                    # postStart / preStop hooks (replaces preStopSleep).
-  terminationGracePeriodSeconds # Drain window before SIGKILL (set > preStopSleep).
-  priorityClassName            # Scheduling priority relative to other workloads.
-
-  # ── Identity & Security ───────────────────────────
-  serviceAccountName            # Assign a ServiceAccount (pods default to automount: false).
-  podSecurityContext            # Pod-level security (default: runAsNonRoot, seccomp).
-  containerSecurityContext      # Container-level security (default: RO fs, no priv esc).
-
-  # ── Observability ─────────────────────────────────
-  podAnnotations               # Prometheus scrape, sidecar injection, config checksums.
-  podLabels                    # Custom labels for selection, cost allocation.
-```
-
-The chart provides sensible defaults for security contexts and affinity — you only need to set values that differ from those. Resource requests and limits, however, must be set explicitly on each workload (or via `defaults`/`*General`). See the [Defaults Cascade](#defaults-how-settings-merge) section for how settings merge.
-
-> **Tip**: Start with `image` + `imageTag` and add blocks as you need them. The chart's minimal starter creates a hardened Deployment from just those two fields.
-
-### Deployments
-
-#### Single-container shorthand
-
-The most common pattern. Set `image`, `ports`, `resources`, `healthCheck` directly on the workload — no `containers:` list needed.
+### Deployment
 
 ```yaml
-deployments:
-  api:
-    image: registry.example.com/my-api
-    imageTag: "2.0.0"
-    replicas: 3
-    ports:
-      http: 8080
-      metrics: 9090
-    resources:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        memory: 256Mi
-    healthCheck:
-      path: /healthz
-      port: 8080            # default: 8080
-    command: ["node", "server.js"]
+deployment:
+  name: my-app       # optional — defaults to release name
+  image: nginx
+  imageTag: "1.25"
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
 ```
 
-This creates:
-- A Deployment with one container
-- Startup, liveness, and readiness probes (all from one `healthCheck`)
-
-#### Multi-container workloads
-
-When you need sidecars or multiple containers, use the full `containers:` list:
+### StatefulSet
 
 ```yaml
-deployments:
-  web:
-    replicas: 2
-    containers:
-      - name: app
-        image: my-app
-        imageTag: "1.0.0"
-        ports:
-          - name: http
-            containerPort: 8080
+statefulset:
+  name: my-sts
+  image: postgres:16
+  serviceName: my-sts-svc
+  podManagementPolicy: OrderedReady
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
         resources:
           requests:
-            cpu: 100m
-            memory: 128Mi
-      - name: sidecar
-        image: envoyproxy/envoy
-        imageTag: "v1.28"
-        ports:
-          - name: admin
-            containerPort: 9901
-        resources:
-          requests:
-            cpu: 50m
-            memory: 64Mi
+            storage: 10Gi
 ```
 
-#### Health check shorthand
-
-A single `healthCheck` generates startup, liveness, **and** readiness probes:
+### DaemonSet
 
 ```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    healthCheck:
-      path: /healthz          # HTTP GET path
-      port: 8080              # default: 8080
-      periodSeconds: 10       # default: 10
-      failureThreshold: 3     # default: 3
-      initialDelaySeconds: 0  # default: 0
+daemonset:
+  name: my-ds
+  image: fluentd
+  imageTag: "v1.17"
 ```
 
-| Probe | `initialDelaySeconds` default | Notes |
-|---|---|---|
-| `startupProbe` | 0 | Runs until first success; liveness/readiness gated until then |
-| `livenessProbe` | 15 | Kills and restarts pod on failure — do not check external deps here |
-| `readinessProbe` | 5 | Removes pod from Service endpoints on failure — safe for dep checks |
-
-> **Suppression rule**: setting any of `startupProbe`, `livenessProbe`, or `readinessProbe` directly on a container disables `healthCheck` shorthand **entirely for all three probes** on that container. Set all three explicitly if you define any of them.
-
-For full control, set `livenessProbe`, `readinessProbe`, `startupProbe` directly on the container.
-
-### StatefulSets
-
-Same shorthand as Deployments. Adds `volumeClaimTemplates` and uses `updateStrategy` instead of `strategy`. The `serviceName` defaults to the workload key name:
-
-> **`serviceName` authoring**: write the **bare service key** (e.g., `postgres-headless`); the chart wraps it with the release prefix to produce the rendered name (e.g., `my-release-postgres-headless`).
+### Job
 
 ```yaml
-statefulSets:
-  postgres:
-    image: postgres
-    imageTag: "16"
-    replicas: 1
-    # serviceName: my-headless-svc  # override if you need a custom governing service
-    ports:
-      pg: 5432
-    resources:
-      requests:
-        cpu: 500m
-        memory: 1Gi
-    volumeClaimTemplates:
-      - metadata:
-          name: data
-        spec:
-          accessModes:
-            - ReadWriteOnce
-          resources:
-            requests:
-              storage: 50Gi
-    volumeMounts:
-      - name: data
-        mountPath: /var/lib/postgresql/data
+job:
+  name: db-migration
+  image: myapp-migration
+  restartPolicy: Never
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 60
+  commandDurationAlert: 300   # Creates PrometheusRule
 ```
 
- > **Note:** If your pods need stable DNS names (e.g. `postgres-0.postgres.ns.svc`), create a separate headless Service (`clusterIP: None`) in the `services:` block and set `serviceName` to the bare service key (the chart adds the release prefix).
-
-### DaemonSets
-
-Run one pod per node. No `replicas` field. Uses `updateStrategy`:
-
-> DaemonSets share the same single-container shorthand as Deployments — `image`, `ports`, `healthCheck`, `resources` all work the same way. Key differences: no `replicas` field (one pod per node), uses `updateStrategy` instead of `strategy`.
+### CronJob
 
 ```yaml
-daemonSets:
-  log-agent:
-    image: fluent/fluent-bit
-    imageTag: "3.0"
-    resources:
-      requests:
-        cpu: 50m
-        memory: 64Mi
-      limits:
-        memory: 128Mi
-    volumes:
-      - name: varlog
-        type: hostPath
-        path: /var/log
-    volumeMounts:
-      - name: varlog
-        mountPath: /var/log
-        readOnly: true
+cronJob:
+  name: nightly-report
+  image: report-generator
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Replace
+  successfulJobsHistoryLimit: 3
+  commandDurationAlert: 600
 ```
 
-### CronJobs
+### Environment Variables
 
 ```yaml
-cronJobs:
-  nightly-report:
-    schedule: "0 2 * * *"
-    image: registry.example.com/reporter
-    imageTag: "1.0.0"
-    command: ["python", "generate_report.py"]
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-
-  db-backup:
-    schedule: "0 */6 * * *"
-     singleOnly: true          # chart alias for concurrencyPolicy: Forbid — not a native K8s field
-    image: postgres
-    imageTag: "16"
-    command: ["pg_dump", "-h", "$DB_HOST", "mydb", "|", "gzip", ">", "/backup/dump.sql.gz"]
-    commandDurationAlert: 3600  # PrometheusRule fires if job runs > 1 hour
+deployment:
+  image: myapp
+  env:
+    - name: LOG_LEVEL
+      value: info
+    - name: DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: myapp-secrets
+          key: db-password
+  envFrom:
+    - secretRef:
+        name: myapp-secrets
+  envConfigmaps:
+    - myapp-config          # injects entire ConfigMap via envFrom
+  envSecrets:
+    - myapp-secrets         # injects entire Secret via envFrom
 ```
 
-### Jobs
+### Health Check Shorthand
 
 ```yaml
-jobs:
-  seed-data:
-    image: registry.example.com/my-api
-    imageTag: "1.0.0"
-    command: ["python", "manage.py", "seed"]
-    backoffLimit: 3
+deployment:
+  image: myapp
+  healthCheck:
+    path: /healthz
+    port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 3
 ```
 
-### Helm Hooks
-
-Pre/post-install/upgrade jobs that run during Helm lifecycle:
-
-```yaml
-hooks:
-  db-migrate:
-    containers:
-      - image: registry.example.com/my-api
-        imageTag: "1.0.0"
-        command:
-          - python
-          - manage.py
-          - migrate
-    kind: pre-upgrade              # default: pre-install,pre-upgrade
-    weight: "-5"                   # default: 5
-    deletePolicy: before-hook-creation,hook-succeeded  # before-hook-creation: deletes old job before new run; hook-succeeded: cleans up after success
-    backoffLimit: 0                # set 0 for migration hooks — K8s default is 6, which retries dangerous side effects
-```
-
-> **Hook `backoffLimit` defaults to Kubernetes' `6` retries** because the chart only emits the field when you set it. A failing migration hook will retry six times before the hook itself is reported as failed — that can stretch a Helm upgrade by minutes and run side effects (mutating writes, lock acquisitions) more than once. **Set `backoffLimit: 0`** explicitly on hooks where retry is dangerous (database migrations, idempotency-sensitive scripts) so a single failure aborts the upgrade immediately.
-
-> **`defaults.hookAnnotations` applies only to Helm hook Jobs** — it does not appear on ConfigMaps or Secrets rendered by the chart.
+This generates startup, liveness, and readiness HTTP probes automatically.
 
 ---
 
-## Networking
-
-### Services
-
-For standalone Services:
+## Service
 
 ```yaml
-services:
-  external-db:
-    type: ExternalName
-    externalName: db.example.com
-    ports:
-      - name: pg
-        port: 5432
+service:
+  name: my-svc
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
 ```
 
-### HTTPRoute (Gateway API)
-
-> **Prerequisite**: Gateway API CRDs must be installed in the cluster. See the [Gateway API install guide](https://gateway-api.sigs.k8s.io/guides/). The `parentRefs` namespace and the `HTTPRoute` namespace must match or cross-namespace references must be explicitly allowed by the Gateway.
-
-Thin passthrough — `spec:` goes directly to the Kubernetes resource:
-
-```yaml
-httpRoutes:
-  api:
-    spec:
-      parentRefs:
-        - name: main-gateway
-          namespace: istio-ingress
-      hostnames:
-        - api.example.com
-      rules:
-        - matches:
-            - path:
-                type: PathPrefix
-                value: /
-          backendRefs:
-            - name: api
-              port: 8080
-```
-
-### Istio VirtualService
-
-> **Prerequisite**: Istio must be installed. VirtualServices are namespace-scoped; the `gateways` reference must match an Istio Gateway resource visible from this namespace.
-
-```yaml
-istioVirtualServices:
-  api:
-    gateways:
-      - main-gateway
-    hosts:
-      - api.example.com
-    http:
-      - match:
-          - uri:
-              prefix: /v1
-        route:
-          - destination:
-              host: api
-              port:
-                number: 8080
-```
-
-### Istio Gateway
-
-```yaml
-istioGateways:
-  main:
-    selector:
-      istio: ingressgateway
-    servers:
-      - port:
-          number: 443
-          name: https
-          protocol: HTTPS
-        tls:
-          mode: SIMPLE
-          credentialName: tls-cert
-        hosts:
-          - "*.example.com"
-```
-
-### Other Istio CRDs
-
-The chart also supports Istio DestinationRule, PeerAuthentication, and AuthorizationPolicy as thin-passthrough CRDs. Values keys: `istioDestinationRules`, `istioPeerAuthentications`, `istioAuthorizationPolicies`.
+The selector automatically targets the workload's `app.kubernetes.io/component` label. Override with `selector:` or add `extraSelectorLabels:`.
 
 ---
 
-## Storage & Config
-
-### ConfigMaps
+## ServiceAccount (with RBAC)
 
 ```yaml
-configMaps:
-  app-config:
-    data:
-      config.yaml: |
-        database:
-          host: postgres
-          port: 5432
-      FEATURE_FLAG: "true"
+serviceAccount:
+  name: my-sa
+  role:
+    name: my-role
+    rules:
+      - apiGroups: [""]
+        resources: [pods]
+        verbs: [get, list, watch]
+  clusterRole:
+    name: my-cr
+    rules:
+      - apiGroups: [""]
+        resources: [nodes]
+        verbs: [get, list]
 ```
 
-### Secrets
-
-```yaml
-secrets:
-  api-keys:
-    data:
-      API_KEY: my-secret-key
-      # Prefix with b64: to pass raw base64 (avoids double-encoding)
-      CERT: "b64:LS0tLS1CRUdJTi..."
-```
-
-### PersistentVolumeClaims
-
-PersistentVolumeClaim resources are created from the `pvcs:` block. They are not automatically mounted into workloads — reference them manually via `volumes:` with `type: pvc` and `claimName:` on each workload.
-
-> **`disabled: true` on an installed PVC is destructive by default.** Helm reconciles by diffing rendered manifests against release state — the moment a PVC disappears from the rendered output, `helm upgrade` deletes the live PVC. If the bound PV's StorageClass uses `reclaimPolicy: Delete` (the default for most cloud StorageClasses, including Azure `managed-csi`), the underlying disk is destroyed too.
->
-> **To safely retire a PVC**, do it in two steps:
->
-> 1. Add `keepOnDelete: true`, run `helm upgrade` — this lands the `helm.sh/resource-policy: keep` annotation on the live PVC.
-> 2. Then set `disabled: true` and upgrade again — Helm respects the keep annotation and leaves the PVC (and its PV/disk) alone.
->
-> Adding `keepOnDelete: true` and `disabled: true` in the **same** change does nothing — the disabled guard skips the entire manifest, including the annotation. Same caveat applies to `persistentVolumes.<name>.disabled: true`.
-
-```yaml
-pvcs:
-  app-data:
-    accessModes:
-      - ReadWriteOnce
-    size: 10Gi
-    storageClassName: gp3
-
-  shared-cache:
-    accessModes:
-      - ReadWriteMany
-    size: 5Gi
-
-  old-pvc:
-    disabled: true            # skipped entirely
-    accessModes:
-      - ReadWriteOnce
-    size: 1Gi
-```
-
-### StorageClasses
-
-Cluster-scoped resources for defining how PVs are dynamically provisioned. Standard StorageClass fields are passed through directly — no `spec:` wrapper, since StorageClass is a flat resource in the Kubernetes API.
-
-```yaml
-storageClasses:
-  fast-ssd:
-    provisioner: disk.csi.azure.com
-    reclaimPolicy: Retain                   # Delete (default) | Retain
-    volumeBindingMode: WaitForFirstConsumer # Immediate | WaitForFirstConsumer
-    allowVolumeExpansion: true
-    parameters:
-      skuName: Premium_LRS
-      cachingMode: ReadOnly
-    mountOptions:
-      - debug
-    allowedTopologies:
-      - matchLabelExpressions:
-          - key: topology.kubernetes.io/zone
-            values:
-              - westeurope-1
-              - westeurope-2
-
-  default-sc:
-    provisioner: disk.csi.azure.com
-    isDefault: true                         # adds storageclass.kubernetes.io/is-default-class: "true"
-    parameters:
-      skuName: StandardSSD_LRS
-```
-
-`provisioner` is required; everything else is optional and follows Kubernetes defaults when omitted.
-
-> **`reclaimPolicy: Delete` is the StorageClass default.** PVs dynamically provisioned through this StorageClass will be deleted (along with their backing disk) when their PVC is deleted. Use `reclaimPolicy: Retain` for stateful workloads where data must survive PVC deletion.
-
-### Typed Volumes
-
-Instead of raw Kubernetes volume specs, use simplified `type` + `name`:
-
-| `type` | Name sub-field (defaults to volume name) | Optional sub-fields |
-|---|---|---|
-| `configMap` | `configMapName` | `defaultMode`, `items` |
-| `secret` | `secretName` | `items` |
-| `emptyDir` | — | `sizeLimit`, `medium` |
-| `pvc` | `claimName` | — |
-| `hostPath` | `path` | `hostPathType` |
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    volumes:
-      - name: config
-        type: configMap
-        configMapName: app-config
-      - name: certs
-        type: secret
-        secretName: tls-certs
-      - name: tmp
-        type: emptyDir
-      - name: data
-        type: pvc
-        claimName: app-data
-    volumeMounts:
-      - name: config
-        mountPath: /etc/app
-      - name: certs
-        mountPath: /certs
-        readOnly: true
-      - name: tmp
-        mountPath: /tmp
-```
-
----
-
-## Configuration & Secrets
-
-This is the single source of truth for getting environment variables, ConfigMaps and Secrets into your workloads. The chart exposes **5 ways to supply** data and **7 ways to consume** it. Pick by intent, not by habit.
-
-### Decision matrix — "Use when you want to…"
-
-| You want to… | Use this key | Notes |
-|---|---|---|
-| Inject the same plain env vars into **every** workload | `envs:` (top-level) | Generates one ConfigMap, auto-mounted via `envFrom` |
-| Inject the same secret env vars into **every** workload | `secretEnvs:` (top-level) | Generates one Secret. **Plain values land in `values.yaml`** — only use when that's acceptable (dev/sandbox, bootstrap creds) |
-| Same as above, but with multiline values or special chars | `envsString:` / `secretEnvsString:` | Raw YAML string variant — bypasses YAML parsing quirks |
-| Manage a chart-owned ConfigMap with structured data (files, multi-key config) | `configMaps.<name>:` | Reference it from a workload via `envConfigmaps:` or as a typed volume |
-| Manage a chart-owned Secret with arbitrary data (TLS bundles, dockerconfig, etc.) | `secrets.<name>:` | Same as above for Secrets. Avoid for runtime app secrets — use ESO. |
-| Pull secrets from Azure Key Vault, Vault, etc. at runtime | `externalSecrets.<name>:` + `secretStores.<name>:` | Standard pattern. The Secret materializes in-cluster; consume it like any other Secret |
-| Inject **all keys** from an existing Secret/ConfigMap as env vars on **one** workload | `envSecrets:` / `envConfigmaps:` | Whole-resource `envFrom`. Keys must already be valid env var names |
-| **Cherry-pick** specific keys from a Secret/ConfigMap and **rename** them | `envsFromSecret:` / `envsFromConfigmap:` | Per-key `valueFrom.*KeyRef` mapping. Use when key names need remapping (e.g. ESO bulk sync with vault-style keys) |
-| Set inline env vars with `valueFrom` (downward API, resource refs) | `env:` (raw K8s list) | Standard Kubernetes container `env` spec |
-| Override one env var that came from a global source | `env:` on the workload | `env` beats `envFrom` — handy for per-instance overrides |
-
-### Supplying data — where it comes from
-
-| Key | Generates | Scope | Plain values in `values.yaml`? |
-|---|---|---|---|
-| `envs:` / `envsString:` | ConfigMap `<release>-envs` | Mounted into **all** workloads via `envFrom` | Yes (non-sensitive only) |
-| `secretEnvs:` / `secretEnvsString:` | Secret `<release>-secret-envs` | Mounted into **all** workloads via `envFrom` | **Yes — plain text in values** |
-| `configMaps.<name>:` | ConfigMap `<release>-<name>` | Not mounted automatically — reference by name | Yes |
-| `secrets.<name>:` | Secret `<release>-<name>` | Not mounted automatically — reference by name | **Yes — plain text in values** |
-| `externalSecrets.<name>:` | ExternalSecret CR (ESO materializes the Secret) | Not mounted automatically — reference by name | No — fetched from external store at runtime |
-
-> **Rule of thumb for runtime secrets**: prefer `externalSecrets` + ESO. `secretEnvs` and `secrets.<name>` are fine for non-sensitive Secret-typed objects (dockerconfig, TLS bundles you generate elsewhere) and for bootstrap-time credentials, but they put plaintext into your values file.
-
-### Consuming data — how a workload pulls it in
-
-| Workload key | What it does | Form |
-|---|---|---|
-| _(implicit)_ | Global `envs` / `secretEnvs` are auto-mounted as `envFrom` on **every** workload | Automatic — nothing to write |
-| `envConfigmaps:` | Mount **all** keys of a ConfigMap as env vars on **this** workload | List of resource names |
-| `envSecrets:` | Mount **all** keys of a Secret as env vars on **this** workload | List of resource names |
-| `envsFromConfigmap:` | Cherry-pick + rename specific keys from a ConfigMap | Map of `<ENV_VAR>: {name, key}` |
-| `envsFromSecret:` | Cherry-pick + rename specific keys from a Secret | Map of `<ENV_VAR>: {name, key}` |
-| `env:` | Raw Kubernetes container `env` list (downward API, `valueFrom`, literal `value`) | Standard K8s spec |
-| `envFrom:` | Raw Kubernetes container `envFrom` list | Standard K8s spec — escape hatch |
-
-> **Resource names are verbatim**. `envConfigmaps: [feature-flags]` references a ConfigMap **literally named** `feature-flags` in the cluster — no prefixing, no transformation. Chart-managed resources from `configMaps.<name>:` get prefixed with `<release>-`, so reference them as `<release>-<name>`.
-
-### Real-world example: ESO with vault-style keys
-
-ESO syncs a Secret named `app-secrets-bundle` from Azure Key Vault. Keys are long and vault-shaped; the app wants short env var names. Cherry-pick + rename:
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-
-    envsFromSecret:
-      API_KEY:                          # env var the app sees
-        name: app-secrets-bundle        # actual K8s Secret name
-        key: prod-myapp-api-key
-      DB_PASSWORD:
-        name: app-secrets-bundle
-        key: prod-myapp-db-password
-```
-
-If you control the ExternalSecret and can shape its `secretKey:` names to be valid env var names, skip the per-key mapping and inject everything at once:
-
-```yaml
-externalSecrets:
-  api-secrets:
-    spec:
-      # … target.name: api-secrets, data with clean secretKey: DB_PASSWORD etc.
-
-deployments:
-  api:
-    envSecrets:
-      - api-secrets        # mounts every key in the Secret as an env var
-```
-
-### Combined example — all mechanisms in one workload
-
-```yaml
-# Global — every workload gets these
-envs:
-  LOG_LEVEL: info
-  REGION: westeurope
-
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-
-    # Whole-resource envFrom (existing Secret/ConfigMap with clean keys)
-    envSecrets:
-      - api-secrets
-    envConfigmaps:
-      - feature-flags
-
-    # Cherry-pick + rename
-    envsFromSecret:
-      DB_PASSWORD:
-        name: app-secrets-bundle
-        key: prod-myapp-db-password
-    envsFromConfigmap:
-      DATABASE_URL:
-        name: shared-runtime-config
-        key: connection-string
-
-    # Raw K8s env (downward API)
-    env:
-      - name: POD_NAME
-        valueFrom:
-          fieldRef:
-            fieldPath: metadata.name
-```
-
-### Precedence
-
-When the same env var name comes from multiple sources, last-write-wins per Kubernetes rules:
-
-1. `env` (inline) **overrides** `envFrom` (whole-resource and cherry-pick) on the same container.
-2. Within `envFrom`, later entries override earlier ones.
-3. Across the chart's defaults cascade: instance-level keys override `<kind>General` which overrides `defaults` / global `envs`.
-
-Use this to override one specific value per workload without redefining everything else.
-
-### Auto-checksum (rolling restarts on data change)
-
-The chart automatically injects `checksum/configmap-<name>` / `checksum/secret-<name>` pod annotations whenever a workload references a **chart-managed** ConfigMap or Secret. When the underlying data changes, the annotation hash changes, Kubernetes rolls the pods. No manual config.
-
-| Source | Auto-checksum? |
-|---|---|
-| Global `envs:` / `envsString:` (chart-generated `<release>-envs` ConfigMap) | ✅ |
-| Global `secretEnvs:` / `secretEnvsString:` (chart-generated `<release>-secret-envs` Secret) | ✅ |
-| `configMaps.<name>:` referenced via `envConfigmaps:` / `envsFromConfigmap:` | ✅ |
-| `secrets.<name>:` referenced via `envSecrets:` / `envsFromSecret:` | ✅ |
-| External resources (ESO-materialized Secrets, Sealed Secrets, hand-applied ConfigMaps) | ❌ — use [Stakater Reloader](https://github.com/stakater/Reloader) |
-
-Enabled by default. Opt out globally, per-kind, or per-instance:
-
-```yaml
-defaults:
-  autoChecksum: false           # global
-
-deploymentsGeneral:
-  autoChecksum: false           # all Deployments
-
-deployments:
-  api:
-    autoChecksum: false         # this one only
-```
-
-For external sources or anything else not auto-tracked, use the manual helper:
-
-```yaml
-deployments:
-  api:
-    podAnnotations:
-      config-hash: '{{ include "helpers.workload.checksum" (printf "%s%s" $.Values.envs $.Values.envsString) }}'
-```
-
-### Base64 shorthand
-
-In `secrets.<name>.data`, prefix a value with `b64:` to pass already-base64 content (skips double-encoding). Plain strings are auto-encoded:
-
-```yaml
-secrets:
-  certs:
-    data:
-      ca.crt: "b64:LS0tLS1CRUdJTi..."   # stored as-is
-      token: my-plain-token               # auto-encoded
-```
+Generates: ServiceAccount + Role + RoleBinding (and optionally ClusterRole + ClusterRoleBinding).
 
 ---
 
 ## Autoscaling & Availability
 
-### HorizontalPodAutoscaler
+### HPA
 
 ```yaml
-hpas:
-  api:
-    scaleTargetRef:
-      name: api               # bare workload key — the chart prefixes it with the release name
-      # kind: Deployment      # optional, defaults to Deployment
-    minReplicas: 2
-    maxReplicas: 10
-    targetCPU: 70             # percentage
-    targetMemory: 80          # percentage
-    behavior:                 # optional: fine-grained scaling behavior
-      scaleDown:
-        stabilizationWindowSeconds: 300
-```
-
-> **`scaleTargetRef.name` is the bare workload key, not the rendered Deployment name.** The chart wraps it with `helpers.app.fullname`, so `name: api` targets the `<release>-api` Deployment (or `<releasePrefix>-api` when set). Don't pre-prefix it yourself — that produces `<release>-<release>-api` and the HPA finds nothing to scale.
->
-> **Troubleshooting "HPA exists but nothing scales"**: check that `scaleTargetRef.name` is the bare key (e.g., `api`) and not the full rendered name (e.g., `my-release-api`). Run `kubectl describe hpa <name>` — if the target ref doesn't match the Deployment name exactly, the HPA is silently inactive.
-
-### Shared HPA defaults (`hpasGeneral`)
-
-Use `hpasGeneral` to set org-wide HPA policy across all HPAs in a values file:
-
-```yaml
-hpasGeneral:
+hpa:
+  scaleTargetRef:
+    kind: Deployment
+    name: my-app
+  minReplicas: 2
+  maxReplicas: 10
   targetCPU: 70
-  targetMemory: 80
   behavior:
     scaleDown:
       stabilizationWindowSeconds: 300
-  minReplicas: 2
-  maxReplicas: 10
-
-hpas:
-  api:
-    scaleTargetRef:
-      name: api   # inherits targetCPU: 70, behavior, minReplicas, maxReplicas
-  worker:
-    scaleTargetRef:
-      name: worker
-    targetCPU: 90   # overrides hpasGeneral for this HPA only
 ```
 
-`scaleTargetRef` is per-instance only — it points at a specific workload and cannot be shared.
-
-### PodDisruptionBudget
+### PDB
 
 ```yaml
-pdbs:
-  api:
-    minAvailable: 1
-    # OR
-    # maxUnavailable: 25%
-    unhealthyPodEvictionPolicy: IfHealthyBudget  # optional: IfHealthyBudget or AlwaysAllow
+pdb:
+  minAvailable: 1
+  unhealthyPodEvictionPolicy: IfHealthyBudget
 ```
-
-> The default selector already isolates per-workload via `app.kubernetes.io/component: <pdb key>` (matching the workload of the same name). Set `extraSelectorLabels:` only when you need to *narrow* the selector further — and only with labels that pods in the matching workload actually carry (e.g. via `defaults.podLabels` or per-workload `podLabels`). `extraSelectorLabels` adds an **AND** clause; a label that no pod has makes the PDB select zero pods.
-
-> **Template-time validation**: If the PDB key does not match any key in `deployments`, `statefulSets`, or `daemonSets`, rendering fails immediately with an explicit error. The PDB key must exactly match the workload key — it cannot be arbitrary. To use a PDB with a workload, ensure both keys are identical.
 
 ---
 
-## Identity & Access
+## Storage
 
-### ServiceAccount with auto-RBAC
-
-Define `role:` or `clusterRole:` inside a ServiceAccount to auto-create Role/ClusterRole and their bindings:
+### PVC
 
 ```yaml
-serviceAccounts:
-  app-sa:
-    # Create a Role + RoleBinding
-    role:
-      name: app-role
-      rules:
-        - apiGroups:
-            - ""
-          resources:
-            - pods
-            - services
-          verbs:
-            - get
-            - list
-            - watch
-        - apiGroups:
-            - apps
-          resources:
-            - deployments
-          verbs:
-            - get
-            - list
-
-    # Bind to an existing ClusterRole (no rules = binding only)
-    clusterRole:
-      name: view  # built-in K8s ClusterRole
+pvc:
+  name: app-data
+  accessModes: [ReadWriteOnce]
+  size: 8Gi
+  storageClassName: managed-premium
 ```
 
-Use `defaults.serviceAccountName: app-sa` or set `serviceAccountName` per workload to assign the ServiceAccount.
+### PersistentVolume
 
-> **`clusterRole.name` accepts any name verbatim — including built-in privileged roles** like `cluster-admin`, `admin`, `edit`. Pinning to those grants the workload broad cluster-wide access. Use `view` (read-only) when in doubt; create a custom ClusterRole with the minimum verbs/resources you actually need for anything else. Audit `clusterRole.name` values before merging.
+```yaml
+persistentVolumes:
+  azure-share:
+    spec:
+      capacity:
+        storage: 50Gi
+      accessModes: [ReadWriteMany]
+      azureFile:
+        secretName: azure-storage-secret
+        shareName: my-share
+```
 
-> **Pod token automount defaults to off in this chart.** The chart sets `automountServiceAccountToken: false` on every ServiceAccount by default. Workloads that need an in-pod token — Argo CD controllers, Azure Workload Identity, GKE Workload Identity, service meshes — must opt back in:
->
-> ```yaml
-> serviceAccounts:
->   my-sa:
->     automountServiceAccountToken: true   # re-enable for this SA
-> ```
->
-> Or per-workload (overrides the SA setting for that pod):
->
-> ```yaml
-> deployments:
->   api:
->     automountServiceAccountToken: true
-> ```
->
-> Failures present as authentication errors (HTTP 401) or "service account token not mounted" messages in the workload logs — not as missing environment variables.
+### ConfigMaps (dict)
+
+```yaml
+configMaps:
+  app-config:
+    data:
+      APP_ENV: production
+      LOG_FORMAT: json
+  nginx-config:
+    data:
+      nginx.conf: |
+        server { ... }
+```
+
+### Secrets (dict)
+
+```yaml
+secrets:
+  api-keys:
+    type: Opaque
+    data:
+      api.key: {{ .Values.myApiKey | b64enc }}
+    stringData:
+      other.key: plain-text-value
+```
 
 ---
 
-## Monitoring
-
-### ServiceMonitor (Prometheus)
+## External Secrets Operator
 
 ```yaml
-serviceMonitors:
-  api:                              # SM key — also the workload name it scrapes by default
-    endpoints:
-      - port: metrics
-        path: /metrics
-        interval: 30s
+externalSecret:
+  name: my-secrets
+  spec:
+    refreshInterval: 1h
+    secretStoreRef:
+      name: cluster-secret-store
+      kind: ClusterSecretStore
+    target:
+      name: myapp-secrets
+    data:
+      - secretKey: db-password
+        remoteRef:
+          key: azure-kv-db-password
+      - secretKey: api-key
+        remoteRef:
+          key: azure-kv-api-key
+```
 
-  # SM name differs from workload name — point it explicitly:
-  api-metrics:
-    workload: api                   # scrape the `api` workload's Service
-    endpoints:
-      - port: metrics
-        path: /metrics
-        interval: 30s
+---
 
-  # Custom matcher — bypasses the default workload selector entirely:
-  cross-workload:
+## Istio
+
+```yaml
+istioGateways:
+  public:
     selector:
-      matchLabels:
-        scrape-me: "true"
-    endpoints:
-      - port: metrics
-        path: /metrics
+      istio: ingressgateway
+    servers:
+      - port:
+          number: 80
+          name: http
+          protocol: HTTP
+        hosts: ["myapp.example.com"]
+
+istioVirtualServices:
+  myapp:
+    gateways: [public]
+    hosts: ["myapp.example.com"]
+    http:
+      - match:
+          - uri:
+              prefix: /
+        route:
+          - destination:
+              host: my-svc.{{ .Release.Namespace }}.svc.cluster.local
+              port:
+                number: 80
 ```
-
-> **Default selector targets one workload.** When you omit `selector:`, the chart selects services that carry `app.kubernetes.io/component: <SM key>` (or `<workload>` when `workload:` is set), so each SM scrapes exactly the matching Service. Set `selector:` explicitly to scrape something else (e.g. multiple workloads, a Service the chart didn't create, or a label your CI pipeline applies).
-
-> **Behavior change in 1.8.0.** Earlier releases defaulted to `app.kubernetes.io/name + instance`, which matched **every** Service in the release — wrong whenever a release exposed multiple metrics endpoints. If you depended on that behavior, set an explicit `selector:` block to keep the old matcher.
-
-### Job/CronJob Duration Alerts
-
-Auto-creates a PrometheusRule when execution exceeds a threshold:
-
-```yaml
-cronJobs:
-  etl:
-    schedule: "0 * * * *"
-    image: my-etl
-    imageTag: "1.0.0"
-    command: ["python", "etl.py"]
-    commandDurationAlert: 1800  # fires warning if job runs > 30 minutes
-```
-
-#### Customizing PrometheusRule labels
-
-By default the generated PrometheusRule carries `prometheus: k8s` and `role: alert-rules` labels, and the alert carries `severity: warning`. Override these to match your `kube-prometheus-stack` ruleSelector or Alertmanager routing rules:
-
-```yaml
-cronJobs:
-  etl:
-    schedule: "0 * * * *"
-    image: my-etl
-    imageTag: "1.0.0"
-    commandDurationAlert: 1800
-    commandDurationAlertLabels:       # labels on the PrometheusRule resource
-      release: kube-prometheus-stack  # match your ruleSelector
-      tier: platform
-    commandDurationAlertRuleLabels:   # labels on the alert rule itself
-      severity: critical
-      team: data-platform
-```
-
-Both fields cascade from `cronJobsGeneral` / `jobsGeneral`. Instance-level values override general.
 
 ---
 
-## CRD Resources
-
-### ExternalSecret (External Secrets Operator)
+## cert-manager
 
 ```yaml
-secretStores:
-  azure:
+certificates:
+  my-tls:
     spec:
-      provider:
-        azurekv:
-          vaultUrl: "https://my-vault.vault.azure.net"
-          authType: WorkloadIdentity
-          serviceAccountRef:
-            name: eso-sa
+      secretName: my-tls
+      issuerRef:
+        name: letsencrypt-prod
+        kind: ClusterIssuer
+      dnsNames: [myapp.example.com]
 
-externalSecrets:
-  db-credentials:
-    spec:
-      refreshInterval: 1h
-      secretStoreRef:
-        name: azure
-        kind: SecretStore
-      target:
-        name: db-credentials
-      data:
-        - secretKey: password
-          remoteRef:
-            key: prod-database-password
-        - secretKey: username
-          remoteRef:
-            key: prod-database-username
-
-# Cluster-scoped variants
-clusterSecretStores:
-  global-azure:
-    spec:
-      provider:
-        azurekv:
-          vaultUrl: "https://shared-vault.vault.azure.net"
-          authType: WorkloadIdentity
-          serviceAccountRef:
-            name: eso-sa
-            namespace: external-secrets
-
-clusterExternalSecrets:
-  shared-config:
-    spec:
-      refreshInterval: 24h
-      secretStoreRef:
-        name: global-azure
-        kind: ClusterSecretStore
-      target:
-        name: shared-config
-      data: []
-```
-
-### Certificate (cert-manager)
-
-```yaml
 clusterIssuers:
   letsencrypt-prod:
     spec:
@@ -1173,192 +424,43 @@ clusterIssuers:
         email: devops@example.com
         privateKeySecretRef:
           name: letsencrypt-prod
-        solvers:
-          - http01:
-              ingress:
-                class: istio
-
-certificates:
-  api-tls:
-    spec:
-      secretName: api-tls
-      issuerRef:
-        name: letsencrypt-prod
-        kind: ClusterIssuer
-      dnsNames:
-        - api.example.com
-        - "*.api.example.com"
-```
-
-### ImageUpdater (Argo CD)
-
-Configures automatic image updates for Argo CD applications. Aligned with Argo CD Image Updater **v1.2+** (namespace-scoped by default; `spec.namespace` removed from the API).
-
-#### Why `manifestTargets` is required (since 1.7.3)
-
-universal-chart hosts **N deployments per release** — there is no single "the image" of a chart instance. AIU writes back a single Helm parameter to the target Application's `spec.sources[].helm.parameters`. If that parameter targeted a chart-root key, two things go wrong:
-
-1. **Ambiguity** — which deployment? which container? A root-level `image.tag` cannot express "tag for `deployments.api`" vs "tag for `deployments.api-worker`".
-2. **Silent shadowing** — universal-chart reads images from `deployments.<name>.image` / `deployments.<name>.imageTag`. A root key written by AIU would be ignored by the chart's container template, and pods would keep running the values-file-pinned tag forever — AIU appears to do nothing.
-
-Every `images[]` entry must therefore declare `manifestTargets.helm.{name,tag}` pointing at the exact value path the chart reads — `deployments.<name>.image` and `deployments.<name>.imageTag`. This is enforced by the values schema; there is no fallback.
-
-```yaml
-imageUpdaters:
-  my-app:
-    applicationName: my-argocd-app
-    # metadataNamespace: argocd     # default: argocd — where the ImageUpdater CR is created.
-                                    # Must match the namespace of target Applications, since
-                                    # AIU v1.2+ defaults to namespace scope.
-    images:
-      - alias: api
-        imageName: registry.example.com/my-api
-        updateStrategy: newest-build    # semver | latest | newest-build | alphabetical | digest | name (AIU v1.2 CRD default: semver)
-        allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
-        manifestTargets:
-          helm:
-            name: deployments.api.image
-            tag: deployments.api.imageTag
-      - alias: worker
-        imageName: registry.example.com/my-worker
-        updateStrategy: latest
-        ignoreTags:
-          - dev
-          - latest
-        manifestTargets:
-          helm:
-            name: deployments.api-worker.image
-            tag: deployments.api-worker.imageTag
-    writeBackConfig:
-      method: argocd    # or git
-      # git:
-      #   branch: main
-```
-
-#### Edge cases
-
-```yaml
-imageUpdaters:
-
-  # Place the ImageUpdater CR in a non-default namespace
-  # (must match the namespace where the target Applications live;
-  # AIU v1.2+ is namespace-scoped by default).
-  team-a-app:
-    applicationName: team-a-*
-    metadataNamespace: team-a-argocd
-    images:
-      - alias: web
-        imageName: registry.example.com/web
-        manifestTargets:
-          helm:
-            name: deployments.web.image
-            tag: deployments.web.imageTag
-
-  # Suspend updates without removing the CR from Git.
-  paused-app:
-    disabled: true
-    applicationName: my-app
-    images: []
+        solvers: []
 ```
 
 ---
 
-## Chart Behavior
+## Argo CD Image Updater
 
-### 3-Tier Defaults Cascade
-
-The chart supports three tiers for any cascadable setting, resolved with the more-specific tier winning:
-
+```yaml
+imageUpdater:
+  name: my-app
+  applicationName: "my-argocd-app"
+  metadataNamespace: argocd
+  images:
+    - alias: app
+      imageName: ghcr.io/myorg/myapp
+      updateStrategy: newest-build
+      allowTags: 'regexp:^\d+\.\d+\.\d+$'
+      manifestTargets:
+        helm:
+          name: deployment.image
+          tag: deployment.imageTag
+  writeBackConfig:
+    method: argocd
 ```
-defaults:        ← applied to ALL workloads regardless of kind
-<kind>General:    ← applied to all instances of one kind (Deployment, CronJob, HPA, …)
-<instance>:        ← applied to one specific instance
-```
 
-#### When you actually need `*General`
+---
 
-In nearly every case, you don't. Use `defaults:` for things every workload shares (security context, resource baseline, common annotations) and set per-workload values directly on the instance. That covers ~95% of the chart.
+## Default Settings
 
-`*General` exists for two narrow cases:
-
-**1. Kind-specific behavioral asymmetry that can't live at `defaults:`** — when the right default for one workload kind would be wrong for another. The chart itself ships exactly one such case:
+The `defaults` section provides shared configuration for all resources:
 
 ```yaml
 defaults:
-  usePredefinedAffinity: true     # sensible for long-running workloads (HA spread)
-
-cronJobsGeneral:
-  usePredefinedAffinity: false    # short-lived; pod anti-affinity wastes scheduler effort
-
-jobsGeneral:
-  usePredefinedAffinity: false    # same reasoning
-```
-
-Without `*General`, the chart would have to either pick one default that's wrong for half the workload kinds, or force every CronJob/Job author to remember to override.
-
-**2. Genuine DRY across many instances of the same kind in a multi-app values file** — when you have, say, 5+ HPAs and want them all to target 70% CPU per org policy:
-
-```yaml
-hpasGeneral:
-  targetCPU: 70                   # org-wide HPA scaling policy
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300
-
-hpas:
-  api: { scaleTargetRef: { name: api } }
-  worker: { scaleTargetRef: { name: worker } }
-  reports: { scaleTargetRef: { name: reports } }
-  # all three inherit targetCPU + behavior; each can override
-```
-
-Reach for `*General` when you find yourself with the same shape of problem.
-
-#### When NOT to use `*General` (anti-patterns)
-
-- **You have very few instances of that kind.** With only 1-2 workloads of a kind, the extra tier adds more cognitive overhead (readers must merge three places to understand what renders) than it saves in keystrokes. It's usually not worth it — put the value on the instance.
-- **The same value applies to all workload kinds.** That's what `defaults:` is for. Don't fan a single value out across `deploymentsGeneral`, `statefulSetsGeneral`, etc.
-- **The setting is fundamentally per-instance** — anything that targets a specific resource (`scaleTargetRef`, `selector`, `serviceName`) belongs on the instance. The chart enforces this for `scaleTargetRef`; for other fields, use judgment.
-
-#### Resolution example
-
-```yaml
-defaults:
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-  podAnnotations:
-    sidecar.istio.io/inject: "true"
-
-deploymentsGeneral:
-  replicas: 2                 # all Deployments get 2 replicas unless overridden
-
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    # inherits: 2 replicas, istio sidecar annotation
-
-  heavy-worker:
-    image: my-worker
-    imageTag: "1.0.0"
-    replicas: 1               # overrides deploymentsGeneral
-    resources:
-      requests:
-        cpu: 1
-        memory: 2Gi           # overrides deploymentsGeneral
-```
-
-Available `*General` blocks: `deploymentsGeneral`, `statefulSetsGeneral`, `daemonSetsGeneral`, `cronJobsGeneral`, `jobsGeneral`, `hooksGeneral`, `serviceAccountsGeneral`, `hpasGeneral`.
-
-### Security Defaults
-
-Every pod gets hardened security contexts out of the box:
-
-```yaml
-# These are the defaults — you don't need to set them
-defaults:
+  labels:
+    team: platform
+  annotations:
+    prometheus.io/scrape: "true"
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:
@@ -1367,161 +469,39 @@ defaults:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
     capabilities:
-      drop:
-        - ALL
+      drop: [ALL]
+  revisionHistoryLimit: 3
+  usePredefinedAffinity: true
 ```
 
-Override per-workload. Use `podSecurityContext` for pod-level settings, `containerSecurityContext`
-for single-container shorthand, or `containers[].securityContext` when you use the full
-multi-container form:
+Defaults cascade per-field: a value set on the workload block overrides the defaults value for that field only.
+
+---
+
+## Global Settings
 
 ```yaml
-deployments:
-  legacy-app:
-    image: old-app
-    imageTag: "1.0.0"
-    podSecurityContext:
-      runAsNonRoot: false
-    containerSecurityContext:
-      readOnlyRootFilesystem: false
-```
-
-**Override behavior (v1.9.0+): deep-merge, not whole-block replacement.** Setting any `containerSecurityContext` field merges with defaults — it does not replace all defaults. This means adding `capabilities.add` preserves `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, and `capabilities.drop: [ALL]`:
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    containerSecurityContext:
-      capabilities:
-        add:
-          - NET_BIND_SERVICE   # only this is added; all other defaults preserved
-```
-
-The rendered result keeps all chart defaults plus your addition. To explicitly clear a default, set it to its opposite (e.g., `readOnlyRootFilesystem: false`).
-
-### Image Pull Secrets
-
-Pull images from private registries by listing secret names at the top level. Every pod spec in every workload gets these secrets injected:
-
-```yaml
+defaultImagePullPolicy: IfNotPresent
 imagePullSecrets:
-  - my-registry-secret
-  - other-registry-secret
-```
+  - acr-pull-secret
+nameOverride: ""        # Override chart name in resource labels
 
-For additional per-workload secrets, use `defaults.extraImagePullSecrets` or the workload-level `extraImagePullSecrets` field — they all merge together. The older `imagePullSecrets` field on workloads still works but is deprecated in favor of `extraImagePullSecrets` and will be removed in 3.0.
-
-### Affinity Presets
-
-Built-in pod affinity/anti-affinity rules are on by default:
-
-```yaml
-podAffinityPreset: soft       # soft | hard | "" (disabled)
+podAffinityPreset: soft
 podAntiAffinityPreset: soft
 nodeAffinityPreset:
-  type: hard                  # soft | hard | ""
-  key: topology.kubernetes.io/zone
-  values:
-    - westeurope-1
-    - westeurope-2
-```
+  type: ""
+  key: ""
+  values: []
 
-Disable per-workload with `usePredefinedAffinity: false`, or supply a custom `affinity:` block.
-
-### Workload Isolation Labels
-
-Every Deployment, StatefulSet, and DaemonSet automatically receives an `app.kubernetes.io/component` label derived from the workload's key name. This label is added to `spec.selector.matchLabels`, pod template labels, Service selectors, and pod affinity/anti-affinity rules.
-
-This ensures that multiple workloads in the same release are fully isolated — each controller manages only its own pods, Services route only to the correct workload, and affinity rules target same-workload pods rather than all pods in the release.
-
-```yaml
-deployments:
-  api:       # → app.kubernetes.io/component: api
-    image: my-api
-    imageTag: "1.0.0"
-    ports:
-      http: 8080
-  worker:    # → app.kubernetes.io/component: worker
-    image: my-worker
-    imageTag: "1.0.0"
-```
-
-The resulting selector for each Deployment:
-
-```yaml
-# api Deployment
-selector:
-  matchLabels:
-    app.kubernetes.io/name: my-release
-    app.kubernetes.io/instance: my-release
-    app.kubernetes.io/component: api    # ← unique per workload
-
-# worker Deployment
-selector:
-  matchLabels:
-    app.kubernetes.io/name: my-release
-    app.kubernetes.io/instance: my-release
-    app.kubernetes.io/component: worker  # ← unique per workload
-```
-
-### Diagnostic Mode
-
-Override **main containers** with `sleep infinity` and suppress all health probes — useful for debugging crash-looping pods. **Init containers are not affected** — they run normally, which allows workloads with init containers to complete init before you exec into the main container:
-
-```yaml
 diagnosticMode:
-  enabled: true
-  # command:
-  #   - sleep     # default; applied to every main container (init containers are not affected)
-  # args:
-  #   - infinity     # default
+  enabled: false
+  command: ["sleep"]
+  args: ["infinity"]
 ```
 
-### Graceful Shutdown
+---
 
-Inject a `sleep N` preStop hook into every container:
-
-```yaml
-defaults:
-  preStopSleep: 5  # seconds — allows in-flight requests to drain before SIGTERM
-```
-
-### Disable Without Deleting
-
-Any resource instance accepts `disabled: true` to suppress rendering. The config stays in your values file for easy re-enabling:
-
-```yaml
-deployments:
-  api:
-    disabled: true    # skipped entirely
-    image: my-api
-    imageTag: "1.0.0"
-    ports:
-      http: 8080
-```
-
-### Template Expressions in Values
-
-Go template expressions work anywhere in string values:
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    podAnnotations:
-      # Manual checksum (auto-checksums handle envConfigmaps/envSecrets automatically)
-      custom-hash: '{{ include "helpers.workload.checksum" (printf "%s" $.Values.envs) }}'
-
-envs:
-  RELEASE: '{{ .Release.Name }}'
-```
-
-### Escape Hatch
-
-Deploy raw Kubernetes manifests for anything the chart doesn't natively support:
+## Escape Hatch
 
 ```yaml
 extraDeploy:
@@ -1529,884 +509,98 @@ extraDeploy:
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
-      name: {{ include "helpers.app.fullname" (dict "name" "deny-all" "context" $) }}
+      name: {{ .Release.Name }}-deny-all
       namespace: {{ .Release.Namespace | quote }}
     spec:
       podSelector: {}
-      policyTypes:
-        - Ingress
-        - Egress
+      policyTypes: [Ingress, Egress]
 ```
 
 ---
 
-## Real-World Scenarios
+## Migration from v1.x
 
-### Scenario 1 — API microservice with database
+The following v1.x features have been removed:
 
-A typical REST API with external secrets, health checks, autoscaling, and a database migration hook:
-
-```yaml
-# ── API Deployment ──
-deployments:
-  api:
-    image: registry.example.com/api
-    imageTag: "2.1.0"
-    replicas: 3
-    ports:
-      http: 8080
-      metrics: 9090
-    healthCheck:
-      path: /healthz
-    resources:
-      requests:
-        cpu: 250m
-        memory: 256Mi
-      limits:
-        memory: 512Mi
-    envConfigmaps:
-      - app-config
-    envSecrets:
-      - db-credentials
-
-# ── Database migration (runs before each upgrade) ──
-hooks:
-  db-migrate:
-    containers:
-      - image: registry.example.com/api
-        imageTag: "2.1.0"
-        command: ["python", "manage.py", "migrate"]
-    envSecrets:
-      - db-credentials
-    kind: pre-upgrade
-    weight: "-5"
-
-# ── Autoscaling ──
-hpas:
-  api:
-    scaleTargetRef:
-      name: api
-    minReplicas: 3
-    maxReplicas: 10
-    targetCPU: 70
-
-# ── Availability ──
-pdbs:
-  api:
-    minAvailable: 1
-
-# ── Config ──
-configMaps:
-  app-config:
-    data:
-      DATABASE_HOST: postgres.db.svc
-      LOG_LEVEL: info
-
-# ── Secrets from Azure Key Vault ──
-secretStores:
-  azure:
-    spec:
-      provider:
-        azurekv:
-          vaultUrl: "https://my-vault.vault.azure.net"
-          authType: WorkloadIdentity
-          serviceAccountRef:
-            name: eso-sa
-
-externalSecrets:
-  db-credentials:
-    spec:
-      refreshInterval: 1h
-      secretStoreRef:
-        name: azure
-        kind: SecretStore
-      target:
-        name: db-credentials
-      data:
-        - secretKey: DB_PASSWORD
-          remoteRef:
-            key: prod-api-db-password
-        - secretKey: DB_USERNAME
-          remoteRef:
-            key: prod-api-db-username
-
-# ── Monitoring ──
-serviceMonitors:
-  api:
-    endpoints:
-      - port: metrics
-        path: /metrics
-        interval: 30s
-```
-
-### Scenario 2 — Background workers + scheduled jobs
-
-A worker Deployment (no incoming traffic) alongside scheduled batch jobs:
-
-```yaml
-defaults:
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-
-# ── Worker (no ports) ──
-deployments:
-  worker:
-    image: registry.example.com/worker
-    imageTag: "1.3.0"
-    replicas: 2
-    command: ["celery", "-A", "app", "worker", "--loglevel=info"]
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        memory: 1Gi
-
-# ── Scheduled jobs ──
-cronJobs:
-  cleanup:
-    schedule: "0 3 * * *"
-    image: registry.example.com/worker
-    imageTag: "1.3.0"
-    command: ["python", "manage.py", "cleanup", "--older-than", "30d"]
-
-  daily-report:
-    schedule: "0 8 * * 1-5"
-    image: registry.example.com/worker
-    imageTag: "1.3.0"
-    command: ["python", "manage.py", "send_report"]
-    commandDurationAlert: 1800  # alert if > 30 min
-
-  db-backup:
-    schedule: "0 */6 * * *"
-    singleOnly: true           # concurrencyPolicy: Forbid
-    image: postgres
-    imageTag: "16"
-    command: ["pg_dump", "-h", "$DB_HOST", "mydb", "|", "gzip", ">", "/backup/dump.sql.gz"]
-    volumes:
-      - name: backup
-        type: pvc
-        claimName: backup-storage
-    volumeMounts:
-      - name: backup
-        mountPath: /backup
-
-# ── Shared env vars ──
-envs:
-  REDIS_URL: redis://redis:6379/0
-  DATABASE_URL: postgres://db:5432/mydb
-```
-
-### Scenario 3 — Stateful application with persistent storage
-
-A PostgreSQL StatefulSet with persistent volumes and a headless Service for stable DNS:
-
-```yaml
-statefulSets:
-  postgres:
-    image: postgres
-    imageTag: "16"
-    replicas: 1
-    serviceName: postgres-headless
-    ports:
-      pg: 5432
-    resources:
-      requests:
-        cpu: 500m
-        memory: 1Gi
-      limits:
-        memory: 2Gi
-    containerSecurityContext:
-      runAsUser: 999
-      readOnlyRootFilesystem: false
-    env:
-      - name: PGDATA
-        value: /var/lib/postgresql/data/pgdata
-    envsFromSecret:
-      POSTGRES_PASSWORD:
-        name: pg-credentials
-        key: password
-    volumeClaimTemplates:
-      - metadata:
-          name: data
-        spec:
-          accessModes:
-            - ReadWriteOnce
-          storageClassName: gp3
-          resources:
-            requests:
-              storage: 50Gi
-    volumeMounts:
-      - name: data
-        mountPath: /var/lib/postgresql/data
-
-# Headless Service for stable pod DNS (postgres-0.postgres-headless.ns.svc)
-services:
-  postgres-headless:
-    clusterIP: None
-    ports:
-      - name: pg
-        port: 5432
-```
-
-### Scenario 4 — Multi-service release
-
-Multiple microservices deployed together sharing common defaults:
-
-```yaml
-defaults:
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-  podAnnotations:
-    sidecar.istio.io/inject: "true"
-  preStopSleep: 5
-
-deploymentsGeneral:
-  replicas: 2
-
-hpasGeneral:
-  targetCPU: 70
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300
-
-# All three Deployments inherit: 2 replicas, 100m/128Mi resources,
-# Istio sidecar, 5s preStop sleep, hardened security contexts
-deployments:
-  frontend:
-    image: registry.example.com/frontend
-    imageTag: "3.0.0"
-    ports:
-      http: 3000
-    healthCheck:
-      path: /
-
-  api:
-    image: registry.example.com/api
-    imageTag: "2.1.0"
-    ports:
-      http: 8080
-      grpc: 9090
-    healthCheck:
-      path: /healthz
-    replicas: 3              # override deploymentsGeneral
-
-  worker:
-    image: registry.example.com/worker
-    imageTag: "2.1.0"
-    command: ["celery", "-A", "app", "worker"]
-    resources:               # override defaults
-      requests:
-        cpu: 500m
-        memory: 512Mi
-
-# All HPAs inherit targetCPU: 70 and scaleDown behavior from hpasGeneral
-hpas:
-  frontend:
-    scaleTargetRef:
-      name: frontend
-    minReplicas: 2
-    maxReplicas: 6
-  api:
-    scaleTargetRef:
-      name: api
-    minReplicas: 3
-    maxReplicas: 10
-  worker:
-    scaleTargetRef:
-      name: worker
-    maxReplicas: 8
-    targetCPU: 90   # override for worker
-```
-
----
-
-## Cookbook
-
-### Init containers
-
-Init containers run before the main containers. They use the same container spec:
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    initContainers:
-      - name: wait-for-db
-        image: busybox
-        imageTag: "latest"
-        command: ["sh", "-c", "until nc -z postgres 5432; do sleep 2; done"]
-      - name: run-migrations
-        image: my-api
-        imageTag: "1.0.0"
-        command: ["python", "manage.py", "migrate"]
-```
-
-Init containers inherit the workload's `containerSecurityContext` by default. Override per-container with `securityContext:`.
-
-### Rolling update strategy
-
-Control how Deployments roll out new versions:
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    strategy:
-      type: RollingUpdate
-      rollingUpdate:
-        maxUnavailable: 0     # zero-downtime
-        maxSurge: 1
-    progressDeadlineSeconds: 300
-```
-
-For StatefulSets and DaemonSets, use `updateStrategy`:
-
-```yaml
-statefulSets:
-  db:
-    image: postgres
-    imageTag: "16"
-    updateStrategy:
-      type: RollingUpdate
-      rollingUpdate:
-        partition: 0        # update all pods
-
-daemonSets:
-  agent:
-    image: agent
-    imageTag: "1.0.0"
-    updateStrategy:
-      type: RollingUpdate
-      rollingUpdate:
-        maxUnavailable: 1
-```
-
-### Topology spread constraints
-
-Distribute pods across zones or nodes:
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    topologySpreadConstraints:
-      - maxSkew: 1
-        topologyKey: topology.kubernetes.io/zone
-        whenUnsatisfiable: DoNotSchedule
-        labelSelector:
-          matchLabels:
-            app.kubernetes.io/name: my-release
-            app.kubernetes.io/component: api
-```
-
-Or use the built-in node affinity preset for simpler zone targeting:
-
-```yaml
-nodeAffinityPreset:
-  type: hard
-  key: topology.kubernetes.io/zone
-  values:
-    - westeurope-1
-    - westeurope-2
-```
-
-### Node selection and tolerations
-
-Pin workloads to specific nodes or tolerate taints:
-
-```yaml
-# Global (all workloads)
-defaults:
-  nodeSelector:
-    nodepool: application
-  tolerations:
-    - key: dedicated
-      operator: Equal
-      value: application
-      effect: NoSchedule
-
-# Per-workload override
-deployments:
-  gpu-worker:
-    image: my-ml
-    imageTag: "1.0.0"
-    nodeSelector:
-      nvidia.com/gpu: "true"
-    tolerations:
-      - key: nvidia.com/gpu
-        operator: Exists
-        effect: NoSchedule
-```
-
-### Custom probes (beyond healthCheck)
-
-Probes are **fully opt-in**. The chart emits no probes unless you ask for them. Three modes:
-
-**Note on inherited probes (v1.9.0+)**: If the workload, `defaults`, or a `*General` block sets `healthCheck:`, that setting cascades into explicit `containers:` that don't define their own probes. A container in the `containers:` list that has no `startupProbe`/`livenessProbe`/`readinessProbe` defined will receive probes from the inherited `healthCheck`. To suppress inherited probes on a workload, set `healthCheck: null` at the workload level.
-
-#### No probes — early development, prototypes, throwaway services
-
-Just don't set `healthCheck`, `startupProbe`, `livenessProbe`, or `readinessProbe`. Nothing is rendered. Kubernetes treats the pod as ready the moment the container starts and never restarts it on health grounds. This is the right default while a service is too young to have stable endpoints, while devs are still iterating on what "healthy" even means, or for short-lived experiments.
-
-```yaml
-deployments:
-  prototype:
-    image: registry.example.com/new-service
-    imageTag: "0.1.0"
-    ports:
-      http: 8080
-    # No healthCheck, no *Probe fields → pod runs without any liveness/readiness gating
-```
-
-> **Trade-offs to be aware of**: traffic starts hitting the pod the instant the container process exists, even if it isn't accepting connections yet — expect connection-refused errors during rollouts. A wedged process won't be auto-restarted. A PDB on this workload becomes near-meaningless without readiness signals. Fine for dev/staging, revisit before promoting to anything that takes real traffic.
-
-#### Shorthand — one HTTP endpoint covers all three probes
-
-Set `healthCheck:` and the chart generates `startupProbe`, `livenessProbe`, and `readinessProbe` from one HTTP GET spec. See the [Health check shorthand](#health-check-shorthand) section.
-
-#### Custom probes — TCP, gRPC, exec, or different endpoints per probe type
-
-Set `startupProbe`, `livenessProbe`, `readinessProbe` directly on the container. Mix and match — set only the ones you need. The moment **any** of the three is set, shorthand generation is skipped entirely and only what you've defined is rendered, so set all three explicitly if you want all three. (This applies at the **container level**: if a container in `containers:` sets any explicit probe, it gets only that probe and the cascade is skipped for that container. The workload-level `healthCheck` still cascades to other containers in the list that have no explicit probes.)
-
-##### Three different HTTP paths (production-grade web service)
-
-The most common real-world setup. Each probe answers a different question, has different cost, and different failure consequences:
-
-```yaml
-deployments:
-  api:
-    image: registry.example.com/api
-    imageTag: "1.0.0"
-    ports:
-      http: 8080
-
-    startupProbe:
-      httpGet:
-        path: /startup           # "is initialization done?" — migrations, cache warm, listener bound
-        port: 8080
-      periodSeconds: 5
-      failureThreshold: 30       # 30 × 5 = 150s budget for slow boot; only runs until first success
-
-    livenessProbe:
-      httpGet:
-        path: /healthz           # "is the process wedged?" — cheap, in-process only
-        port: 8080
-      periodSeconds: 10
-      failureThreshold: 3
-
-    readinessProbe:
-      httpGet:
-        path: /ready             # "should this pod receive traffic right now?" — checks deps
-        port: 8080
-      periodSeconds: 5
-      failureThreshold: 2
-```
-
-| Probe | Answers | Failure consequence |
-|---|---|---|
-| `startupProbe` | "Has the app finished initialization?" | Liveness/readiness held off until startup succeeds; pod restarted if startup never succeeds |
-| `livenessProbe` | "Is the process wedged?" | kubelet **kills** the pod and restarts it |
-| `readinessProbe` | "Is this pod ready to serve traffic?" | Pod removed from Service endpoints; **not** killed |
-
-> **Foot-gun**: do not check downstream dependencies (DB, Redis, external APIs) in `livenessProbe`. When the dependency hiccups, every pod gets killed and you eat a restart storm. Put dependency checks in `readinessProbe` only — flapping there just yanks the pod out of the Service endpoint list until the dependency recovers.
-
-##### TCP, exec, gRPC
-
-Use the standard Kubernetes probe types when HTTP isn't an option:
-
-```yaml
-deployments:
-  redis-proxy:
-    containers:
-      - name: proxy
-        image: redis
-        imageTag: "7"
-        ports:
-          - name: redis
-            containerPort: 6379
-        startupProbe:
-          tcpSocket:
-            port: 6379
-          periodSeconds: 5
-        livenessProbe:
-          exec:
-            command: ["redis-cli", "ping"]
-          periodSeconds: 10
-        readinessProbe:
-          tcpSocket:
-            port: 6379
-          periodSeconds: 5
-```
-
-> **Suppressing probes on a workload that inherits them**: if `defaults.healthCheck` or `<kind>General.healthCheck` is set in your values stack and you want one specific workload probe-free, omit the inherited block by setting `healthCheck: null` at the instance level. To temporarily silence probes on **all** workloads (e.g. debugging a crash loop), use `diagnosticMode.enabled: true` — it suppresses every probe across the release.
-
-### DNS and host aliases
-
-Override DNS resolution for pods:
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    dnsPolicy: ClusterFirstWithHostNet
-    hostAliases:
-      - ip: "10.0.0.5"
-        hostnames:
-          - legacy-db.internal
-          - old-db.internal
-```
-
-### Graceful shutdown with preStop + terminationGracePeriod
-
-Combine `preStopSleep` with `terminationGracePeriodSeconds` for proper draining:
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    terminationGracePeriodSeconds: 60
-
-defaults:
-  preStopSleep: 10   # sleep 10s before SIGTERM — lets LB drain connections
-```
-
-> **Tip**: Set `terminationGracePeriodSeconds` > `preStopSleep` so the app gets enough time to shut down after the sleep.
-
-### Lifecycle hooks (postStart and preStop)
-
-Kubernetes lifecycle hooks fire at the boundaries of a container's life: `postStart` runs the moment the container starts (in parallel with the entrypoint — no ordering guarantees), `preStop` runs when the kubelet decides to terminate the container, before SIGTERM. The chart passes the entire `lifecycle:` block through verbatim, so any combination of hooks and any K8s-supported handler (`exec`, `httpGet`, `tcpSocket`, `sleep` since K8s 1.30) is available.
-
-Use either or both — set only the one you need. Works in both single-container shorthand and full `containers:` form.
-
-#### Single-container shorthand
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    lifecycle:
-      postStart:
-        exec:
-          command: ["/bin/sh", "-c", "/usr/local/bin/warm-cache.sh"]
-      preStop:
-        httpGet:
-          path: /shutdown
-          port: 8080
-```
-
-#### Full `containers:` form (multi-container)
-
-```yaml
-deployments:
-  api:
-    containers:
-      - name: app
-        image: my-api
-        imageTag: "1.0.0"
-        lifecycle:
-          postStart:
-            exec:
-              command: ["/bin/sh", "-c", "echo started >> /var/log/boot.log"]
-          preStop:
-            exec:
-              command: ["/bin/sh", "-c", "kill -SIGINT 1 && sleep 10"]
-```
-
-#### Only one hook
-
-Set just the one you need — the other is omitted entirely. No placeholder required.
-
-```yaml
-deployments:
-  worker:
-    image: my-worker
-    imageTag: "1.0.0"
-    lifecycle:
-      postStart:
-        exec:
-          command: ["/bin/sh", "-c", "/app/register-with-coordinator.sh"]
-        # no preStop — container goes straight to SIGTERM on shutdown
-```
-
-> **Foot-gun — `lifecycle:` replaces the entire auto-generated `preStopSleep` block.** If your release sets `defaults.preStopSleep: 5` (or `*General.preStopSleep`) and a workload then defines its own `lifecycle:` (even just `lifecycle.postStart`), the auto-generated preStop sleep is **silently dropped**. The chart picks `lifecycle:` over `preStopSleep` whenever both could apply ([_container.tpl L66-76](file:///home/dzhi/git/origo/universal-chart/universal-chart/templates/helpers/_container.tpl#L66-L76)).
->
-> The same applies when `lifecycle` itself comes from `deploymentsGeneral` (or another `*General` block) — any inherited `lifecycle` from a higher tier replaces `preStopSleep` for every workload of that kind. If `deploymentsGeneral.lifecycle.preStop` is set, no Deployment in the release gets auto-`preStopSleep` unless it explicitly defines its own `lifecycle.preStop.exec.command: ["sh", "-c", "sleep N"]`.
->
-> If you need both a custom postStart **and** the drain-sleep behavior on the same container, write the sleep into the `lifecycle:` block yourself:
->
-> ```yaml
-> deployments:
->   api:
->     image: my-api
->     imageTag: "1.0.0"
->     lifecycle:
->       postStart:
->         exec:
->           command: ["/bin/sh", "-c", "/app/init.sh"]
->       preStop:
->         exec:
->           command: ["/bin/sh", "-c", "sleep 10"]   # replicates preStopSleep: 10
-> ```
-
-> **Init containers do NOT get auto-`preStopSleep`.** Init containers run to completion before the main containers start, so a preStop hook makes no sense there. The chart skips `preStopSleep` injection for init containers automatically. You can still set `lifecycle:` explicitly on an init container if you have a niche reason — it's passed through — but Kubernetes itself only invokes preStop for restartable init containers (`restartPolicy: Always`, K8s 1.29+).
-
-### Downward API and per-pod env vars
-
-Inject pod metadata as environment variables:
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    env:
-      - name: POD_NAME
-        valueFrom:
-          fieldRef:
-            fieldPath: metadata.name
-      - name: POD_IP
-        valueFrom:
-          fieldRef:
-            fieldPath: status.podIP
-      - name: NODE_NAME
-        valueFrom:
-          fieldRef:
-            fieldPath: spec.nodeName
-      - name: MEMORY_LIMIT
-        valueFrom:
-          resourceFieldRef:
-            containerName: api
-            resource: limits.memory
-```
-
-### Priority classes
-
-Ensure critical workloads get scheduled first:
-
-```yaml
-defaults:
-  priorityClassName: medium-priority
-
-deployments:
-  critical-api:
-    image: my-api
-    imageTag: "1.0.0"
-    priorityClassName: high-priority   # override default
-```
-
-### ExternalName services
-
-Route to services outside the cluster:
-
-```yaml
-services:
-  legacy-api:
-    type: ExternalName
-    externalName: legacy.company.internal
-    ports:
-      - name: http
-        port: 443
-```
-
-### CronJob-specific fields
-
-CronJobs support additional fields beyond the basic workload config:
-
-```yaml
-cronJobs:
-  etl:
-    schedule: "0 * * * *"
-    image: my-etl
-    imageTag: "1.0.0"
-    command: ["python", "etl.py"]
-    singleOnly: true                   # concurrencyPolicy: Forbid
-    suspend: false                     # pause scheduling without deleting
-    startingDeadlineSeconds: 300       # max seconds late before skip
-    activeDeadlineSeconds: 3600        # kill if running > 1 hour
-    backoffLimit: 2                    # retry failed pods up to N times
-    ttlSecondsAfterFinished: 86400    # clean up completed jobs after 24h
-    successfulJobsHistoryLimit: 3
-    failedJobsHistoryLimit: 5
-    restartPolicy: Never               # default: Never
-    commandDurationAlert: 1800         # PrometheusRule if > 30 min
-```
-
----
-
-## Migrating from Standalone Charts
-
-### From a per-service chart
-
-If you currently maintain one Helm chart per microservice, migration is straightforward — move your container config into `deployments.<name>`:
-
-**Before** (custom chart `templates/deployment.yaml`):
-```yaml
-# Your current values.yaml
-image: registry.example.com/api
-tag: "2.0.0"
-replicaCount: 3
-port: 8080
-resources:
-  requests:
-    cpu: 250m
-    memory: 256Mi
-```
-
-**After** (universal chart):
-```yaml
-deployments:
-  api:
-    image: registry.example.com/api
-    imageTag: "2.0.0"
-    replicas: 3
-    ports:
-      http: 8080
-    resources:
-      requests:
-        cpu: 250m
-        memory: 256Mi
-```
-
-### From Bitnami / community charts
-
-Community charts wrap a single application with extensive `values.yaml` options. The universal chart is a thin layer over raw Kubernetes specs, so most fields map directly:
-
-| Bitnami pattern | Universal chart equivalent |
+| v1.x Feature | Replacement |
 |---|---|
-| `image.repository` + `image.tag` | `image` + `imageTag` |
-| `replicaCount` | `replicas` |
-| `service.type` + `service.port` | `services:` block |
-| `ingress.enabled` + `ingress.hosts` | `httpRoutes:` or `istioVirtualServices:` |
-| `resources.requests` | `resources.requests` (same) |
-| `env` / `extraEnvVars` | `env:` / `envs:` / `envConfigmaps:` |
-| `persistence.enabled` + `persistence.size` | `pvcs:` block |
-| `podSecurityContext` | `podSecurityContext` (same) |
-| `serviceAccount.create` | `serviceAccounts:` block |
+| `deployments:` dict | `deployment:` singular block |
+| `services:` dict | `service:` singular block |
+| `hpas:` dict | `hpa:` singular block |
+| `*General` sections | Use `defaults:` for shared config |
+| `releasePrefix` | Use `name:` field on each block |
+| `envs:` / `secretEnvs:` auto-generation | Define `env:` inline on the workload |
+| `hooks:` section | Define `job:` with Helm hook annotations in `extraDeploy:` |
+| `disabled: true` on resources | Omit the resource block entirely |
 
-### Migration checklist
+### Migration Steps
 
-1. **Start minimal** — deploy just the workload first (`image` + `imageTag` + `ports`)
-2. **Compare rendered output** — run `helm template` with both charts and diff
-3. **Add features incrementally** — health checks, resources, env vars, volumes
-4. **Move networking** — replace Ingress with HTTPRoute or VirtualService
-5. **Consolidate** — merge per-service values files into one values file per environment
+1. **Flatten multi-workload releases:** If you had multiple deployments in one values file, split them into separate releases:
+   ```yaml
+   # v1.x — one release, two deployments
+   deployments:
+     api:
+       image: myapp-api
+     worker:
+       image: myapp-worker
+   ```
+   ```yaml
+   # new — two releases
+   # Release "myapp-api": deployment.image: myapp-api
+   # Release "myapp-worker": deployment.image: myapp-worker
+   ```
 
-### Upgrading from pre-1.9.0
+2. **Rename dict keys to singular blocks:**
+   - `deployments:` → `deployment:`
+   - `services:` → `service:`
+   - `hpas:` → `hpa:`
+   - `pdbs:` → `pdb:`
+   - `pvcs:` → `pvc:`
+   - `externalSecrets:` → `externalSecret:`
+   - `imageUpdaters:` → `imageUpdater:`
+   - `serviceAccounts:` → `serviceAccount:`
 
-Three behavioral changes in v1.9.0 may affect workloads without any values file changes:
+3. **Move *General values to defaults or inline:**
+   ```yaml
+   # v1.x
+   deploymentsGeneral:
+     podSecurityContext:
+       fsGroup: 1000
+   # new — move to defaults or set on the workload directly
+   defaults:
+     podSecurityContext:
+       fsGroup: 1000
+   ```
 
-**1. `containerSecurityContext` now deep-merges with defaults**
-Previously, setting any `containerSecurityContext` field replaced all defaults. Now it merges. If your workload intentionally stripped defaults (e.g., set `containerSecurityContext: {}` to clear all secure defaults), it will now get them back. Review any workloads that use `containerSecurityContext` overrides.
+4. **Replace envs/secretEnvs with inline env:**
+   ```yaml
+   # v1.x
+   envs:
+     LOG_LEVEL: info
+   secretEnvs:
+     DB_PASSWORD: s3cret
+   # new
+   deployment:
+     env:
+       - name: LOG_LEVEL
+         value: info
+       - name: DB_PASSWORD
+         valueFrom:
+           secretKeyRef:
+             name: my-secrets
+             key: db-password
+   ```
 
-**2. Workload-level `healthCheck` cascades into explicit `containers:`**
-If a workload (or its `defaults`/`*General`) sets `healthCheck:` and uses explicit `containers:`, containers without their own probes now receive those probes automatically. Previously they received none. If a container should not have probes, set `healthCheck: null` on the workload.
-
-**3. PDB key must match a workload key**
-Previously a PDB key that didn't match any workload rendered silently and selected zero pods. Now rendering fails at template time. If you have any PDB that doesn't correspond to a Deployment/StatefulSet/DaemonSet, rename it or add the matching workload before upgrading.
-
----
-
-## Troubleshooting
-
-### Common issues
-
-**Pod stuck in CrashLoopBackOff:**
-- Most likely cause: `readOnlyRootFilesystem: true` (the default). Your app may need to write to `/tmp` or a cache directory. Fix:
-  ```yaml
-  deployments:
-    api:
-      image: my-api
-      imageTag: "1.0.0"
-      volumes:
-        - name: tmp
-          type: emptyDir
-      volumeMounts:
-        - name: tmp
-          mountPath: /tmp
-  ```
-- Or disable it per-workload: `containerSecurityContext: {readOnlyRootFilesystem: false}`
-
-**Service not created for my Deployment:**
-- Services are never auto-created from ports. Define them explicitly in the `services:` block with the appropriate port mapping.
-- Use list-form ports for multi-protocol Services: `ports: [{port: 8080, name: http}, {port: 9090, name: metrics}]`.
-
-**Health check probes failing:**
-- `healthCheck` only generates HTTP GET probes. If your app uses gRPC or TCP, use explicit `livenessProbe`/`readinessProbe` instead
-- Default health check port is 8080. Override with `healthCheck.port`
-
-**Volumes show `<no value>` or mount errors:**
-- Typed volumes need the correct sub-field: `configMapName` for configMap, `secretName` for secret, `claimName` for pvc
-
-**"Unable to run as non-root" errors:**
-- Default `podSecurityContext` sets `runAsNonRoot: true`. Override for images that need root:
-  ```yaml
-  deployments:
-    legacy:
-      image: old-app
-      imageTag: "1.0.0"
-      podSecurityContext:
-        runAsNonRoot: false
-  ```
-
-**Security context not applied to init/sidecar containers:**
-- In single-container shorthand, set `containerSecurityContext` on the workload — it propagates to init containers and sidecars
-- In multi-container form, set `securityContext` on each container individually, or use `containerSecurityContext` at the workload level for the shared default
-
-**CronJob never runs:**
-- Check `suspend: true` — set to `false` or remove it
-- Verify the schedule string is quoted: `schedule: "0 3 * * *"`
-- Check `startingDeadlineSeconds` — if the cluster was down during the scheduled time and no deadline is set, the job may be skipped
-
-**Helm hook fails but deployment continues:**
-- Hooks default to `kind: pre-install,pre-upgrade` with `weight: 5`. If a hook should block the release, ensure `deletePolicy` is `before-hook-creation,hook-succeeded` (default) and the Job's exit code is non-zero on failure
-
-**PDB template fails with "no matching workload found":**
-- The PDB key must exactly match a key in `deployments`, `statefulSets`, or `daemonSets`
-- If the keys don't match, the chart fails at `helm template`/`helm install` time (not at Kubernetes apply time)
-- Fix: rename the PDB key to match your workload, or add the matching workload
-- Example: `pdbs.api` requires `deployments.api` (or `statefulSets.api` or `daemonSets.api`) to exist
-
-**Container has probes I didn't define:**
-- If the workload, `defaults`, or a `*General` block sets `healthCheck:`, that cascades into explicit `containers:` that lack their own probes
-- This is intentional behavior (v1.9.0+) but may be surprising when migrating from shorthand to full `containers:` form
-- Fix: set `healthCheck: null` at the workload level to suppress cascade; or add explicit probes to the container
-
-### Debugging tools
-
-**Render templates locally** to inspect the output:
-```bash
-helm template my-release universal-chart/ -f my-values.yaml
-```
-
-**Render a single resource type** using grep:
-```bash
-helm template my-release universal-chart/ -f my-values.yaml | yq '. | select(.kind == "Deployment")'
-```
-
-**Diagnostic mode** — override all containers with `sleep infinity` to exec into a failing pod:
-```yaml
-diagnosticMode:
-  enabled: true
-```
-
-**Validate against Kubernetes schemas:**
-```bash
-helm template my-release universal-chart/ -f my-values.yaml \
-  | kubeconform -strict -ignore-missing-schemas
-```
-
----
+5. **Replace releasePrefix with explicit names:**
+   ```yaml
+   # v1.x: releasePrefix: "corp" → resources named "corp-web"
+   releasePrefix: corp
+   deployments:
+     web: ...
+   # new: deployment.name: "corp-web"
+   deployment:
+     name: corp-web
+   ```
 
 ## Values
 
@@ -2417,238 +611,53 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | clusterIssuers | object | `{}` | cert-manager ClusterIssuer resources (cluster-scoped, no namespace). Each key becomes the resource name. |
 | clusterSecretStores | object | `{}` | External Secrets Operator ClusterSecretStore resources (cluster-scoped). Each key becomes the resource name. |
 | configMaps | object | `{}` | Kubernetes ConfigMap resources. Each key becomes the resource name. |
-| cronJobs | object | `{}` | Kubernetes CronJob resources. Each key becomes the resource name. |
-| cronJobsGeneral | object | `{"usePredefinedAffinity":false}` | Shared defaults for all CronJobs. |
-| daemonSets | object | `{}` | Kubernetes DaemonSet resources. Each key becomes the resource name. DaemonSets run one pod per node (no `replicas`). Uses `updateStrategy` instead of `strategy`. |
-| daemonSetsGeneral | object | `{}` | Shared defaults for all DaemonSets. |
+| cronJob | object | `{}` | Kubernetes CronJob.  Only one per release. |
+| daemonset | object | `{}` | Kubernetes DaemonSet.  Only one per release. |
 | defaultImagePullPolicy | string | `"IfNotPresent"` | Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`. |
-| defaults | object | `{"annotations":{},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"hookAnnotations":{},"labels":{},"podAnnotations":{},"podLabels":{},"podSecurityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"revisionHistoryLimit":3,"usePredefinedAffinity":true}` | Default settings applied to all workload templates (labels, annotations, pod metadata, volumes, etc.) |
+| defaults | object | `{"annotations":{},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"labels":{},"podAnnotations":{},"podLabels":{},"podSecurityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"revisionHistoryLimit":3,"usePredefinedAffinity":true}` | Default settings applied to all templates.  Labels, annotations, pod metadata, security contexts, resources, etc.  These are accessed directly (no merge cascade) — the workload block or resource block simply references defaults as needed. |
 | defaults.annotations | object | `{}` | Annotations added to every resource's `metadata.annotations`. |
-| defaults.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Default container-level securityContext applied to every container. |
+| defaults.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Default container-level securityContext. |
 | defaults.extraImagePullSecrets | list | `[]` | Additional image pull secrets appended to every pod spec. |
 | defaults.extraSelectorLabels | object | `{}` | Extra selector labels merged into workload `matchLabels`. |
 | defaults.extraVolumeMounts | list | `[]` | Additional volume mounts appended to every container. |
 | defaults.extraVolumes | list | `[]` | Additional volumes appended to every workload's pod spec. |
-| defaults.hookAnnotations | object | `{}` | Annotations applied to hook Job resources only. Does NOT propagate to ConfigMaps or Secrets. |
 | defaults.labels | object | `{}` | Labels added to every resource's `metadata.labels`. |
 | defaults.podAnnotations | object | `{}` | Annotations added to pod templates. |
 | defaults.podLabels | object | `{}` | Labels added to pod templates. |
-| defaults.podSecurityContext | object | `{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Default pod-level securityContext applied to every pod spec. |
-| defaults.revisionHistoryLimit | int | `3` | Default revisionHistoryLimit for Deployments and StatefulSets. Controls how many old ReplicaSets/ControllerRevisions are retained for rollback. Lower values reduce etcd/API-server load; set to 0 to disable rollback history entirely. |
+| defaults.podSecurityContext | object | `{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Default pod-level securityContext. |
+| defaults.revisionHistoryLimit | int | `3` | Default revisionHistoryLimit for Deployments and StatefulSets. |
 | defaults.usePredefinedAffinity | bool | `true` | Use the chart's built-in pod affinity/anti-affinity rules. |
-| deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form `{name: port}`) auto-creates containerPorts. Use list-form for multi-port definitions (e.g. different protocols). The full `containers:` list still works for multi-container workloads. |
-| deploymentsGeneral | object | `{}` | Shared defaults for all Deployments (merged with per-instance values). |
-| diagnosticMode | object | `{"args":["infinity"],"command":["sleep"],"enabled":false}` | Diagnostic mode — overrides command/args on main containers only (init containers are not affected). Useful for debugging crash-looping pods. |
+| deployment | object | `{}` | Kubernetes Deployment.  Only one per release. Single-container shorthand: set `image:` at workload level instead of `containers:`. `ports:` (map form) auto-creates containerPorts. Use the full `containers:` list for multi-container workloads. |
+| diagnosticMode | object | `{"args":["infinity"],"command":["sleep"],"enabled":false}` | Diagnostic mode — overrides command/args on main containers only (init containers are not affected). |
 | diagnosticMode.args | list | `["infinity"]` | Args override applied to every container. |
 | diagnosticMode.command | list | `["sleep"]` | Command override applied to every container. |
 | diagnosticMode.enabled | bool | `false` | Enable diagnostic mode globally. |
-| envs | object | `{}` | Non-secret environment variables injected via `envFrom` into ALL workloads automatically. |
-| externalSecrets | object | `{}` | External Secrets Operator ExternalSecret resources. Each key becomes the resource name. |
+| externalSecret | object | `{}` | External Secrets Operator ExternalSecret.  Only one per release. |
 | extraDeploy | object | `{}` | Raw Kubernetes manifests to deploy alongside chart resources. Supports template expressions. |
-| hooks | object | `{}` | Helm lifecycle hook Jobs (pre/post-install/upgrade). Each key becomes the hook name. |
-| hooksGeneral | object | `{}` | Shared defaults for all hook Jobs. |
-| hpas | object | `{}` | Kubernetes HorizontalPodAutoscaler resources (autoscaling/v2). Each key becomes the resource name. |
-| hpasGeneral | object | `{}` | Shared defaults for all HPAs. Cascadable fields: `minReplicas`, `maxReplicas`, `targetCPU`, `targetMemory`, `metrics`, `behavior`. `scaleTargetRef` stays per-instance. |
+| hpa | object | `{}` | Kubernetes HorizontalPodAutoscaler (autoscaling/v2).  Only one per release. |
 | httpRoutes | object | `{}` | Gateway API HTTPRoute resources. Each key becomes the resource name. |
 | imagePullSecrets | list | `[]` | Image pull secret names referenced in every pod spec. Secrets must be pre-created in the namespace. |
-| imageUpdaters | object | `{}` | Argo CD Image Updater resources. Each key becomes the resource name. Configures automatic image updates for Argo CD applications.  The ImageUpdater CR is deployed into the `argocd` namespace by default, matching where Application CRs live and AIU v1.2+ namespace-scoped defaults. Override per resource via `metadataNamespace`.  Why `manifestTargets` is required (no chart-level default): universal-chart hosts N deployments per release. AIU writes back a single Helm parameter; targeting a chart-root key would be ambiguous (which deployment? which container?) and would silently shadow per-deployment values. Each `images[]` entry MUST point `manifestTargets.helm.{name,tag}` at the exact value path the chart reads — typically `deployments.<name>.image` / `deployments.<name>.imageTag`. |
+| imageUpdater | object | `{}` | Argo CD Image Updater.  Only one per release. |
 | issuers | object | `{}` | cert-manager Issuer resources (namespace-scoped). Each key becomes the resource name. |
 | istioAuthorizationPolicies | object | `{}` | Istio AuthorizationPolicy resources. Each key becomes the resource name. |
 | istioDestinationRules | object | `{}` | Istio DestinationRule resources. Each key becomes the resource name. |
 | istioGateways | object | `{}` | Istio Gateway resources. Each key becomes the resource name. |
 | istioPeerAuthentications | object | `{}` | Istio PeerAuthentication resources (mTLS policy). Each key becomes the resource name. |
-| istioVirtualServices | object | `{}` | Istio VirtualService resources. Each key becomes the resource name. Supported http route fields: `match`, `route`, `timeout`, `retries`, `fault`, `rewrite`, `corsPolicy`, `headers`, `mirror`, `mirrorPercentage`. |
-| jobs | object | `{}` | Kubernetes Job resources (non-hook). Each key becomes the resource name. |
-| jobsGeneral | object | `{"usePredefinedAffinity":false}` | Shared defaults for all Jobs. |
+| istioVirtualServices | object | `{}` | Istio VirtualService resources. Each key becomes the resource name. |
+| job | object | `{}` | Kubernetes Job (non-hook).  Only one per release. |
 | nodeAffinityPreset | object | `{"key":"","type":"","values":[]}` | Node affinity preset configuration. |
 | nodeAffinityPreset.key | string | `""` | Node label key to match (e.g. `kubernetes.io/e2e-az-name`). |
 | nodeAffinityPreset.type | string | `""` | Affinity type. Allowed values: `soft`, `hard`, or empty string to disable. |
 | nodeAffinityPreset.values | list | `[]` | Node label values to match. |
-| pdbs | object | `{}` | Kubernetes PodDisruptionBudget resources. Each key becomes the resource name. |
-| persistentVolumes | object | `{}` | Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name. Thin passthrough — `spec:` goes directly to the Kubernetes resource unchanged. |
+| pdb | object | `{}` | Kubernetes PodDisruptionBudget.  Only one per release. |
+| persistentVolumes | object | `{}` | Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name. |
 | podAffinityPreset | string | `"soft"` | Pod affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
-| pvcs | object | `{}` | Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name. PVCs are NOT automatically mounted — reference them manually via `volumes:` with `type: pvc` and `claimName:`. |
-| releasePrefix | string | `""` | Prefix prepended to all resource names. Leave empty to disable. |
-| secretEnvs | object | `{}` | Secret environment variables injected via `envFrom` into ALL workloads automatically. |
+| pvc | object | `{}` | Kubernetes PersistentVolumeClaim.  Only one per release. |
 | secretStores | object | `{}` | External Secrets Operator SecretStore resources (namespace-scoped). Each key becomes the resource name. |
 | secrets | object | `{}` | Kubernetes Secret resources. Each key becomes the resource name. |
-| serviceAccounts | object | `{}` | Kubernetes ServiceAccount resources. Each key becomes the resource name. |
-| serviceAccountsGeneral | object | `{}` | Shared defaults for all ServiceAccounts. |
+| service | object | `{}` | Kubernetes Service.  Only one per release. |
+| serviceAccount | object | `{}` | Kubernetes ServiceAccount.  Only one per release. |
 | serviceMonitors | object | `{}` | Prometheus ServiceMonitor resources. Each key becomes the resource name. |
-| services | object | `{}` | Kubernetes Service resources. Each key becomes the resource name. If `workload` is omitted, the selector defaults to the service key name. Set `selector` to override the selector verbatim. ExternalName services omit selectors. |
-| statefulSets | object | `{}` | Kubernetes StatefulSet resources. Each key becomes the resource name. Uses `updateStrategy` instead of `strategy`. Adds `volumeClaimTemplates` support. |
-| statefulSetsGeneral | object | `{}` | Shared defaults for all StatefulSets. |
-| storageClasses | object | `{}` | Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key becomes the resource name. Standard StorageClass fields are passed through directly (no `spec:` wrapper — StorageClass has no spec in the K8s API). Set `isDefault: true` to add the `storageclass.kubernetes.io/is-default-class: "true"` annotation. |
-
-## Maintainers
-
-| Name | Email | Url |
-| ---- | ------ | --- |
-| Origo SoftwareSolutions DevOps |  |  |
-
-## Development
-
-### Prerequisites
-
-Install these tools before working on the chart locally:
-
-**Required:**
-
-| Tool | Version | Purpose | Install |
-|---|---|---|---|
-| [Helm](https://helm.sh/) | **4.2.0** | Chart rendering, linting, packaging | [Install docs](https://helm.sh/docs/intro/install/) |
-| [helm-unittest](https://github.com/helm-unittest/helm-unittest) | **1.1.0** | Unit test runner (Helm plugin) | `helm plugin install https://github.com/helm-unittest/helm-unittest --version 1.1.0 --verify=false` |
-| [Python](https://www.python.org/) | 3.9+ | Required by pre-commit and helmfmt | [Download](https://www.python.org/downloads/) (often pre-installed on macOS/Linux) |
-| [pre-commit](https://pre-commit.com/) | 3.0+ | Git hook manager — auto-runs formatting and docs generation on every commit | [Install docs](https://pre-commit.com/#installation) |
-
-> **Note:** You do not need to install [helmfmt](https://github.com/digitalstudium/helmfmt), [helm-docs](https://github.com/norwoodj/helm-docs), or [kubeconform](https://github.com/yannh/kubeconform) separately — pre-commit downloads and manages them automatically when the hooks run.
-
-**Optional tool versions (for reference):**
-
-| Tool | Version | Purpose |
-|---|---|---|
-| [helm-docs](https://github.com/norwoodj/helm-docs) | **1.14.2** | README generation from values comments |
-| [helmfmt](https://github.com/digitalstudium/helmfmt) | **0.4.3** | Template formatting |
-| [kubeconform](https://github.com/yannh/kubeconform) | **0.7.0** | Schema validation of rendered manifests |
-
-### First-time setup
-
-```bash
-# Clone and enter the repo
-git clone https://github.com/OrigoSoftwareSolutions/universal-chart.git
-cd universal-chart
-
-# Install the helm-unittest plugin (one-time)
-helm plugin install https://github.com/helm-unittest/helm-unittest --version 1.1.0 --verify=false
-
-# Install pre-commit hooks (one-time) — runs helmfmt + helm-docs automatically on git commit
-pre-commit install
-```
-
-### Day-to-day commands
-
-```bash
-# Lint (must pass before pushing)
-helm lint universal-chart/ --strict
-
-# Run unit tests (must pass before pushing)
-helm unittest universal-chart/ --strict --file 'tests/*.yaml'
-
-# Run a single test suite
-helm unittest universal-chart/ --strict --file 'tests/deployment_test.yaml'
-
-# Render templates (smoke test)
-helm template test universal-chart/ -f universal-chart/ci/test-values.yaml
-
-# Render with Istio CRD resolution
-helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
-  --api-versions networking.istio.io/v1beta1
-
-# Regenerate README (required after values.yaml changes — also runs automatically via pre-commit)
-helm-docs --chart-search-root universal-chart/ -o ../README.md
-
-# Format templates (also runs automatically via pre-commit)
-helmfmt universal-chart/
-
-# Schema validation (optional — CI runs this)
-helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
-  | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.33.6 \
-    -schema-location default \
-    -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
-```
-
-### Pre-commit hooks
-
-The repo uses [pre-commit](https://pre-commit.com/) hooks (configured in `.pre-commit-config.yaml`) that run automatically on each `git commit`:
-
-| Hook | What it does |
-|---|---|
-| **helmfmt** | Auto-formats all `.yaml`/`.yml`/`.tpl` files in `universal-chart/` (2-space indent, consistent whitespace) |
-| **helm-docs** | Regenerates `README.md` from the gotmpl template + `values.yaml` comments |
-
-If a hook modifies files, the commit is aborted so you can review and re-stage. Just run `git add . && git commit` again.
-
-### Style & formatting rules
-
-Enforced by `.yamllint` and `.helmfmt`:
-
-- **Indent**: 2 spaces — no tabs
-- **Line length**: max 150 characters
-- **Booleans**: `true`/`false` only (never `yes`/`no`/`on`/`off`)
-- **No trailing spaces**; max 3 consecutive empty lines
-- **`nindent`** value must match actual rendered indentation level
-- Quote image tags that look numeric: `imageTag: "1.25"`
-
-## Contributing & Release
-
-### Making changes
-
-1. Create a branch from `main`
-2. Make your changes in `universal-chart/`
-3. Run locally before pushing:
-   ```bash
-   helm lint universal-chart/ --strict
-   helm unittest universal-chart/ --strict --file 'tests/*.yaml'
-   ```
-4. If you changed `values.yaml`, regenerate docs:
-   ```bash
-   helm-docs --chart-search-root universal-chart/ -o ../README.md
-   ```
-5. Open a PR against `main`
-
-### CI checks (automated on every PR)
-
-Three parallel jobs run on every pull request:
-
-| Job | What it does |
-|---|---|
-| `lint` | `helm lint --strict` + kubeconform schema validation |
-| `unittest` | All helm-unittest suites |
-| `docs-check` | Verifies `README.md` matches `helm-docs` output |
-
-All three must pass before merge.
-
-### Versioning & release
-
-This chart follows [SemVer](https://semver.org/):
-
-- **Patch** (`1.3.0` → `1.3.1`): Bug fixes, doc updates, test additions
-- **Minor** (`1.3.0` → `1.4.0`): New features, new resource types, new values keys
-- **Major** (`1.3.0` → `2.0.0`): Breaking changes — renamed/removed values keys, changed default behavior
-
-**To release a new version:**
-
-1. Bump `version:` in `universal-chart/Chart.yaml`
-2. Merge to `main`
-3. GitHub Actions packages the chart, pushes it to `oci://ghcr.io/origosoftwaresolutions/universal-chart`, and creates a [GitHub Release](https://github.com/OrigoSoftwareSolutions/universal-chart/releases) at `v<version>` with autogenerated notes from PR titles since the previous tag.
-
-The release workflow runs on every push to `main` and applies two gates:
-
-- **Skip-existing**: if `Chart.yaml`'s version is already published, the run is a no-op. Docs-only or test-only PRs don't need a version bump.
-- **Reject downgrade**: the proposed version must be strictly greater than the highest stable tag already in GHCR. Typos and stale-branch merges fail the workflow instead of publishing a ghost tag.
-
-Bump `version:` only when you actually want to ship, and only forward. The `v<version>` git tag is created automatically by the workflow — never push tags by hand. The `Chart.yaml` version is the single source of truth.
-
-### Adding a new resource type
-
-1. Create the template in `universal-chart/templates/` (`.yaml` extension only)
-2. Add a plural values key in `values.yaml` (e.g. `myResources: {}`) with a `# --` helm-docs comment
-3. Add schema validation in `values.schema.json` if the resource has structured fields
-4. Write a test suite in `universal-chart/tests/<resource>_test.yaml`
-5. Regenerate docs: `helm-docs --chart-search-root universal-chart/ -o ../README.md`
-6. Run all checks: `helm lint --strict && helm unittest --strict --file 'tests/*.yaml'`
-
-## Source Code
-
-* <https://github.com/OrigoSoftwareSolutions/universal-chart>
-
-## License
-
-Maintained by [Origo Software Solutions](https://github.com/OrigoSoftwareSolutions).
-
----
-
-## Acknowledgements
-
-This chart grew out of [nixys/universal-chart](https://github.com/nixys/universal-chart), an open-source Helm chart by Nixys Ltd. Thank you for the foundation.
+| statefulset | object | `{}` | Kubernetes StatefulSet.  Only one per release. |
+| storageClasses | object | `{}` | Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key becomes the resource name. |

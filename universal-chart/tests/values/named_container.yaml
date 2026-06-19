@@ -1,6 +1,0 @@
-deployments:
-  web:
-    containers:
-      - name: my-nginx
-        image: nginx
-        imageTag: "1.25"

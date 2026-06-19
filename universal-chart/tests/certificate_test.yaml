@@ -43,19 +43,6 @@ tests:
           path: apiVersion
           value: cert-manager.io/v1alpha2
 
-  - it: does not render a disabled certificate
-    capabilities:
-      apiVersions:
-        - cert-manager.io/v1
-    set:
-      certificates.my-cert.disabled: true
-      certificates.my-cert.dnsNames[0]: example.com
-      certificates.my-cert.issuerRef.name: letsencrypt
-      certificates.my-cert.secretName: my-cert-tls
-    asserts:
-      - hasDocuments:
-          count: 0
-
   - it: renders issuerref with helper fullname when original name is omitted
     capabilities:
       apiVersions:

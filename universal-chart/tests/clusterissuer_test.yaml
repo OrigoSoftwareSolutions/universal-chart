@@ -26,17 +26,6 @@ tests:
           path: apiVersion
           value: cert-manager.io/v1alpha2
 
-  - it: does not render a disabled clusterissuer
-    capabilities:
-      apiVersions:
-        - cert-manager.io/v1
-    set:
-      clusterIssuers.letsencrypt.disabled: true
-      clusterIssuers.letsencrypt.spec.acme.server: https://acme-v02.api.letsencrypt.org/directory
-    asserts:
-      - hasDocuments:
-          count: 0
-
   - it: renders full chart labels
     capabilities:
       apiVersions:

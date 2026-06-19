@@ -1,41 +1,40 @@
-{{- $general := $.Values.statefulSetsGeneral -}}
-{{- range $name, $sts := .Values.statefulSets }}
-  {{- if not (.disabled | default false) }}
-    {{- $merged := mustMergeOverwrite (deepCopy $general) $sts }}
+{{- if .Values.statefulset }}
+  {{- $d := .Values.statefulset }}
+  {{- $name := $d.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
 ---
 apiVersion: {{ include "helpers.capabilities.statefulSet.apiVersion" $ }}
 kind: StatefulSet
 metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  name: {{ $name }}
   namespace: {{ $.Release.Namespace | quote }}
-    {{- include "helpers.workload.metadata" (dict "name" $name "value" $sts "general" $general "context" $) | nindent 2 }}
+  {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "context" $) | nindent 2 }}
 spec:
-  replicas: {{ dig "replicas" (dig "replicas" 1 $general) $sts | int }}
-    {{- $rhl := dig "revisionHistoryLimit" (dig "revisionHistoryLimit" $.Values.defaults.revisionHistoryLimit $general) $sts }}
-    {{- if ne $rhl nil }}
+  replicas: {{ $d.replicas | default 1 | int }}
+  {{- $rhl := $d.revisionHistoryLimit | default $.Values.defaults.revisionHistoryLimit }}
+  {{- if ne $rhl nil }}
   revisionHistoryLimit: {{ $rhl | int }}
-    {{- end }}
-    {{- with $merged.updateStrategy }}
+  {{- end }}
+  {{- with $d.updateStrategy }}
   updateStrategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
-    {{- end }}
-  serviceName: {{ include "helpers.app.fullname" (dict "name" (.serviceName | default $name) "context" $) }}
-    {{- if ne $merged.minReadySeconds nil }}
-  minReadySeconds: {{ $merged.minReadySeconds }}
-    {{- end }}
-    {{- with $merged.podManagementPolicy }}
+  {{- end }}
+  serviceName: {{ $d.serviceName | default $name }}
+  {{- if $d.minReadySeconds }}
+  minReadySeconds: {{ $d.minReadySeconds }}
+  {{- end }}
+  {{- with $d.podManagementPolicy }}
   podManagementPolicy: {{ . }}
-    {{- end }}
+  {{- end }}
   selector:
     matchLabels:
-    {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}
-    {{- with .extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end }}
+  {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 6 }}
+  {{- with $d.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}{{- end }}
   template:
-    metadata:{{- include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $sts "general" $general "context" $ "selectorLabels" true "extraSelectorLabels" $sts.extraSelectorLabels) | nindent 6 }}
+    metadata:
+  {{- include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $d "context" $ "selectorLabels" true "extraSelectorLabels" $d.extraSelectorLabels) | nindent 6 }}
     spec:
-    {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "extraLabels" .extraSelectorLabels "context" $) | trim | nindent 6 }}
-    {{- with .volumeClaimTemplates }}
+  {{- include "helpers.pod" (dict "value" $d "name" $name "extraLabels" $d.extraSelectorLabels "context" $) | trim | nindent 6 }}
+  {{- with $d.volumeClaimTemplates }}
   volumeClaimTemplates:
-      {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
-    {{- end }}
+    {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
   {{- end }}
 {{- end }}

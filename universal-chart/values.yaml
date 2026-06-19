@@ -1,23 +1,19 @@
 # =============================================================================
 # Origo Universal Chart — values.yaml
 # =============================================================================
-# This file defines the default configuration for the universal-chart.
-# Every top-level key maps to one or more Kubernetes resource templates.
+# This chart supports a single workload per release.  Every resource is a
+# singular optional block — not a dict of instances.  For resources that are
+# naturally multiple per release (certificates, Istio routes, etc.) the dict
+# pattern is retained.
 #
-# Convention: resource keys are maps — each sub-key becomes the resource name.
-#   deployments:
-#     api:          ← creates Deployment named "<releasePrefix>-api"
-#       image: myapp:1.0
-#
-# Set `disabled: true` on any instance to suppress it without deleting config.
+# Resource naming (singular blocks):
+#   name: my-app           →  literal name "my-app"
+#   name: "" (default)     →  .Release.Name
 # =============================================================================
 
 # =============================================================================
 # @section Global Settings
 # =============================================================================
-
-# -- Prefix prepended to all resource names. Leave empty to disable.
-releasePrefix: ""
 
 # -- Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`.
 defaultImagePullPolicy: "IfNotPresent"
@@ -29,7 +25,7 @@ imagePullSecrets: []
 # Override the chart name used in resource name generation (uncomment to use).
 # nameOverride: ""
 
-# -- Diagnostic mode — overrides command/args on main containers only (init containers are not affected). Useful for debugging crash-looping pods.
+# -- Diagnostic mode — overrides command/args on main containers only (init containers are not affected).
 diagnosticMode:
   # -- Enable diagnostic mode globally.
   enabled: false
@@ -42,48 +38,42 @@ diagnosticMode:
 # @section Default Settings
 # =============================================================================
 
-# -- Default settings applied to all workload templates (labels, annotations, pod metadata, volumes, etc.)
+# -- Default settings applied to all templates.  Labels, annotations, pod
+# metadata, security contexts, resources, etc.  These are accessed directly
+# (no merge cascade) — the workload block or resource block simply references
+# defaults as needed.
 defaults:
   # -- Labels added to every resource's `metadata.labels`.
   labels: {}
   # -- Annotations added to every resource's `metadata.annotations`.
   annotations: {}
-  # -- Annotations applied to hook Job resources only. Does NOT propagate to ConfigMaps or Secrets.
-  hookAnnotations: {}
-  #   helm.sh/hook: "pre-install,pre-upgrade"
-  #   helm.sh/hook-weight: "-999"
-  #   helm.sh/hook-delete-policy: before-hook-creation
+
   # -- Extra selector labels merged into workload `matchLabels`.
   extraSelectorLabels: {}
   # -- Labels added to pod templates.
   podLabels: {}
   # -- Annotations added to pod templates.
   podAnnotations: {}
-  #   checksum/envs: '{{ include "helpers.workload.checksum" (printf "%s%s" $.Values.envs $.Values.envsString) }}'
+
   # -- Additional volumes appended to every workload's pod spec.
   extraVolumes: []
   # -- Additional volume mounts appended to every container.
   extraVolumeMounts: []
   # -- Additional image pull secrets appended to every pod spec.
   extraImagePullSecrets: []
+
   # -- Use the chart's built-in pod affinity/anti-affinity rules.
   usePredefinedAffinity: true
-  # -- Automatically inject `checksum/...` pod annotations for chart-managed ConfigMaps
-  # and Secrets referenced by the workload via `envConfigmaps` / `envSecrets`.
-  # When the underlying data changes the annotation hash changes, triggering a
-  # rolling restart. Set to `false` to disable globally; override per-kind via
-  # `*General.autoChecksum` or per-instance via `<workload>.autoChecksum`.
-  # @default -- `true`
-  # autoChecksum: true
+
   # -- Default ServiceAccount name assigned to pods when not overridden per-workload.
   # serviceAccountName: ""
   # -- Default hostAliases injected into every pod spec.
   # hostAliases: []
   # -- Default PriorityClass name for pods.
   # priorityClassName: ""
-  # -- Default DNS policy for pods. One of: `ClusterFirst`, `Default`, `ClusterFirstWithHostNet`, `None`.
+  # -- Default DNS policy for pods.
   # dnsPolicy: ""
-  # -- Default pod DNS configuration applied to every pod spec.
+  # -- Default pod DNS configuration.
   # dnsConfig:
   #   options:
   #     - name: ndots
@@ -92,54 +82,37 @@ defaults:
   # nodeSelector: {}
   # -- Default tolerations applied to every pod spec.
   # tolerations: []
-  # -- Default volumes (typed format) added to every pod spec (see `_volumes.tpl`).
+  # -- Default volumes (typed format) added to every pod spec.
   # volumes: []
   #   - name: app-config
   #     type: configMap
   #     configMapName: my-configmap
-  #   - name: app-secret
-  #     type: secret
-  #     secretName: my-secret
-  #   - name: app-data
-  #     type: pvc
-  #     claimName: my-pvc
-  # -- Default resource requests/limits. **No default resources are shipped with the chart** —
-# CPU and memory requests/limits must be set explicitly per workload or via `defaults`,
-# `<kind>General`, or the workload instance. Uncomment and customize to set shared defaults:
-# resources:
-#   requests:
-#     cpu: 100m
-#     memory: 128Mi
-#   limits:
-#     memory: 512Mi
-  # -- Default pod-level securityContext applied to every pod spec.
+  # -- Default resource requests/limits.
+  # resources:
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   limits:
+  #     memory: 512Mi
+  # -- Default pod-level securityContext.
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
-  # -- Default container-level securityContext applied to every container.
+  # -- Default container-level securityContext.
   containerSecurityContext:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
     capabilities:
       drop:
         - ALL
-  # -- Default topologySpreadConstraints applied to every pod spec.
+  # -- Default topologySpreadConstraints.
   # topologySpreadConstraints: []
-  #   - maxSkew: 1
-  #     topologyKey: kubernetes.io/hostname
-  #     whenUnsatisfiable: ScheduleAnyway
-  #     labelSelector:
-  #       matchLabels: {}
-  # -- Default terminationGracePeriodSeconds for all pods. Omit to use Kubernetes default (30s).
+  # -- Default terminationGracePeriodSeconds.
   # terminationGracePeriodSeconds: 60
-  # -- Default revisionHistoryLimit for Deployments and StatefulSets. Controls how many old
-  # ReplicaSets/ControllerRevisions are retained for rollback. Lower values reduce etcd/API-server
-  # load; set to 0 to disable rollback history entirely.
+  # -- Default revisionHistoryLimit for Deployments and StatefulSets.
   revisionHistoryLimit: 3
-  # -- Default preStop sleep duration (seconds). When set, adds a `sleep N` preStop lifecycle hook
-  # to every container that does not define an explicit `lifecycle` block. Useful for graceful
-  # shutdown to allow in-flight requests to drain before SIGTERM.
+  # -- Default preStop sleep duration (seconds).
   # preStopSleep: 5
 
 # =============================================================================
@@ -162,115 +135,122 @@ nodeAffinityPreset:
   values: []
 
 # =============================================================================
-# @section Environment Variables
-# =============================================================================
-
-# -- Non-secret environment variables injected via `envFrom` into ALL workloads automatically.
-envs: {}
-#   BAR: foo
-#   TEST: "true"
-
-# -- Non-secret environment variables as a raw YAML string (for multiline or special chars).
-# Injected via `envFrom` into ALL workloads automatically.
-# envsString: |
-#   BAR2: foo2
-
-# -- Secret environment variables injected via `envFrom` into ALL workloads automatically.
-secretEnvs: {}
-#   DB_PASSWORD: s3cret
-
-# -- Secret environment variables as a raw YAML string.
-# Injected via `envFrom` into ALL workloads automatically.
-# secretEnvsString: |
-#   API_KEY: abc123
-
-# =============================================================================
 # @section Workloads
 # =============================================================================
 
-# -- Shared defaults for all Deployments (merged with per-instance values).
-deploymentsGeneral: {}
-# -- Kubernetes Deployment resources. Each key becomes the resource name.
+# -- Kubernetes Deployment.  Only one per release.
 # @default -- `{}`
-# Single-container shorthand: set `image:` at workload level instead of a `containers:` list.
-# `ports:` (map form `{name: port}`) auto-creates containerPorts.
-# Use list-form for multi-port definitions (e.g. different protocols).
-# The full `containers:` list still works for multi-container workloads.
-deployments: {}
-#   # ── Single-container shorthand ──
-#   api:
-#     image: myapp:1.2.3
-#     replicas: 2
-#     ports:
-#       http: 8080
-#     # Services are defined separately in the services: block (see examples below).
-#     resources:
-#       requests: { cpu: 100m, memory: 128Mi }
-#       limits: { memory: 256Mi }
-#     healthCheck: { path: /healthz, port: 8080 }
+# Single-container shorthand: set `image:` at workload level instead of `containers:`.
+# `ports:` (map form) auto-creates containerPorts.
+# Use the full `containers:` list for multi-container workloads.
+deployment: {}
+#   name: my-app
+#   enabled: true
+#   image: myapp:1.2.3
+#   imageTag: ""
+#   replicas: 2
+#   ports:
+#     http: 8080
+#   containers: []
+#   initContainers: []
+#   strategy: {}
 #
-#   # ── Multi-container (full API) ──
-#   nginx:
-#     replicas: 2
-#     containers:
-#       - name: nginx
-#         image: nginx
-#         imageTag: "1.25"
+#   # Pod-level fields
+#   env: []
+#   envFrom: []
+#   envConfigmaps: []
+#   envSecrets: []
+#   volumes: []
+#   volumeMounts: []
+#   resources: {}
+#   securityContext: {}
+#   containerSecurityContext: {}
+#   affinity: {}
+#   nodeSelector: {}
+#   tolerations: []
+#   topologySpreadConstraints: []
+#   labels: {}
+#   annotations: {}
+#   podLabels: {}
+#   podAnnotations: {}
+#   serviceAccountName: ""
+#   extraSelectorLabels: {}
+#   minReadySeconds:
+#   progressDeadlineSeconds:
+#   revisionHistoryLimit:
 
-# -- Shared defaults for all StatefulSets.
-statefulSetsGeneral: {}
-# -- Kubernetes StatefulSet resources. Each key becomes the resource name.
-# Uses `updateStrategy` instead of `strategy`. Adds `volumeClaimTemplates` support.
-statefulSets: {}
+# -- Kubernetes StatefulSet.  Only one per release.
+statefulset: {}
+#   name: my-sts
+#   serviceName: ""
+#   updateStrategy: {}
+#   podManagementPolicy: OrderedReady
+#   volumeClaimTemplates: []
+#   (all Deployment fields above apply)
 
-# -- Shared defaults for all DaemonSets.
-daemonSetsGeneral: {}
-# -- Kubernetes DaemonSet resources. Each key becomes the resource name.
-# DaemonSets run one pod per node (no `replicas`). Uses `updateStrategy` instead of `strategy`.
-daemonSets: {}
+# -- Kubernetes DaemonSet.  Only one per release.
+daemonset: {}
+#   name: my-ds
+#   updateStrategy: {}
+#   (all Deployment fields above apply, except replicas)
 
-# -- Shared defaults for all CronJobs.
-cronJobsGeneral:
-  usePredefinedAffinity: false
-# -- Kubernetes CronJob resources. Each key becomes the resource name.
-cronJobs: {}
-#   generate-data:
-#     schedule: "*/5 * * * *"
-#     command:
-#       - php
-#       - yii
-#       - crontab/generate-data
+# -- Kubernetes Job (non-hook).  Only one per release.
+job: {}
+#   name: my-job
+#   schedule: ""       # required for cronJob
+#   restartPolicy: Never
+#   parallelism:
+#   completions:
+#   backoffLimit:
+#   activeDeadlineSeconds:
+#   ttlSecondsAfterFinished:
+#   commandDurationAlert:
+#   (all container/pod level fields apply)
 
-# -- Shared defaults for all Jobs.
-jobsGeneral:
-  usePredefinedAffinity: false
-# -- Kubernetes Job resources (non-hook). Each key becomes the resource name.
-jobs: {}
-
-# -- Shared defaults for all hook Jobs.
-hooksGeneral: {}
-# -- Helm lifecycle hook Jobs (pre/post-install/upgrade). Each key becomes the hook name.
-hooks: {}
-#   migration-up:
-#     containers:
-#       - image: registry.app.ru/app-migration
-#         args: [up]
+# -- Kubernetes CronJob.  Only one per release.
+cronJob: {}
+#   name: my-cron
+#   schedule: "*/5 * * * *"
+#   timeZone:
+#   concurrencyPolicy:
+#   suspend:
+#   startingDeadlineSeconds:
+#   successfulJobsHistoryLimit:
+#   failedJobsHistoryLimit:
+#   (all Job fields above apply)
 
 # =============================================================================
 # @section Networking
 # =============================================================================
 
-# -- Kubernetes Service resources. Each key becomes the resource name.
-# If `workload` is omitted, the selector defaults to the service key name.
-# Set `selector` to override the selector verbatim. ExternalName services omit selectors.
-services: {}
-#   nginx:
-#     ports:
-#       - name: http
-#         port: 8080
-#     # workload: nginx # optional; defaults to the service key name
-#     # selector:
-#     #   app.kubernetes.io/component: nginx
+# -- Kubernetes Service.  Only one per release.
+service: {}
+#   name: my-svc
+#   enabled: true
+#   ports:
+#     - name: http
+#       port: 8080
+#       targetPort: 8080
+#       protocol: TCP
+#   type: ClusterIP
+#   clusterIP: ""
+#   externalName: ""
+#   loadBalancerIP: ""
+#   loadBalancerClass: ""
+#   allocateLoadBalancerNodePorts:
+#   externalTrafficPolicy:
+#   sessionAffinity:
+#   sessionAffinityConfig:
+#   ipFamilies: []
+#   ipFamilyPolicy:
+#   externalIPs: []
+#   loadBalancerSourceRanges: []
+#   healthCheckNodePort:
+#   publishNotReadyAddresses:
+#   labels: {}
+#   annotations: {}
+#   selector: {}          # explicit selector (auto-derived if empty)
+#   extraSelectorLabels: {}
 
 # -- Gateway API HTTPRoute resources. Each key becomes the resource name.
 httpRoutes: {}
@@ -291,32 +271,34 @@ configMaps: {}
 #   my-config:
 #     data:
 #       KEY: value
+#     labels: {}
+#     annotations: {}
+#     immutable: false
 
 # -- Kubernetes Secret resources. Each key becomes the resource name.
 secrets: {}
 #   my-secret:
+#     type: Opaque
 #     data:
 #       api.key: supersecret
-#     # keepOnDelete: true
+#     stringData:
+#       api.key: supersecret
+#     labels: {}
+#     annotations: {}
+#     keepOnDelete: true
+#     immutable: false
 
 # -- Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key becomes the resource name.
-# Standard StorageClass fields are passed through directly (no `spec:` wrapper — StorageClass has no spec in the K8s API).
-# Set `isDefault: true` to add the `storageclass.kubernetes.io/is-default-class: "true"` annotation.
 storageClasses: {}
 #   fast-ssd:
 #     provisioner: disk.csi.azure.com
-#     reclaimPolicy: Retain                    # Delete (default) | Retain
-#     volumeBindingMode: WaitForFirstConsumer  # Immediate | WaitForFirstConsumer
+#     reclaimPolicy: Retain
+#     volumeBindingMode: WaitForFirstConsumer
 #     allowVolumeExpansion: true
 #     parameters:
 #       skuName: Premium_LRS
-#       cachingMode: ReadOnly
-#     mountOptions:
-#       - debug
-#     # isDefault: true                        # mark as cluster default
 
 # -- Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name.
-# Thin passthrough — `spec:` goes directly to the Kubernetes resource unchanged.
 persistentVolumes: {}
 #   azure-share:
 #     spec:
@@ -324,63 +306,64 @@ persistentVolumes: {}
 #         storage: 50Gi
 #       accessModes:
 #         - ReadWriteMany
-#       azureFile:
-#         secretName: azure-storage-secret
-#         shareName: my-share
-#         readOnly: false
-#       persistentVolumeReclaimPolicy: Retain
 
-# -- Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name.
-# PVCs are NOT automatically mounted — reference them manually via `volumes:` with `type: pvc` and `claimName:`.
-pvcs: {}
-#   app-data:
-#     accessModes: [ReadWriteOnce]
-#     size: 8Gi
-#     # keepOnDelete: true
+# -- Kubernetes PersistentVolumeClaim.  Only one per release.
+pvc: {}
+#   name: app-data
+#   accessModes: [ReadWriteOnce]
+#   size: 8Gi
+#   storageClassName: ""
+#   volumeMode: Filesystem
+#   volumeName: ""
+#   selector: {}
+#   labels: {}
+#   annotations: {}
 
 # =============================================================================
 # @section Autoscaling & Availability
 # =============================================================================
 
-# -- Kubernetes HorizontalPodAutoscaler resources (autoscaling/v2). Each key becomes the resource name.
-hpas: {}
-#   web:
-#     scaleTargetRef:
-#       name: web
-#       kind: Deployment
-#     minReplicas: 2
-#     maxReplicas: 10
-#     targetCPU: 70
+# -- Kubernetes HorizontalPodAutoscaler (autoscaling/v2).  Only one per release.
+hpa: {}
+#   scaleTargetRef:
+#     kind: Deployment
+#     name: ""           # defaults to deployment.name → release name
+#   minReplicas: 2
+#   maxReplicas: 10
+#   targetCPU: 70
+#   targetMemory: 80
+#   metrics: []
+#   behavior: {}
+#   labels: {}
+#   annotations: {}
 
-# -- Shared defaults for all HPAs. Cascadable fields: `minReplicas`, `maxReplicas`,
-# `targetCPU`, `targetMemory`, `metrics`, `behavior`. `scaleTargetRef` stays per-instance.
-hpasGeneral: {}
-#     targetMemory: 80
-
-# -- Kubernetes PodDisruptionBudget resources. Each key becomes the resource name.
-pdbs: {}
-#   web:
-#     minAvailable: 1
-#     maxUnavailable: 25%
-#     unhealthyPodEvictionPolicy: IfHealthyBudget  # IfHealthyBudget | AlwaysAllow
-#     extraSelectorLabels:
-#       app: web
+# -- Kubernetes PodDisruptionBudget.  Only one per release.
+pdb: {}
+#   minAvailable: 1
+#   maxUnavailable: 25%
+#   unhealthyPodEvictionPolicy: IfHealthyBudget
+#   extraSelectorLabels: {}
+#   labels: {}
+#   annotations: {}
 
 # =============================================================================
 # @section Identity & Access
 # =============================================================================
 
-# -- Shared defaults for all ServiceAccounts.
-serviceAccountsGeneral: {}
-# -- Kubernetes ServiceAccount resources. Each key becomes the resource name.
-serviceAccounts: {}
-#   deployer:
-#     role:
-#       name: deployer-role
-#       rules:
-#         - apiGroups: ["", "apps"]
-#           resources: [pods, deployments]
-#           verbs: [get, list, watch]
+# -- Kubernetes ServiceAccount.  Only one per release.
+serviceAccount: {}
+#   name: my-sa
+#   automountServiceAccountToken: false
+#   imagePullSecrets: []
+#   secrets: []
+#   labels: {}
+#   annotations: {}
+#   role:
+#     name: my-sa-role
+#     rules: []
+#   clusterRole:
+#     name: my-sa-cr
+#     rules: []
 
 # =============================================================================
 # @section Monitoring
@@ -401,18 +384,14 @@ serviceMonitors: {}
 # -- Istio Gateway resources. Each key becomes the resource name.
 istioGateways: {}
 #   nginx:
-#     name: nginx-gateway
 #     selector: { istio: ingress }
 #     servers:
 #       - port: { number: 80, name: http, protocol: HTTP }
 #         hosts: ["nginx.example.com"]
 
 # -- Istio VirtualService resources. Each key becomes the resource name.
-# Supported http route fields: `match`, `route`, `timeout`, `retries`, `fault`,
-# `rewrite`, `corsPolicy`, `headers`, `mirror`, `mirrorPercentage`.
 istioVirtualServices: {}
 #   nginx:
-#     name: nginx-vs
 #     gateways: [nginx-gateway]
 #     hosts: ["nginx.example.com"]
 #     http:
@@ -421,16 +400,10 @@ istioVirtualServices: {}
 #           - destination:
 #               host: nginx-svc.default.svc.cluster.local
 #               port: { number: 80 }
-#         timeout: 30s
-#         headers:
-#           request:
-#             add:
-#               X-Custom-Header: "my-value"
 
 # -- Istio DestinationRule resources. Each key becomes the resource name.
 istioDestinationRules: {}
 #   nginx:
-#     name: nginx-dr
 #     host: nginx-svc.default.svc.cluster.local
 #     trafficPolicy:
 #       loadBalancer: { simple: ROUND_ROBIN }
@@ -452,21 +425,21 @@ istioAuthorizationPolicies: {}
 # @section External Secrets Operator
 # =============================================================================
 
-# -- External Secrets Operator ExternalSecret resources. Each key becomes the resource name.
-externalSecrets: {}
-#   my-secret:
-#     spec:
-#       refreshInterval: 1h
-#       secretStoreRef: { name: my-store, kind: SecretStore }
-#       target: { name: my-secret }
-#       data: []
+# -- External Secrets Operator ExternalSecret.  Only one per release.
+externalSecret: {}
+#   name: my-secret
+#   spec:
+#     refreshInterval: 1h
+#     secretStoreRef: { name: my-store, kind: SecretStore }
+#     target: { name: my-secret }
+#     data: []
 
 # -- External Secrets Operator SecretStore resources (namespace-scoped). Each key becomes the resource name.
 secretStores: {}
 #   my-store:
 #     spec:
 #       provider:
-#         azurekv: { vaultUrl: "https://my-vault.vault.azure.net", authType: WorkloadIdentity, serviceAccountRef: { name: eso-sa } }
+#         azurekv: { vaultUrl: "https://my-vault.vault.azure.net", authType: WorkloadIdentity }
 
 # -- External Secrets Operator ClusterSecretStore resources (cluster-scoped). Each key becomes the resource name.
 clusterSecretStores: {}
@@ -494,7 +467,6 @@ issuers: {}
 #         server: https://acme-staging-v02.api.letsencrypt.org/directory
 #         email: devops@example.com
 #         privateKeySecretRef: { name: letsencrypt-staging }
-#         solvers: []
 
 # -- cert-manager ClusterIssuer resources (cluster-scoped, no namespace). Each key becomes the resource name.
 clusterIssuers: {}
@@ -504,41 +476,27 @@ clusterIssuers: {}
 #         server: https://acme-v02.api.letsencrypt.org/directory
 #         email: devops@example.com
 #         privateKeySecretRef: { name: letsencrypt-prod }
-#         solvers: []
 
 # =============================================================================
 # @section Argo CD Image Updater
 # =============================================================================
 
-# -- Argo CD Image Updater resources. Each key becomes the resource name.
-# Configures automatic image updates for Argo CD applications.
-#
-# The ImageUpdater CR is deployed into the `argocd` namespace by default,
-# matching where Application CRs live and AIU v1.2+ namespace-scoped defaults.
-# Override per resource via `metadataNamespace`.
-#
-# Why `manifestTargets` is required (no chart-level default):
-# universal-chart hosts N deployments per release. AIU writes back a single
-# Helm parameter; targeting a chart-root key would be ambiguous (which
-# deployment? which container?) and would silently shadow per-deployment
-# values. Each `images[]` entry MUST point `manifestTargets.helm.{name,tag}`
-# at the exact value path the chart reads — typically
-# `deployments.<name>.image` / `deployments.<name>.imageTag`.
-imageUpdaters: {}
-#   my-app:
-#     applicationName: "my-argocd-app"
-#     # metadataNamespace: argocd   # where the ImageUpdater CR is created
-#     images:
-#       - alias: api
-#         imageName: registry.example.com/my-image
-#         updateStrategy: newest-build
-#         allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
-#         manifestTargets:
-#           helm:
-#             name: deployments.api.image
-#             tag: deployments.api.imageTag
-#     writeBackConfig:
-#       method: argocd
+# -- Argo CD Image Updater.  Only one per release.
+imageUpdater: {}
+#   name: my-app
+#   applicationName: "my-argocd-app"
+#   metadataNamespace: argocd
+#   images:
+#     - alias: api
+#       imageName: registry.example.com/my-image
+#       updateStrategy: newest-build
+#       allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
+#       manifestTargets:
+#         helm:
+#           name: deployment.image
+#           tag: deployment.imageTag
+#   writeBackConfig:
+#     method: argocd
 
 # =============================================================================
 # @section Escape Hatch
@@ -550,7 +508,7 @@ extraDeploy: {}
 #     apiVersion: networking.k8s.io/v1
 #     kind: NetworkPolicy
 #     metadata:
-#       name: {{ include "helpers.app.fullname" (dict "name" "nw-policy" "context" $) }}
+#       name: {{ .Release.Name }}-nw-policy
 #       namespace: {{ .Release.Namespace | quote }}
 #     spec:
 #       podSelector: { matchLabels: { role: db } }

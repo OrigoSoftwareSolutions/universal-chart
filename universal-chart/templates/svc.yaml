@@ -1,99 +1,98 @@
-{{- range $name, $s := $.Values.services }}
-  {{- if not ($s.disabled | default false) }}
-    {{- $workloadName := $s.workload | default $name }}
+{{- if .Values.service }}
+  {{- $svc := .Values.service }}
+  {{- $name := $svc.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
 ---
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  name: {{ $name }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
-    {{- include "helpers.app.labels" $ | nindent 4 }}
-    {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
-    {{- if or $annots .annotations }}
+  {{- include "helpers.app.labels" $ | nindent 4 }}
+  {{- with $svc.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+  {{- if or $annots $svc.annotations }}
   annotations:
-      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
-      {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- end }}
+    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+    {{- with $svc.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- end }}
 spec:
-    {{- if not (empty .clusterIP ) }}
-  clusterIP: {{ .clusterIP }}
-    {{- end }}
-    {{- if not (empty .type) }}
-  type: {{ .type }}
-      {{- if eq .type "ExternalName" }}
-        {{- with .externalName }}
+  {{- if not (empty $svc.clusterIP) }}
+  clusterIP: {{ $svc.clusterIP }}
+  {{- end }}
+  {{- if not (empty $svc.type) }}
+  type: {{ $svc.type }}
+    {{- if eq $svc.type "ExternalName" }}
+      {{- with $svc.externalName }}
   externalName: {{ . }}
-        {{- end }}
-      {{- else if eq .type "LoadBalancer" }}
-        {{- if not (empty .loadBalancerIP) }}
-  loadBalancerIP: {{ .loadBalancerIP }}
-        {{- end }}
-        {{- if not (empty .loadBalancerClass) }}
-  loadBalancerClass: {{ .loadBalancerClass }}
-        {{- end }}
-        {{- if hasKey $s "allocateLoadBalancerNodePorts" }}
-  allocateLoadBalancerNodePorts: {{ $s.allocateLoadBalancerNodePorts }}
-        {{- end }}
-        {{- with .externalTrafficPolicy }}
+      {{- end }}
+    {{- else if eq $svc.type "LoadBalancer" }}
+      {{- if not (empty $svc.loadBalancerIP) }}
+  loadBalancerIP: {{ $svc.loadBalancerIP }}
+      {{- end }}
+      {{- if not (empty $svc.loadBalancerClass) }}
+  loadBalancerClass: {{ $svc.loadBalancerClass }}
+      {{- end }}
+      {{- if hasKey $svc "allocateLoadBalancerNodePorts" }}
+  allocateLoadBalancerNodePorts: {{ $svc.allocateLoadBalancerNodePorts }}
+      {{- end }}
+      {{- with $svc.externalTrafficPolicy }}
   externalTrafficPolicy: {{ . }}
-        {{- end }}
-        {{- if .loadBalancerSourceRanges }}
+      {{- end }}
+      {{- if $svc.loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
-          {{- toYaml .loadBalancerSourceRanges | nindent 4 }}
-        {{- end }}
-      {{- else if (eq .type "NodePort") }}
-        {{- with .externalTrafficPolicy }}
+        {{- toYaml $svc.loadBalancerSourceRanges | nindent 4 }}
+      {{- end }}
+    {{- else if (eq $svc.type "NodePort") }}
+      {{- with $svc.externalTrafficPolicy }}
   externalTrafficPolicy: {{ . }}
-        {{- end }}
-        {{- if not (empty .healthCheckNodePort) }}
-  healthCheckNodePort: {{ .healthCheckNodePort }}
-        {{- end }}
       {{- end }}
-      {{- if hasKey $s "publishNotReadyAddresses" }}
-  publishNotReadyAddresses: {{ $s.publishNotReadyAddresses }}
+      {{- if not (empty $svc.healthCheckNodePort) }}
+  healthCheckNodePort: {{ $svc.healthCheckNodePort }}
       {{- end }}
-      {{- with $s.sessionAffinity }}
+    {{- end }}
+    {{- if hasKey $svc "publishNotReadyAddresses" }}
+  publishNotReadyAddresses: {{ $svc.publishNotReadyAddresses }}
+    {{- end }}
+    {{- with $svc.sessionAffinity }}
   sessionAffinity: {{ . }}
-      {{- end }}
-      {{- with $s.sessionAffinityConfig }}
+    {{- end }}
+    {{- with $svc.sessionAffinityConfig }}
   sessionAffinityConfig:
-        {{- toYaml . | nindent 4 }}
-      {{- end }}
-      {{- if $s.ipFamilies }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if $svc.ipFamilies }}
   ipFamilies:
-        {{- toYaml $s.ipFamilies | nindent 4 }}
-      {{- end }}
-      {{- with $s.ipFamilyPolicy }}
+      {{- toYaml $svc.ipFamilies | nindent 4 }}
+    {{- end }}
+    {{- with $svc.ipFamilyPolicy }}
   ipFamilyPolicy: {{ . }}
-      {{- end }}
-      {{- if .externalIPs }}
-  externalIPs: {{- toYaml .externalIPs | nindent 4 }}
-      {{- end }}
     {{- end }}
-    {{- if $s.ports }}
+    {{- if $svc.externalIPs }}
+  externalIPs: {{- toYaml $svc.externalIPs | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  {{- if $svc.ports }}
   ports:
-      {{- range $s.ports }}
-  - name: {{ .name | default $name}}
-    protocol: {{ .protocol | default "TCP"}}
-    port: {{ .port }}
-        {{- if not (empty .targetPort) }}
-    targetPort: {{ .targetPort }}
-        {{- end }}
-        {{- if not (empty .nodePort) }}
-    nodePort: {{ .nodePort }}
-        {{- end }}
+    {{- range $svc.ports }}
+    - name: {{ .name | default $name }}
+      protocol: {{ .protocol | default "TCP" }}
+      port: {{ .port }}
+      {{- if not (empty .targetPort) }}
+      targetPort: {{ .targetPort }}
+      {{- end }}
+      {{- if not (empty .nodePort) }}
+      nodePort: {{ .nodePort }}
       {{- end }}
     {{- end }}
-    {{- if ne ($s.type | default "") "ExternalName" }}
+  {{- end }}
+  {{- if ne ($svc.type | default "") "ExternalName" }}
   selector:
-      {{- if $s.selector }}
-        {{- include "helpers.tplvalues.render" (dict "value" $s.selector "context" $) | nindent 4 }}
-      {{- else }}
-        {{- include "helpers.app.workloadSelectorLabels" (dict "name" $workloadName "context" $) | nindent 4 }}
-        {{- with $s.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-      {{- end }}
+    {{- if $svc.selector }}
+      {{- include "helpers.tplvalues.render" (dict "value" $svc.selector "context" $) | nindent 4 }}
+    {{- else }}
+      {{- include "helpers.app.workloadSelectorLabels" (dict "name" $name "context" $) | nindent 4 }}
+      {{- with $svc.extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- end }}
   {{- end }}
 {{- end }}

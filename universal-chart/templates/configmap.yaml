@@ -1,25 +1,27 @@
-{{- if or (not (empty .Values.envs)) (not (empty .Values.envsString)) }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" "envs" "context" $) }}
-  namespace: {{ .Release.Namespace | quote }}
-  labels: {{- include "helpers.app.labels" $ | nindent 4 }}
-  {{- $defaultAnnots := include "helpers.app.defaultAnnotations" $ | trim }}
-  {{- if $defaultAnnots }}
-  annotations:
-    {{ $defaultAnnots | nindent 4 }}
-  {{- end }}
-data:
-  {{- $d1 := include "helpers.configmaps.renderConfigMap" (dict "value" .Values.envs) | trim }}
-  {{- $d2 := include "helpers.configmaps.renderConfigMap" (dict "value" .Values.envsString) | trim }}
-  {{- if $d1 }}{{ $d1 | nindent 2 }}{{- end }}
-  {{- if $d2 }}{{ $d2 | nindent 2 }}{{- end }}
-{{- end }}
+{{- define "local.renderConfigMap" -}}
+  {{- $v := dict -}}
+  {{- if typeIs "string" .value -}}
+    {{- $v = fromYaml .value -}}
+  {{- else if kindIs "map" .value -}}
+    {{- $v = .value -}}
+  {{- end -}}
+  {{- range $key, $value := $v -}}
+    {{- if eq (typeOf $value) "float64" -}}
+      {{- printf "\n%s: %s" $key ($value | toString | quote) -}}
+    {{- else if empty $value -}}
+      {{- printf "\n%s: %s" $key ("" | quote) -}}
+    {{- else if kindIs "string" $value -}}
+      {{- printf "\n%s: %s" $key (include "local.decode" (dict "value" $value)) -}}
+    {{- else -}}
+      {{- printf "\n%s: %s" $key ($value | toJson | quote) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- define "local.decode" -}}
+  {{ if hasPrefix "b64:" .value }}{{ trimPrefix "b64:" .value | b64dec | quote }}{{ else }}{{ quote .value }}{{ end }}
+{{- end -}}
 
 {{- range $cName, $val := .Values.configMaps -}}
-  {{- if and (not (eq $cName "envs")) (not ($val.disabled | default false)) }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -27,28 +29,27 @@ metadata:
   name: {{ include "helpers.app.fullname" (dict "name" $cName "context" $) }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
-    {{- include "helpers.app.labels" $ | nindent 4 }}
-    {{- with $val.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{ end }}
-    {{- $defaultAnnots := include "helpers.app.defaultAnnotations" $ | trim }}
-    {{- if or $val.annotations $defaultAnnots }}
+  {{- include "helpers.app.labels" $ | nindent 4 }}
+  {{- with $val.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{ end }}
+  {{- $defaultAnnots := include "helpers.app.defaultAnnotations" $ | trim }}
+  {{- if or $val.annotations $defaultAnnots }}
   annotations:
-      {{- if $val.annotations -}}
-        {{- $_ := include "helpers.tplvalues.render" (dict "value" $val.annotations "context" $) }}
-        {{- include "helpers.app.annotations" (dict "value" $_ "context" $) | nindent 4 -}}
-      {{- else }}
-        {{- if $defaultAnnots }}{{ $defaultAnnots | nindent 4 }}{{- end }}
-      {{- end }}
+    {{- if $val.annotations -}}
+      {{- $_ := include "helpers.tplvalues.render" (dict "value" $val.annotations "context" $) }}
+      {{- include "helpers.app.annotations" (dict "value" $_ "context" $) | nindent 4 -}}
+    {{- else }}
+      {{- if $defaultAnnots }}{{ $defaultAnnots | nindent 4 }}{{- end }}
     {{- end }}
-    {{- if and $val.data $val.binaryData }}{{- fail "Cannot set both data and binaryData in single ConfigMap" }} {{- end }}
-    {{- with $val.immutable }}
+  {{- end }}
+  {{- if and $val.data $val.binaryData }}{{- fail "Cannot set both data and binaryData in single ConfigMap" }} {{- end }}
+  {{- with $val.immutable }}
 immutable: {{ . }}
-    {{- end }}
-    {{- if $val.data }}
+  {{- end }}
+  {{- if $val.data }}
 data:
-      {{- include "helpers.configmaps.renderConfigMap" ( dict "value" $val.data "context" $ ) | trim | nindent 2 }}
-    {{- else if $val.binaryData }}
+    {{- include "local.renderConfigMap" ( dict "value" $val.data "context" $ ) | trim | nindent 2 }}
+  {{- else if $val.binaryData }}
 binaryData:
-      {{- include "helpers.configmaps.renderConfigMap" ( dict "value" $val.binaryData "context" $ ) | trim | nindent 2 }}
-    {{- end -}}
+    {{- include "local.renderConfigMap" ( dict "value" $val.binaryData "context" $ ) | trim | nindent 2 }}
   {{- end -}}
 {{- end -}}

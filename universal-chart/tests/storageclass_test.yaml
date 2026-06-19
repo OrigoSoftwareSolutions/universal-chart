@@ -90,14 +90,6 @@ tests:
           path: allowedTopologies[0].matchLabelExpressions[0].key
           value: topology.kubernetes.io/zone
 
-  - it: omits storageclass documents when disabled
-    set:
-      storageClasses.gone.provisioner: disk.csi.azure.com
-      storageClasses.gone.disabled: true
-    asserts:
-      - hasDocuments:
-          count: 0
-
   - it: fails when provisioner is missing
     set:
       storageClasses.broken.reclaimPolicy: Retain

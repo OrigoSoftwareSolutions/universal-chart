@@ -1,6 +1,0 @@
-# Override file that nulls out all security/resource defaults
-# so tests can verify "empty tier" behavior.
-defaults:
-  podSecurityContext: null
-  containerSecurityContext: null
-  resources: null
