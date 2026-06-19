@@ -67,14 +67,16 @@ and if `values.yaml` changed, `README.md` was regenerated and committed.
 - **Test files MUST end in `_test.yaml`** — helm-unittest requires the suffix. The `templates:` list inside a suite must reference template filenames exactly, including `.yaml`. Wrong extension → suite silently matches 0 documents and passes.
 - **Plural values keys only**: `deployments`, `cronJobs`, `services`, `istioVirtualServices`, `istioGateways`, `istioDestinationRules`, `serviceAccounts`, etc. Each has an optional `*General` sibling for kind-wide defaults.
 - **`disabled: true`** on any instance suppresses rendering — keep it inside the `range` after the guard so `---` doesn't leak.
-- **`workload` (singular) on Services and ServiceMonitors** scopes the default selector to one workload via `app.kubernetes.io/component` (defaults to the resource key when omitted; mirror the pattern in [svc.yaml:3,94](file:///home/dzhi/git/origo/universal-chart/universal-chart/templates/svc.yaml#L3) when adding new selector-bearing kinds). **`workloads` (plural) on PVCs** scopes PVC auto-mount injection to listed workload names.
+- **`workload` (singular) on Services and ServiceMonitors** scopes the default selector to one workload via `app.kubernetes.io/component` (defaults to the resource key when omitted; mirror the pattern in [svc.yaml:3,94](file:///home/dzhi/git/origo/universal-chart/universal-chart/templates/svc.yaml#L3) when adding new selector-bearing kinds).
 - **`keepOnDelete: true`** on PVCs and Secrets adds `helm.sh/resource-policy: keep`.
 - **Auto-checksums** (`helpers.workload.autoChecksums`) only annotate chart-managed ConfigMaps/Secrets referenced via `envConfigmaps`/`envSecrets`. External (ESO etc.) sources need Reloader. Opt-out via `autoChecksum: false` at `defaults`, `*General`, or instance level.
+- **Global `envs`/`secretEnvs` auto-inject into ALL workloads** — implemented by `helpers.workloads.envsFrom`. Setting top-level `envs:` or `secretEnvs:` creates a ConfigMap/Secret and mounts it via `envFrom` on **every** container across every workload kind (Deployment, StatefulSet, CronJob, Job, Hook, DaemonSet). Per-container `env:` overrides `envFrom` in K8s — use that for per-instance overrides.
 - **`extra.yaml`** renders the top-level `extraDeploy:` escape hatch — string values are template-rendered against `$`.
 - **Defaults cascade** (workloads): `defaults` → `<kind>General` → instance, merged with `dig`. CRD passthrough resources have NO cascade — `spec:` is `toYaml`d verbatim.
 - **No `defaultImage` fallback** (removed in 1.7.3). Workloads without `image:` (or `containers[].image:`) emit a clear `required`-template error pointing at the missing path. Test suites that previously relied on the fallback must `set:` the image explicitly.
 - **Asymmetric resource defaults**: `defaults.resources.requests.cpu: 100m` has **no limit** (CPU throttling preferable to eviction); `defaults.resources.limits.memory: 512Mi` is **4× requests.memory** (burst headroom; OOM preferable to noisy-neighbor swap thrash). Tests asserting defaults must reflect this asymmetry — see [tests/deployment_test.yaml](file:///home/dzhi/git/origo/universal-chart/universal-chart/tests/deployment_test.yaml).
 - **`lifecycle:` silently replaces auto-`preStopSleep`** in [_container.tpl:66-76](file:///home/dzhi/git/origo/universal-chart/universal-chart/templates/helpers/_container.tpl#L66-L76). Setting `lifecycle.postStart` on a workload also drops the inherited `defaults.preStopSleep` drain — users wanting both must inline the sleep into `lifecycle.preStop` themselves. Init containers never get auto-`preStopSleep`.
+- **PDB key MUST match a workload key** — if `pdbs.<key>` has no matching key in `deployments`, `statefulSets`, or `daemonSets`, rendering fails at template time with a `fail` error ([pdb.yaml:15](file:///home/dzhi/git/origo/universal-chart/universal-chart/templates/pdb.yaml#L15)). The PDB's selector targets `app.kubernetes.io/component=<key>`, which only exists on pods of the same-named workload.
 - **Deprecation notices** live in `_deprecations.tpl` (`helpers.deprecation.*`). When renaming a values key, add a notice rather than silently breaking.
 - **helm-docs comment syntax**: `# -- <description>` on the line **immediately above** a values key (no blank line between) is what helm-docs picks up into the README's Values table. `# @section <Title>` introduces a section break. A new values key without a `# --` line silently disappears from the docs table — `docs-check` won't catch this since the diff is generated-vs-generated.
 
@@ -116,14 +118,14 @@ Define as `{{- define "helpers.<group>.<name>" -}}…{{- end -}}`.
 | `_app.tpl` | `helpers.app.fullname`, `.name`, `.chart`, `.labels`, `.selectorLabels`, `.workloadSelectorLabels`, `.genericSelectorLabels`, `.annotations`, `.defaultAnnotations`, `.defaultHookAnnotations` |
 | `_pod.tpl` | `helpers.pod` — the single pod spec used by **every** workload (~280 lines). Changes here ripple to deployments, statefulsets, daemonsets, jobs, cronjobs, and hooks — test all six. |
 | `_container.tpl` | `helpers.container.render` — single-container shorthand expansion. |
-| `_workloads.tpl` | `helpers.workload.metadata`, `.podTemplateMetadata`, `.checksum`, `.autoChecksums`, `.healthCheckProbe`, `.singleContainerPorts`; `helpers.workloads.envs`, `.envsFrom` (note the plural `workloads`). |
+| `_workloads.tpl` | `helpers.workload.checksum`, `.autoChecksums`, `.healthCheckProbe`, `.singleContainerPorts`; `helpers.workloads.envs`, `.envsFrom` (note the plural `workloads`). |
 | `_volumes.tpl` | `helpers.volumes.typed`, `.renderVolume`, `.renderVolumeMounts`. |
 | `_capabilities.tpl` | `helpers.capabilities.<kind>.apiVersion` — `.Capabilities.APIVersions.Has`-based API version resolution per kind (capability-check, not semver). |
 | `_configmaps.tpl` / `_secrets.tpl` | `decode`/`encode`, `renderConfigMap`/`render`, `includeEnv*` for envFrom injection. |
 | `_affinities.tpl` | `helpers.affinities.pods{.soft,.hard,.labelSelector}`, `helpers.affinities.nodes{.soft,.hard}`. |
 | `_deprecations.tpl` | `helpers.deprecation.notice` + per-field deprecation warnings. |
 | `_tplvalues.tpl` | `helpers.tplvalues.render` — evaluates Go template expressions inside user-provided values. |
-| `_metadata.tpl` | Shared metadata helpers. |
+| `_metadata.tpl` | `helpers.workload.metadata`, `.podTemplateMetadata` — metadata labels/annotations for workload-level and pod-template-level resources. |
 
 Use `lsp_symbols`/`grep` to verify a helper name before referencing it — names changed historically (e.g. `helpers.workload.envs` → `helpers.workloads.envs`).
 
