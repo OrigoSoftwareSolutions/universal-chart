@@ -6,7 +6,6 @@
   {{- $enableHealthCheck := .enableHealthCheckShorthand -}}
   {{- $enableMapPorts := .enableMapPorts -}}
   {{- $useDefaultImage := .useDefaultImage -}}
-  {{- $autoPvcs := .autoPvcs | default false -}}
   {{- $workloadName := .workloadName | default .name -}}
   {{- $workloadContainerSecurityContext := .workloadContainerSecurityContext -}}
   {{- $workloadHealthCheck := .workloadHealthCheck -}}
@@ -107,7 +106,7 @@
     {{- else if $.Values.defaults.resources }}
   resources: {{- include "helpers.tplvalues.render" ( dict "value" $.Values.defaults.resources "context" $) | nindent 4 }}
     {{- end }}
-    {{- $vmounts := include "helpers.volumes.renderVolumeMounts" (dict "value" . "general" $general "context" $ "name" $workloadName "autoPvcs" $autoPvcs) }}
+    {{- $vmounts := include "helpers.volumes.renderVolumeMounts" (dict "value" . "general" $general "context" $ "name" $workloadName) }}
   volumeMounts:{{- if eq (trim $vmounts) "[]" }} []{{- else }}{{ $vmounts | trim | nindent 2 }}{{- end }}
   {{- end -}}
 {{- end -}}

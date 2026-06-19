@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.2](https://img.shields.io/badge/Version-1.9.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.3](https://img.shields.io/badge/Version-1.9.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart for everything. Instead of maintaining a separate chart per service, define all your Kubernetes resources — Deployments, CronJobs, Services, ExternalSecrets, Istio configs, and more — in a single values file.
 
@@ -36,7 +36,7 @@ The chart itself works without any of these — simply omit those resource kinds
 
 ```bash
 helm install my-release oci://ghcr.io/origosoftwaresolutions/universal-chart \
-  --version 1.9.2 \
+  --version 1.9.3 \
   -f my-values.yaml
 ```
 
@@ -51,7 +51,7 @@ deployments:
     imageTag: "1.0.0"
 ```
 
-That's it. This creates a Deployment with 1 replica, a ClusterIP Service (if you add `ports:`), hardened security contexts, resource requests, and pod anti-affinity — all from the chart's built-in defaults. Add features as you need them.
+That's it. This creates a Deployment with 1 replica, hardened security contexts, resource requests, and pod anti-affinity — all from the chart's built-in defaults. Add features as you need them.
 
 ---
 
@@ -60,7 +60,7 @@ That's it. This creates a Deployment with 1 replica, a ClusterIP Service (if you
 This single values file creates a Deployment, Service, HPA, PDB, CronJob, ExternalSecret, and environment variables:
 
 ```yaml
-# ── Deployment with auto-generated Service ──
+# ── Deployment ──
 deployments:
   api:
     image: registry.example.com/my-api
@@ -163,9 +163,8 @@ services:
 
 | You write… | Chart also creates… |
 |---|---|
-| `deployments.api.ports: {http: 8080}` | A matching ClusterIP **Service** with port `http:8080` (see [Single-container shorthand vs full form](#single-container-shorthand-vs-full-form) for full auto-Service conditions) |
 | `deployments.api.healthCheck: {path: /healthz}` | **Startup**, **liveness**, and **readiness** probes |
-| `pvcs.data.mountPath: /data` | A **PVC**; for Deployments/StatefulSets/DaemonSets, a pod **volume** and (when `mountPath` is set) a **volumeMount**. Jobs/CronJobs/Hooks excluded. `workloads:` narrows which workloads receive the volume. |
+| `pvcs.<name>` | A **PersistentVolumeClaim** resource. Reference it manually via `volumes:` with `type: pvc` and `claimName:` on workloads. |
 | `serviceAccounts.sa.role: {…}` | A **Role** + **RoleBinding** (or ClusterRole + ClusterRoleBinding) when `rules` are set; binds to an existing role when only `name` is set |
 | `cronJobs.etl.commandDurationAlert: 1800` | A **PrometheusRule** that fires if the job exceeds 30 min |
 
@@ -194,7 +193,7 @@ deployments:
     image: myapp
     imageTag: "1.0.0"
     ports:
-      http: 8080           # map form → auto-creates Service
+      http: 8080
     healthCheck:
       path: /healthz       # → startup + liveness + readiness probes
     resources:
@@ -209,17 +208,11 @@ deployments:
         imageTag: "1.0.0"
         ports:
           - name: http
-            containerPort: 8080   # list form → no auto Service
+            containerPort: 8080
       - name: sidecar
         image: envoy
         imageTag: "v1.28"
 ```
-
-> **Key difference**: `ports:` as a **map** (`{http: 8080}`) triggers auto-Service creation. `healthCheck:` shorthand is available in single-container mode (no `containers:` list) regardless of how ports are defined.
-
-> Auto-Service is only created for Deployments, StatefulSets, and DaemonSets in single-container shorthand. It is suppressed by `service: false` or when an explicit `services.<name>` entry exists for the same name.
-
-> Use list-form `ports:` (standard K8s format) when you need explicit container-level port naming, protocol overrides, or multi-container pods. The trade-off: list-form ports do not trigger auto-Service generation.
 
 ### CRD resources: thin passthrough
 
@@ -274,30 +267,7 @@ deployments:
 
 This creates:
 - A Deployment with one container
-- A ClusterIP Service with ports `http:8080` and `metrics:9090` (auto-generated from `ports:`)
 - Startup, liveness, and readiness probes (all from one `healthCheck`)
-
-#### Suppress or customize the auto-generated Service
-
-```yaml
-deployments:
-  worker:
-    image: my-worker
-    imageTag: "1.0.0"
-    ports:
-      http: 8080
-    service: false  # no Service created
-
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-    ports:
-      http: 8080
-    service:
-      type: NodePort
-      annotations:
-        external-dns.alpha.kubernetes.io/hostname: api.example.com
-```
 
 #### Multi-container workloads
 
@@ -359,9 +329,9 @@ For full control, set `livenessProbe`, `readinessProbe`, `startupProbe` directly
 
 ### StatefulSets
 
-Same shorthand as Deployments. Adds `volumeClaimTemplates` and uses `updateStrategy` instead of `strategy`. The `serviceName` defaults to the workload key name (matching the auto-generated Service):
+Same shorthand as Deployments. Adds `volumeClaimTemplates` and uses `updateStrategy` instead of `strategy`. The `serviceName` defaults to the workload key name:
 
-> **`serviceName` authoring**: write the **bare service key** (e.g., `postgres-headless`); the chart wraps it with the release prefix to produce the rendered name (e.g., `my-release-postgres-headless`). To match the auto-generated Service from `ports:`, use the workload key name.
+> **`serviceName` authoring**: write the **bare service key** (e.g., `postgres-headless`); the chart wraps it with the release prefix to produce the rendered name (e.g., `my-release-postgres-headless`).
 
 ```yaml
 statefulSets:
@@ -390,7 +360,7 @@ statefulSets:
         mountPath: /var/lib/postgresql/data
 ```
 
- > **Note:** The chart auto-generates a standard `ClusterIP` Service when `ports:` is set on a StatefulSet (same as Deployments). If your pods need stable DNS names (e.g. `postgres-0.postgres.ns.svc`), create a separate headless Service (`clusterIP: None`) in the `services:` block and set `serviceName` to the bare service key (the chart adds the release prefix).
+ > **Note:** If your pods need stable DNS names (e.g. `postgres-0.postgres.ns.svc`), create a separate headless Service (`clusterIP: None`) in the `services:` block and set `serviceName` to the bare service key (the chart adds the release prefix).
 
 ### DaemonSets
 
@@ -483,7 +453,7 @@ hooks:
 
 ### Services
 
-Auto-generated from `ports:` on workloads (see above). For standalone Services:
+For standalone Services:
 
 ```yaml
 services:
@@ -595,7 +565,7 @@ secrets:
 
 ### PersistentVolumeClaims
 
-PVCs are **auto-mounted** as volumes into every Deployment, StatefulSet, and DaemonSet. Add `mountPath` to also inject a `volumeMount`:
+PersistentVolumeClaim resources are created from the `pvcs:` block. They are not automatically mounted into workloads — reference them manually via `volumes:` with `type: pvc` and `claimName:` on each workload.
 
 > **`disabled: true` on an installed PVC is destructive by default.** Helm reconciles by diffing rendered manifests against release state — the moment a PVC disappears from the rendered output, `helm upgrade` deletes the live PVC. If the bound PV's StorageClass uses `reclaimPolicy: Delete` (the default for most cloud StorageClasses, including Azure `managed-csi`), the underlying disk is destroyed too.
 >
@@ -613,50 +583,17 @@ pvcs:
       - ReadWriteOnce
     size: 10Gi
     storageClassName: gp3
-    mountPath: /data          # auto-mount into every container
-    subPath: app              # optional: sub-directory within the volume
-    readOnly: false           # optional: default false
 
   shared-cache:
     accessModes:
       - ReadWriteMany
     size: 5Gi
-    # no mountPath = volume is added but not mounted (manual volumeMount needed)
 
   old-pvc:
-    disabled: true            # skipped entirely — no volume, no mount
+    disabled: true            # skipped entirely
     accessModes:
       - ReadWriteOnce
     size: 1Gi
-```
-
-Hooks, Jobs, and CronJobs are excluded from auto-mounting.
-
-#### Scope a PVC to specific workloads only
-
-By default a PVC is auto-mounted into *every* Deployment / StatefulSet / DaemonSet in the release. Set `workloads:` to a list of workload names to scope it down — useful when one PVC is owned by one workload and other workloads in the same release shouldn't see it (e.g. `RWO` volumes that block scheduling on multi-AZ workloads, or stateful directories you don't want appearing in unrelated containers).
-
-```yaml
-deployments:
-  api:
-    image: my-api
-    imageTag: "1.0.0"
-  worker:
-    image: my-worker
-    imageTag: "1.0.0"
-
-pvcs:
-  api-cache:
-    accessModes: [ReadWriteOnce]
-    size: 5Gi
-    mountPath: /cache
-    workloads: [api]            # mounted only into the `api` Deployment
-
-  shared:
-    accessModes: [ReadWriteMany]
-    size: 1Gi
-    mountPath: /shared
-    # workloads: omitted → mounted into both `api` and `worker`
 ```
 
 ### StorageClasses
@@ -697,13 +634,13 @@ storageClasses:
 
 Instead of raw Kubernetes volume specs, use simplified `type` + `name`:
 
-| `type` | Required sub-field | Optional sub-fields |
+| `type` | Name sub-field (defaults to volume name) | Optional sub-fields |
 |---|---|---|
-| `configMap` | `configMapName` | — |
-| `secret` | `secretName` | — |
-| `emptyDir` | — | — |
+| `configMap` | `configMapName` | `defaultMode`, `items` |
+| `secret` | `secretName` | `items` |
+| `emptyDir` | — | `sizeLimit`, `medium` |
 | `pvc` | `claimName` | — |
-| `hostPath` | `path` | — |
+| `hostPath` | `path` | `hostPathType` |
 
 ```yaml
 deployments:
@@ -1047,7 +984,7 @@ serviceMonitors:
 
   # SM name differs from workload name — point it explicitly:
   api-metrics:
-    workload: api                   # scrape the `api` workload's auto-Service
+    workload: api                   # scrape the `api` workload's Service
     endpoints:
       - port: metrics
         path: /metrics
@@ -1063,7 +1000,7 @@ serviceMonitors:
         path: /metrics
 ```
 
-> **Default selector targets one workload.** When you omit `selector:`, the chart selects services that carry `app.kubernetes.io/component: <SM key>` (or `<workload>` when `workload:` is set), so each SM scrapes exactly the matching auto-generated Service. Set `selector:` explicitly to scrape something else (e.g. multiple workloads, a Service the chart didn't create, or a label your CI pipeline applies).
+> **Default selector targets one workload.** When you omit `selector:`, the chart selects services that carry `app.kubernetes.io/component: <SM key>` (or `<workload>` when `workload:` is set), so each SM scrapes exactly the matching Service. Set `selector:` explicitly to scrape something else (e.g. multiple workloads, a Service the chart didn't create, or a label your CI pipeline applies).
 
 > **Behavior change in 1.8.0.** Earlier releases defaulted to `app.kubernetes.io/name + instance`, which matched **every** Service in the release — wrong whenever a release exposed multiple metrics endpoints. If you depended on that behavior, set an explicit `selector:` block to keep the old matcher.
 
@@ -1430,9 +1367,9 @@ Disable per-workload with `usePredefinedAffinity: false`, or supply a custom `af
 
 ### Workload Isolation Labels
 
-Every Deployment, StatefulSet, and DaemonSet automatically receives an `app.kubernetes.io/component` label derived from the workload's key name. This label is added to `spec.selector.matchLabels`, pod template labels, auto-generated Service selectors, and pod affinity/anti-affinity rules.
+Every Deployment, StatefulSet, and DaemonSet automatically receives an `app.kubernetes.io/component` label derived from the workload's key name. This label is added to `spec.selector.matchLabels`, pod template labels, Service selectors, and pod affinity/anti-affinity rules.
 
-This ensures that multiple workloads in the same release are fully isolated — each controller manages only its own pods, each auto-generated Service routes only to the correct workload, and affinity rules target same-workload pods rather than all pods in the release.
+This ensures that multiple workloads in the same release are fully isolated — each controller manages only its own pods, Services route only to the correct workload, and affinity rules target same-workload pods rather than all pods in the release.
 
 ```yaml
 deployments:
@@ -1493,7 +1430,7 @@ Any resource instance accepts `disabled: true` to suppress rendering. The config
 ```yaml
 deployments:
   api:
-    disabled: true    # skipped entirely — no Deployment, no Service
+    disabled: true    # skipped entirely
     image: my-api
     imageTag: "1.0.0"
     ports:
@@ -1648,13 +1585,12 @@ defaults:
       cpu: 100m
       memory: 128Mi
 
-# ── Worker (no ports, no Service) ──
+# ── Worker (no ports) ──
 deployments:
   worker:
     image: registry.example.com/worker
     imageTag: "1.3.0"
     replicas: 2
-    service: false            # suppress auto-generated Service
     command: ["celery", "-A", "app", "worker", "--loglevel=info"]
     resources:
       requests:
@@ -1966,7 +1902,7 @@ deployments:
     # No healthCheck, no *Probe fields → pod runs without any liveness/readiness gating
 ```
 
-> **Trade-offs to be aware of**: traffic from the auto-generated Service starts hitting the pod the instant the container process exists, even if it isn't accepting connections yet — expect connection-refused errors during rollouts. A wedged process won't be auto-restarted. A PDB on this workload becomes near-meaningless without readiness signals. Fine for dev/staging, revisit before promoting to anything that takes real traffic.
+> **Trade-offs to be aware of**: traffic starts hitting the pod the instant the container process exists, even if it isn't accepting connections yet — expect connection-refused errors during rollouts. A wedged process won't be auto-restarted. A PDB on this workload becomes near-meaningless without readiness signals. Fine for dev/staging, revisit before promoting to anything that takes real traffic.
 
 #### Shorthand — one HTTP endpoint covers all three probes
 
@@ -2286,11 +2222,11 @@ Community charts wrap a single application with extensive `values.yaml` options.
 |---|---|
 | `image.repository` + `image.tag` | `image` + `imageTag` |
 | `replicaCount` | `replicas` |
-| `service.type` + `service.port` | `ports: {http: 8080}` (auto-Service) or `services:` block |
+| `service.type` + `service.port` | `services:` block |
 | `ingress.enabled` + `ingress.hosts` | `httpRoutes:` or `istioVirtualServices:` |
 | `resources.requests` | `resources.requests` (same) |
 | `env` / `extraEnvVars` | `env:` / `envs:` / `envConfigmaps:` |
-| `persistence.enabled` + `persistence.size` | `pvcs:` block with `mountPath` |
+| `persistence.enabled` + `persistence.size` | `pvcs:` block |
 | `podSecurityContext` | `podSecurityContext` (same) |
 | `serviceAccount.create` | `serviceAccounts:` block |
 
@@ -2348,7 +2284,6 @@ Previously a PDB key that didn't match any workload rendered silently and select
 
 **Volumes show `<no value>` or mount errors:**
 - Typed volumes need the correct sub-field: `configMapName` for configMap, `secretName` for secret, `claimName` for pvc
-- PVC auto-mounting only applies to Deployments, StatefulSets, and DaemonSets — not Jobs, CronJobs, or Hooks
 
 **"Unable to run as non-root" errors:**
 - Default `podSecurityContext` sets `runAsNonRoot: true`. Override for images that need root:
@@ -2439,14 +2374,13 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | defaults.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Default resource requests/limits applied to containers when not overridden. No CPU limit by design — CPU throttling hurts tail latency more than it helps; set `limits.cpu` per-workload only when you have a concrete reason. Memory limit is 4× request to absorb allocation spikes (JVM/Node) without OOMKill — tighten per-workload once you've measured real footprint. |
 | defaults.revisionHistoryLimit | int | `3` | Default revisionHistoryLimit for Deployments and StatefulSets. Controls how many old ReplicaSets/ControllerRevisions are retained for rollback. Lower values reduce etcd/API-server load; set to 0 to disable rollback history entirely. |
 | defaults.usePredefinedAffinity | bool | `true` | Use the chart's built-in pod affinity/anti-affinity rules. |
-| deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form `{name: port}`) auto-creates containerPorts AND a matching ClusterIP Service. `resources:` raw requests/limits map. `healthCheck:` sets liveness, readiness, and startup probes. Override service behaviour with `service: false` (suppress) or `service:` fields such as `type`, `clusterIP`, `externalTrafficPolicy`, `loadBalancerSourceRanges`, `loadBalancerIP`, `sessionAffinity`, `sessionAffinityConfig`, `healthCheckNodePort`, `publishNotReadyAddresses`, `ipFamilies`, and `ipFamilyPolicy`. The full `containers:` list still works for multi-container workloads. |
+| deployments | object | `{}` | Kubernetes Deployment resources. Each key becomes the resource name. Single-container shorthand: set `image:` at workload level instead of a `containers:` list. `ports:` (map form `{name: port}`) auto-creates containerPorts. Use list-form for multi-port definitions (e.g. different protocols). The full `containers:` list still works for multi-container workloads. |
 | deploymentsGeneral | object | `{}` | Shared defaults for all Deployments (merged with per-instance values). |
 | diagnosticMode | object | `{"args":["infinity"],"command":["sleep"],"enabled":false}` | Diagnostic mode — overrides command/args on main containers only (init containers are not affected). Useful for debugging crash-looping pods. |
 | diagnosticMode.args | list | `["infinity"]` | Args override applied to every container. |
 | diagnosticMode.command | list | `["sleep"]` | Command override applied to every container. |
 | diagnosticMode.enabled | bool | `false` | Enable diagnostic mode globally. |
-| envs | object | `{}` | Non-secret environment variables injected via ConfigMap envFrom. |
-| envsString | string | `""` | Non-secret environment variables as a raw YAML string (for multiline or special chars). |
+| envs | object | `{}` | Non-secret environment variables injected via `envFrom` into ALL workloads automatically. |
 | externalSecrets | object | `{}` | External Secrets Operator ExternalSecret resources. Each key becomes the resource name. |
 | extraDeploy | object | `{}` | Raw Kubernetes manifests to deploy alongside chart resources. Supports template expressions. |
 | hooks | object | `{}` | Helm lifecycle hook Jobs (pre/post-install/upgrade). Each key becomes the hook name. |
@@ -2472,10 +2406,9 @@ helm template my-release universal-chart/ -f my-values.yaml \
 | persistentVolumes | object | `{}` | Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name. Thin passthrough — `spec:` goes directly to the Kubernetes resource unchanged. |
 | podAffinityPreset | string | `"soft"` | Pod affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
-| pvcs | object | `{}` | Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name. PVCs are automatically added to the `volumes` block in each workload (excluding hooks). Set `mountPath` on a PVC to also auto-mount it into every container. Set `workloads` to limit auto-mounting to specific workload names. Set `keepOnDelete` to retain the PVC on uninstall. |
+| pvcs | object | `{}` | Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name. PVCs are NOT automatically mounted — reference them manually via `volumes:` with `type: pvc` and `claimName:`. |
 | releasePrefix | string | `""` | Prefix prepended to all resource names. Leave empty to disable. |
-| secretEnvs | object | `{}` | Secret environment variables injected via Secret envFrom. |
-| secretEnvsString | string | `""` | Secret environment variables as a raw YAML string. |
+| secretEnvs | object | `{}` | Secret environment variables injected via `envFrom` into ALL workloads automatically. |
 | secretStores | object | `{}` | External Secrets Operator SecretStore resources (namespace-scoped). Each key becomes the resource name. |
 | secrets | object | `{}` | Kubernetes Secret resources. Each key becomes the resource name. |
 | serviceAccounts | object | `{}` | Kubernetes ServiceAccount resources. Each key becomes the resource name. |

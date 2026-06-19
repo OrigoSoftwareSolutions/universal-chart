@@ -169,22 +169,22 @@ nodeAffinityPreset:
 # @section Environment Variables
 # =============================================================================
 
-# -- Non-secret environment variables injected via ConfigMap envFrom.
+# -- Non-secret environment variables injected via `envFrom` into ALL workloads automatically.
 envs: {}
 #   BAR: foo
 #   TEST: "true"
 
 # -- Non-secret environment variables as a raw YAML string (for multiline or special chars).
-envsString: ""
+# Injected via `envFrom` into ALL workloads automatically.
 # envsString: |
 #   BAR2: foo2
 
-# -- Secret environment variables injected via Secret envFrom.
+# -- Secret environment variables injected via `envFrom` into ALL workloads automatically.
 secretEnvs: {}
 #   DB_PASSWORD: s3cret
 
 # -- Secret environment variables as a raw YAML string.
-secretEnvsString: ""
+# Injected via `envFrom` into ALL workloads automatically.
 # secretEnvsString: |
 #   API_KEY: abc123
 
@@ -197,12 +197,8 @@ deploymentsGeneral: {}
 # -- Kubernetes Deployment resources. Each key becomes the resource name.
 # @default -- `{}`
 # Single-container shorthand: set `image:` at workload level instead of a `containers:` list.
-# `ports:` (map form `{name: port}`) auto-creates containerPorts AND a matching ClusterIP Service.
-# `resources:` raw requests/limits map. `healthCheck:` sets liveness, readiness, and startup probes.
-# Override service behaviour with `service: false` (suppress) or `service:` fields such as
-# `type`, `clusterIP`, `externalTrafficPolicy`, `loadBalancerSourceRanges`, `loadBalancerIP`,
-# `sessionAffinity`, `sessionAffinityConfig`, `healthCheckNodePort`, `publishNotReadyAddresses`,
-# `ipFamilies`, and `ipFamilyPolicy`.
+# `ports:` (map form `{name: port}`) auto-creates containerPorts.
+# Use list-form for multi-port definitions (e.g. different protocols).
 # The full `containers:` list still works for multi-container workloads.
 deployments: {}
 #   # ── Single-container shorthand ──
@@ -342,20 +338,12 @@ persistentVolumes: {}
 #       persistentVolumeReclaimPolicy: Retain
 
 # -- Kubernetes PersistentVolumeClaim resources. Each key becomes the resource name.
-# PVCs are automatically added to the `volumes` block in each workload (excluding hooks).
-# Set `mountPath` on a PVC to also auto-mount it into every container.
-# Set `workloads` to limit auto-mounting to specific workload names.
-# Set `keepOnDelete` to retain the PVC on uninstall.
+# PVCs are NOT automatically mounted — reference them manually via `volumes:` with `type: pvc` and `claimName:`.
 pvcs: {}
 #   app-data:
 #     accessModes: [ReadWriteOnce]
 #     size: 8Gi
-#     mountPath: /data           # auto-mounts this PVC into every container
 #     # keepOnDelete: true
-#     # workloads: [web]         # optional: mount only into these workloads
-#     # workloads: []            # optional: mount into no workloads
-#     # subPath: ""              # optional: mount a sub-path of the volume
-#     # readOnly: false          # optional: mount read-only
 
 # =============================================================================
 # @section Autoscaling & Availability

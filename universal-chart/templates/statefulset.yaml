@@ -32,7 +32,7 @@ spec:
   template:
     metadata:{{- include "helpers.workload.podTemplateMetadata" (dict "name" $name "value" $sts "general" $general "context" $ "selectorLabels" true "extraSelectorLabels" $sts.extraSelectorLabels) | nindent 6 }}
     spec:
-    {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "extraLabels" .extraSelectorLabels "context" $ "autoPvcs" true) | trim | nindent 6 }}
+    {{- include "helpers.pod" (dict "value" . "general" $general "name" $name "extraLabels" .extraSelectorLabels "context" $) | trim | nindent 6 }}
     {{- with .volumeClaimTemplates }}
   volumeClaimTemplates:
       {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}

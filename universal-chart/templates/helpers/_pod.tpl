@@ -6,7 +6,6 @@
   {{- $usePredefinedAffinity := $.Values.defaults.usePredefinedAffinity -}}
   {{- if (ne $general.usePredefinedAffinity nil) }}{{ $usePredefinedAffinity = $general.usePredefinedAffinity }}{{ end -}}
   {{- $name := .name | trunc 63 | trimSuffix "-" -}}
-  {{- $autoPvcs := .autoPvcs | default false -}}
   {{- with .value -}}
     {{- if (ne .usePredefinedAffinity nil) }}{{ $usePredefinedAffinity = .usePredefinedAffinity }}{{ end -}}
     {{- $podSecurityContext := .securityContext -}}
@@ -262,7 +261,7 @@ initContainers:
           {{- if not .containers }}
 containers:
 - name: {{ $name }}
-            {{- include "helpers.container.render" (dict "value" . "name" $name "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" true "enableMapPorts" true "useDefaultImage" true "autoPvcs" $autoPvcs "workloadContainerSecurityContext" .containerSecurityContext "workloadHealthCheck" $workloadHealthCheck) | indent 0 }}
+            {{- include "helpers.container.render" (dict "value" . "name" $name "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" true "enableMapPorts" true "useDefaultImage" true "workloadContainerSecurityContext" .containerSecurityContext "workloadHealthCheck" $workloadHealthCheck) | indent 0 }}
           {{- else }}
 containers:
             {{- range $idx, $ct := .containers }}
@@ -271,10 +270,10 @@ containers:
               {{- else }}
 - name: {{ printf "%s-%d" ($name | trunc 58 | trimSuffix "-") $idx }}
               {{- end }}
-              {{- include "helpers.container.render" (dict "value" $ct "name" "" "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" false "autoPvcs" $autoPvcs "workloadContainerSecurityContext" $workloadContainerSecCtx "workloadHealthCheck" $workloadHealthCheck) | indent 0 }}
+              {{- include "helpers.container.render" (dict "value" $ct "name" "" "workloadName" $name "general" $general "context" $ "enableHealthCheckShorthand" false "enableMapPorts" false "useDefaultImage" false "workloadContainerSecurityContext" $workloadContainerSecCtx "workloadHealthCheck" $workloadHealthCheck) | indent 0 }}
             {{- end }}
           {{- end }}
-          {{- $vols := include "helpers.volumes.renderVolume" (dict "value" . "general" $general "context" $ "name" $name "autoPvcs" $autoPvcs) }}
+          {{- $vols := include "helpers.volumes.renderVolume" (dict "value" . "general" $general "context" $ "name" $name) }}
 volumes:{{- if eq (trim $vols) "[]" }} []{{- else }}
 {{ regexReplaceAll "\n{2,}" ($vols | trim) "\n" }}{{- end }}
         {{- end -}}
