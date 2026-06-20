@@ -56,15 +56,15 @@ helm install my-app oci://ghcr.io/origosoftwaresolutions/universal-chart \
 Core resource types use a **singular block** — one instance per release, not a dict of instances:
 
 ```yaml
-deployment:          # ← singular block (was `deployments:`)
+deployment:
   image: nginx
   replicas: 2
 
-service:             # ← singular block (was `services:`)
+service:
   ports:
     - port: 80
 
-hpa:                 # ← singular block (was `hpas:`)
+hpa:
   minReplicas: 2
   maxReplicas: 10
 ```
@@ -696,92 +696,6 @@ extraDeploy:
       podSelector: {}
       policyTypes: [Ingress, Egress]
 ```
-
----
-
-## Migration from older versions
-
-The following features have been removed:
-
-| Old feature | Replacement |
-|---|---|
-| `deployments:` dict | `deployment:` singular block |
-| `services:` dict | `service:` singular block |
-| `hpas:` dict | `hpa:` singular block |
-| `*General` sections | Use `defaults:` for shared config |
-| `releasePrefix` | Use `name:` field on each block |
-| `envs:` / `secretEnvs:` auto-generation | Define `env:` inline on the workload |
-| `hooks:` section | Define `job:` with ArgoCD hook annotations on `job.annotations:` |
-| `disabled: true` on old workload dict instances (e.g., `deployments.xxx.disabled`) | Omit the resource block entirely |
-
-### Migration Steps
-
-1. **Flatten multi-workload releases:** If you had multiple deployments in one values file, split them into separate releases:
-   ```yaml
-   # old — one release, two deployments
-   deployments:
-     api:
-       image: myapp-api
-     worker:
-       image: myapp-worker
-   ```
-   ```yaml
-   # new — two releases
-   # Release "myapp-api": deployment.image: myapp-api
-   # Release "myapp-worker": deployment.image: myapp-worker
-   ```
-
-2. **Rename dict keys to singular blocks:**
-   - `deployments:` → `deployment:`
-   - `services:` → `service:`
-   - `hpas:` → `hpa:`
-   - `pdbs:` → `pdb:`
-   - `pvcs:` → `pvc:`
-   - `externalSecrets:` → `externalSecret:`
-   - `imageUpdaters:` → `imageUpdater:`
-   - `serviceAccounts:` → `serviceAccount:` (now a list — each item is `{name: ..., annotations: ...}`)
-
-3. **Move *General values to defaults or inline:**
-   ```yaml
-   # old
-   deploymentsGeneral:
-     podSecurityContext:
-       fsGroup: 1000
-   # new — move to defaults or set on the workload directly
-   defaults:
-     podSecurityContext:
-       fsGroup: 1000
-   ```
-
-4. **Replace envs/secretEnvs with inline env:**
-   ```yaml
-   # old
-   envs:
-     LOG_LEVEL: info
-   secretEnvs:
-     DB_PASSWORD: s3cret
-   # new
-   deployment:
-     env:
-       - name: LOG_LEVEL
-         value: info
-       - name: DB_PASSWORD
-         valueFrom:
-           secretKeyRef:
-             name: my-secrets
-             key: db-password
-   ```
-
-5. **Replace releasePrefix with explicit names:**
-   ```yaml
-   # old: releasePrefix: "corp" → resources named "corp-web"
-   releasePrefix: corp
-   deployments:
-     web: ...
-   # new: deployment.name: "corp-web"
-   deployment:
-     name: corp-web
-   ```
 
 ## Values
 
