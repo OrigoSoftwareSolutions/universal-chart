@@ -2,9 +2,7 @@
 
 ![Version: 1.9.8](https://img.shields.io/badge/Version-1.9.8-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
-One Helm chart, one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
-
-> **1.9.6 is a breaking change from v1.x.** The multi-workload dict-iteration pattern, `*General` sections, `releasePrefix`, auto-generated `envs`/`secretEnvs`, and `hooks` have been removed. See the [migration guide](#migration-from-v1x) below.
+One Helm chart, designed for one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
 
 ---
 
@@ -15,7 +13,7 @@ One Helm chart, one workload per release. Define your Kubernetes resources — D
 | Deployment | Service | ConfigMap | ExternalSecret |
 | StatefulSet | HTTPRoute (Gateway API) | Secret | SecretStore / ClusterSecretStore |
 | DaemonSet | Istio VirtualService | PVC | Certificate / Issuer / ClusterIssuer |
-| CronJob / Job | Istio Gateway | StorageClass / PV | PrometheusRule (via job) |
+| CronJob / Job | Istio Gateway | StorageClass / PV | PrometheusRule (via job / cronJob) |
 | HPA / PDB | ServiceMonitor | ServiceAccount | ImageUpdater (Argo CD) |
 | | | | Istio DestinationRule / PeerAuthentication / AuthorizationPolicy |
 
@@ -55,18 +53,18 @@ helm install my-app oci://ghcr.io/origosoftwaresolutions/universal-chart \
 
 ### Singular Blocks
 
-Every resource type is a **singular block** — not a dict of instances. The chart creates at most one of each kind per release:
+Core resource types use a **singular block** — one instance per release, not a dict of instances:
 
 ```yaml
-deployment:          # ← singular block (was `deployments:`)
+deployment:
   image: nginx
   replicas: 2
 
-service:             # ← singular block (was `services:`)
+service:
   ports:
     - port: 80
 
-hpa:                 # ← singular block (was `hpas:`)
+hpa:
   minReplicas: 2
   maxReplicas: 10
 ```
@@ -76,7 +74,7 @@ hpa:                 # ← singular block (was `hpas:`)
 Resources that are naturally multiple per release use the **dict pattern** (one key per instance):
 
 ```yaml
-configMaps:           # ← dict (unchanged from v1)
+configMaps:           # ← dict
   app-config:
     data:
       KEY: value
@@ -86,12 +84,11 @@ configMaps:           # ← dict (unchanged from v1)
 
 certificates:         # ← dict
   my-cert:
-    spec:
-      secretName: my-tls
-      issuerRef:
-        name: letsencrypt
-        kind: ClusterIssuer
-      dnsNames: [example.com]
+    secretName: my-tls
+    issuerRef:
+      name: letsencrypt
+      kind: ClusterIssuer
+    dnsNames: [example.com]
 ```
 
 ### Resource Naming
@@ -151,7 +148,7 @@ Without `name:`, the rendered name is `{release-name}-{key}` and you must use th
 
 ## Workloads
 
-Pick **one** workload type per release. All share the same base configuration fields.
+Each workload type is a singular optional block; the intended pattern is one per release. All workload types share the same base configuration fields.
 
 ### Deployment
 
@@ -235,11 +232,29 @@ deployment:
   envFrom:
     - secretRef:
         name: myapp-secrets
-  envConfigmaps:
-    - myapp-config          # injects entire ConfigMap via envFrom
-  envSecrets:
-    - myapp-secrets         # injects entire Secret via envFrom
 ```
+
+### Auto-restart on config changes
+
+`envConfigmaps` and `envSecrets` do not inject environment variables. They tell the chart which chart-managed ConfigMaps and Secrets the workload depends on so it can generate checksum annotations — causing a rolling restart whenever that data changes.
+
+Entries must use `{release-name}-{key}` — the name derived from the dict key, not any literal `name:` override on the ConfigMap or Secret entry. If `configMaps.myapp-config.name: custom-name` is set, list `{release-name}-myapp-config` here, not `custom-name`:
+
+```yaml
+deployment:
+  image: myapp
+  envConfigmaps:
+    - {{ .Release.Name }}-myapp-config    # = {release-name}-myapp-config
+  envSecrets:
+    - {{ .Release.Name }}-myapp-secrets   # = {release-name}-myapp-secrets
+
+configMaps:
+  myapp-config:
+    data:
+      LOG_LEVEL: info
+```
+
+To inject a ConfigMap as env vars, use `envFrom:` directly.
 
 ### Health Check Shorthand
 
@@ -271,7 +286,7 @@ service:
       protocol: TCP
 ```
 
-The selector automatically targets the workload's `app.kubernetes.io/component` label. Override with `selector:` or add `extraSelectorLabels:`.
+The default selector uses the service name (defaults to `.Release.Name`) as the `app.kubernetes.io/component` value. When the workload name also defaults to `.Release.Name`, they match automatically. If `service.name` and the workload `name` differ, set an explicit `selector:` to target the correct component. Use `extraSelectorLabels:` only to add extra labels on top of the default selector.
 
 ---
 
@@ -302,7 +317,7 @@ serviceAccount:
 
 Each item supports: `name`, `labels`, `annotations`, `automountServiceAccountToken`, `imagePullSecrets`, `secrets`, `role`, `clusterRole`.
 
-`role` generates: Role + RoleBinding. `clusterRole` generates: ClusterRole + ClusterRoleBinding.
+`role` with `rules:` generates Role + RoleBinding; without `rules:` generates only a RoleBinding to an existing Role. `clusterRole` works the same: with `rules:` generates ClusterRole + ClusterRoleBinding; without `rules:` generates only a ClusterRoleBinding.
 
 ### PreSync migration job pattern
 
@@ -410,6 +425,59 @@ persistentVolumes:
         shareName: my-share
 ```
 
+### Consuming a PVC in a workload
+
+Define the PVC, then wire it into the workload via `volumes:` and `volumeMounts:`:
+
+```yaml
+pvc:
+  name: app-data
+  accessModes: [ReadWriteOnce]
+  size: 10Gi
+
+deployment:
+  image: myapp
+  volumes:
+    - name: data
+      type: pvc
+      claimName: app-data       # matches pvc.name above
+  volumeMounts:
+    - name: data
+      mountPath: /var/app/data
+```
+
+To bind to a static PV from the same values file, set `pvc.volumeName`:
+
+```yaml
+persistentVolumes:
+  my-share:
+    name: my-pv                 # literal PV name
+    spec:
+      capacity:
+        storage: 50Gi
+      accessModes: [ReadWriteMany]
+      azureFile:
+        secretName: azure-storage-secret
+        shareName: my-share
+
+pvc:
+  name: my-claim
+  accessModes: [ReadWriteMany]
+  storageClassName: ""
+  volumeName: my-pv             # matches persistentVolumes entry name above
+  size: 50Gi
+
+deployment:
+  image: myapp
+  volumes:
+    - name: uploads
+      type: pvc
+      claimName: my-claim
+  volumeMounts:
+    - name: uploads
+      mountPath: /var/www/uploads
+```
+
 ### ConfigMaps (dict)
 
 ```yaml
@@ -431,7 +499,7 @@ secrets:
   api-keys:
     type: Opaque
     data:
-      api.key: {{ .Values.myApiKey | b64enc }}
+      api.key: {{ .Values.myApiKey }}    # plain value — chart applies b64enc automatically
     stringData:
       other.key: plain-text-value
 ```
@@ -466,6 +534,7 @@ externalSecret:
 ```yaml
 istioGateways:
   public:
+    name: my-app-gateway
     selector:
       istio: ingressgateway
     servers:
@@ -477,7 +546,7 @@ istioGateways:
 
 istioVirtualServices:
   myapp:
-    gateways: [public]
+    gateways: [my-app-gateway]
     hosts: ["myapp.example.com"]
     http:
       - match:
@@ -494,15 +563,20 @@ istioVirtualServices:
 
 ## cert-manager
 
+All cert-manager resources support `labels:` and `annotations:` per entry.
+
 ```yaml
 certificates:
   my-tls:
-    spec:
-      secretName: my-tls
-      issuerRef:
-        name: letsencrypt-prod
-        kind: ClusterIssuer
-      dnsNames: [myapp.example.com]
+    labels:
+      team: platform
+    annotations:
+      cert-manager.io/issue-temporary-certificate: "true"
+    secretName: my-tls
+    issuerRef:
+      name: letsencrypt-prod
+      kind: ClusterIssuer
+    dnsNames: [myapp.example.com]
 
 clusterIssuers:
   letsencrypt-prod:
@@ -513,6 +587,13 @@ clusterIssuers:
         privateKeySecretRef:
           name: letsencrypt-prod
         solvers: []
+
+issuers:
+  internal-ca:
+    labels:
+      team: platform
+    ca:
+      secretName: internal-ca-secret
 ```
 
 ---
@@ -536,6 +617,18 @@ imageUpdater:
   writeBackConfig:
     method: argocd
 ```
+
+### Finding applicationName
+
+`applicationName` must match the ArgoCD Application name exactly — this is how Image Updater knows which app to write image tags back to. Get it wrong and updates silently stop (Image Updater won't error loudly).
+
+The ArgoCD Application name is whatever the `metadata.name` is on the ArgoCD `Application` resource that deploys this chart. Check your ArgoCD UI or run:
+
+```bash
+kubectl get applications -n argocd
+```
+
+If your ArgoCD Application manifests are generated by a higher-level chart or controller, the name follows whatever naming convention that generator uses. Set `applicationName` to exactly that value.
 
 ---
 
@@ -562,7 +655,7 @@ defaults:
   usePredefinedAffinity: true
 ```
 
-Defaults cascade per-field: a value set on the workload block overrides the defaults value for that field only.
+Most defaults are per-field: a value set on the workload block overrides the defaults value for that field only. Exceptions: `podSecurityContext` and `containerSecurityContext` are deep-merged (workload values extend defaults; setting an empty dict `{}` at workload level clears the cascade entirely). `extraImagePullSecrets`, `extraVolumes`, and `extraVolumeMounts` are appended to the defaults list — both the defaults and workload values are included.
 
 ---
 
@@ -604,105 +697,19 @@ extraDeploy:
       policyTypes: [Ingress, Egress]
 ```
 
----
-
-## Migration from v1.x
-
-The following v1.x features have been removed:
-
-| v1.x Feature | Replacement |
-|---|---|
-| `deployments:` dict | `deployment:` singular block |
-| `services:` dict | `service:` singular block |
-| `hpas:` dict | `hpa:` singular block |
-| `*General` sections | Use `defaults:` for shared config |
-| `releasePrefix` | Use `name:` field on each block |
-| `envs:` / `secretEnvs:` auto-generation | Define `env:` inline on the workload |
-| `hooks:` section | Define `job:` with ArgoCD hook annotations on `job.annotations:` |
-| `disabled: true` on resources | Omit the resource block entirely |
-
-### Migration Steps
-
-1. **Flatten multi-workload releases:** If you had multiple deployments in one values file, split them into separate releases:
-   ```yaml
-   # v1.x — one release, two deployments
-   deployments:
-     api:
-       image: myapp-api
-     worker:
-       image: myapp-worker
-   ```
-   ```yaml
-   # new — two releases
-   # Release "myapp-api": deployment.image: myapp-api
-   # Release "myapp-worker": deployment.image: myapp-worker
-   ```
-
-2. **Rename dict keys to singular blocks:**
-   - `deployments:` → `deployment:`
-   - `services:` → `service:`
-   - `hpas:` → `hpa:`
-   - `pdbs:` → `pdb:`
-   - `pvcs:` → `pvc:`
-   - `externalSecrets:` → `externalSecret:`
-   - `imageUpdaters:` → `imageUpdater:`
-   - `serviceAccounts:` → `serviceAccount:` (now a list — each item is `{name: ..., annotations: ...}`)
-
-3. **Move *General values to defaults or inline:**
-   ```yaml
-   # v1.x
-   deploymentsGeneral:
-     podSecurityContext:
-       fsGroup: 1000
-   # new — move to defaults or set on the workload directly
-   defaults:
-     podSecurityContext:
-       fsGroup: 1000
-   ```
-
-4. **Replace envs/secretEnvs with inline env:**
-   ```yaml
-   # v1.x
-   envs:
-     LOG_LEVEL: info
-   secretEnvs:
-     DB_PASSWORD: s3cret
-   # new
-   deployment:
-     env:
-       - name: LOG_LEVEL
-         value: info
-       - name: DB_PASSWORD
-         valueFrom:
-           secretKeyRef:
-             name: my-secrets
-             key: db-password
-   ```
-
-5. **Replace releasePrefix with explicit names:**
-   ```yaml
-   # v1.x: releasePrefix: "corp" → resources named "corp-web"
-   releasePrefix: corp
-   deployments:
-     web: ...
-   # new: deployment.name: "corp-web"
-   deployment:
-     name: corp-web
-   ```
-
 ## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| certificates | object | `{}` | cert-manager Certificate resources (namespace-scoped). Each key becomes the resource name. |
-| clusterExternalSecrets | object | `{}` | External Secrets Operator ClusterExternalSecret resources (cluster-scoped). Each key becomes the resource name. |
-| clusterIssuers | object | `{}` | cert-manager ClusterIssuer resources (cluster-scoped, no namespace). Each key becomes the resource name. |
-| clusterSecretStores | object | `{}` | External Secrets Operator ClusterSecretStore resources (cluster-scoped). Each key becomes the resource name. |
-| configMaps | object | `{}` | Kubernetes ConfigMap resources. Each key becomes the resource name. |
+| certificates | object | `{}` | cert-manager Certificate resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| clusterExternalSecrets | object | `{}` | External Secrets Operator ClusterExternalSecret resources (cluster-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| clusterIssuers | object | `{}` | cert-manager ClusterIssuer resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| clusterSecretStores | object | `{}` | External Secrets Operator ClusterSecretStore resources (cluster-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| configMaps | object | `{}` | Kubernetes ConfigMap resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | cronJob | object | `{}` | Kubernetes CronJob.  Only one per release. |
 | daemonset | object | `{}` | Kubernetes DaemonSet.  Only one per release. |
 | defaultImagePullPolicy | string | `"IfNotPresent"` | Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`. |
-| defaults | object | `{"annotations":{},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"labels":{},"podAnnotations":{},"podLabels":{},"podSecurityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"revisionHistoryLimit":3,"usePredefinedAffinity":true}` | Default settings applied to all templates.  Labels, annotations, pod metadata, security contexts, resources, etc.  These are accessed directly (no merge cascade) — the workload block or resource block simply references defaults as needed. |
+| defaults | object | `{"annotations":{},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"extraImagePullSecrets":[],"extraSelectorLabels":{},"extraVolumeMounts":[],"extraVolumes":[],"labels":{},"podAnnotations":{},"podLabels":{},"podSecurityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"revisionHistoryLimit":3,"usePredefinedAffinity":true}` | Default settings applied to all templates.  Labels, annotations, pod metadata, security contexts, resources, etc.  Most fields are accessed directly (no merge cascade) — the workload block simply references defaults as needed.  Exceptions: `podSecurityContext` and `containerSecurityContext` are deep-merged; `extraImagePullSecrets`, `extraVolumes`, and `extraVolumeMounts` are appended (both defaults and workload values included). |
 | defaults.annotations | object | `{}` | Annotations added to every resource's `metadata.annotations`. |
 | defaults.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Default container-level securityContext. |
 | defaults.extraImagePullSecrets | list | `[]` | Additional image pull secrets appended to every pod spec. |
@@ -723,29 +730,29 @@ The following v1.x features have been removed:
 | externalSecret | object | `{}` | External Secrets Operator ExternalSecret.  Only one per release. |
 | extraDeploy | object | `{}` | Raw Kubernetes manifests to deploy alongside chart resources. Supports template expressions. |
 | hpa | object | `{}` | Kubernetes HorizontalPodAutoscaler (autoscaling/v2).  Only one per release. |
-| httpRoutes | object | `{}` | Gateway API HTTPRoute resources. Each key becomes the resource name. |
+| httpRoutes | object | `{}` | Gateway API HTTPRoute resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | imagePullSecrets | list | `[]` | Image pull secret names referenced in every pod spec. Secrets must be pre-created in the namespace. |
 | imageUpdater | object | `{}` | Argo CD Image Updater.  Only one per release. |
-| issuers | object | `{}` | cert-manager Issuer resources (namespace-scoped). Each key becomes the resource name. |
-| istioAuthorizationPolicies | object | `{}` | Istio AuthorizationPolicy resources. Each key becomes the resource name. |
-| istioDestinationRules | object | `{}` | Istio DestinationRule resources. Each key becomes the resource name. |
-| istioGateways | object | `{}` | Istio Gateway resources. Each key becomes the resource name. |
-| istioPeerAuthentications | object | `{}` | Istio PeerAuthentication resources (mTLS policy). Each key becomes the resource name. |
-| istioVirtualServices | object | `{}` | Istio VirtualService resources. Each key becomes the resource name. |
+| issuers | object | `{}` | cert-manager Issuer resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| istioAuthorizationPolicies | object | `{}` | Istio AuthorizationPolicy resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| istioDestinationRules | object | `{}` | Istio DestinationRule resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| istioGateways | object | `{}` | Istio Gateway resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| istioPeerAuthentications | object | `{}` | Istio PeerAuthentication resources (mTLS policy). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| istioVirtualServices | object | `{}` | Istio VirtualService resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | job | object | `{}` | Kubernetes Job (non-hook).  Only one per release. |
 | nodeAffinityPreset | object | `{"key":"","type":"","values":[]}` | Node affinity preset configuration. |
 | nodeAffinityPreset.key | string | `""` | Node label key to match (e.g. `kubernetes.io/e2e-az-name`). |
 | nodeAffinityPreset.type | string | `""` | Affinity type. Allowed values: `soft`, `hard`, or empty string to disable. |
 | nodeAffinityPreset.values | list | `[]` | Node label values to match. |
 | pdb | object | `{}` | Kubernetes PodDisruptionBudget.  Only one per release. |
-| persistentVolumes | object | `{}` | Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name. |
+| persistentVolumes | object | `{}` | Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | podAffinityPreset | string | `"soft"` | Pod affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | pvc | object | `{}` | Kubernetes PersistentVolumeClaim.  Only one per release. |
-| secretStores | object | `{}` | External Secrets Operator SecretStore resources (namespace-scoped). Each key becomes the resource name. |
-| secrets | object | `{}` | Kubernetes Secret resources. Each key becomes the resource name. |
+| secretStores | object | `{}` | External Secrets Operator SecretStore resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| secrets | object | `{}` | Kubernetes Secret resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | service | object | `{}` | Kubernetes Service.  Only one per release. |
 | serviceAccount | list | `[]` | Kubernetes ServiceAccount(s). List — each item creates one ServiceAccount. Supports Role/ClusterRole per item. |
-| serviceMonitors | object | `{}` | Prometheus ServiceMonitor resources. Each key becomes the resource name. |
+| serviceMonitors | object | `{}` | Prometheus ServiceMonitor resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | statefulset | object | `{}` | Kubernetes StatefulSet.  Only one per release. |
-| storageClasses | object | `{}` | Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key becomes the resource name. |
+| storageClasses | object | `{}` | Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
