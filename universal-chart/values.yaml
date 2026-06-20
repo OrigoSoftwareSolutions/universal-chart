@@ -1,10 +1,10 @@
 # =============================================================================
 # Origo Universal Chart — values.yaml
 # =============================================================================
-# This chart supports a single workload per release.  Every resource is a
-# singular optional block — not a dict of instances.  For resources that are
-# naturally multiple per release (certificates, Istio routes, etc.) the dict
-# pattern is retained.
+# This chart is designed for one workload per release.  Core resource types
+# use singular optional blocks (one instance per release); resources that are
+# naturally multiple per release (certificates, Istio routes, etc.) retain the
+# dict pattern.
 #
 # Resource naming (singular blocks):
 #   name: my-app           →  literal name "my-app"
@@ -39,9 +39,11 @@ diagnosticMode:
 # =============================================================================
 
 # -- Default settings applied to all templates.  Labels, annotations, pod
-# metadata, security contexts, resources, etc.  These are accessed directly
-# (no merge cascade) — the workload block or resource block simply references
-# defaults as needed.
+# metadata, security contexts, resources, etc.  Most fields are accessed
+# directly (no merge cascade) — the workload block simply references defaults
+# as needed.  Exceptions: `podSecurityContext` and `containerSecurityContext`
+# are deep-merged; `extraImagePullSecrets`, `extraVolumes`, and
+# `extraVolumeMounts` are appended (both defaults and workload values included).
 defaults:
   # -- Labels added to every resource's `metadata.labels`.
   labels: {}
@@ -145,7 +147,6 @@ nodeAffinityPreset:
 # Use the full `containers:` list for multi-container workloads.
 deployment: {}
 #   name: my-app
-#   enabled: true
 #   image: myapp:1.2.3
 #   imageTag: ""
 #   replicas: 2
@@ -226,7 +227,6 @@ cronJob: {}
 # -- Kubernetes Service.  Only one per release.
 service: {}
 #   name: my-svc
-#   enabled: true
 #   ports:
 #     - name: http
 #       port: 8080
@@ -252,7 +252,7 @@ service: {}
 #   selector: {}          # explicit selector (auto-derived if empty)
 #   extraSelectorLabels: {}
 
-# -- Gateway API HTTPRoute resources. Each key becomes the resource name.
+# -- Gateway API HTTPRoute resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 httpRoutes: {}
 #   my-app:
 #     spec:
@@ -266,7 +266,7 @@ httpRoutes: {}
 # @section Storage
 # =============================================================================
 
-# -- Kubernetes ConfigMap resources. Each key becomes the resource name.
+# -- Kubernetes ConfigMap resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 configMaps: {}
 #   my-config:
 #     data:
@@ -275,7 +275,7 @@ configMaps: {}
 #     annotations: {}
 #     immutable: false
 
-# -- Kubernetes Secret resources. Each key becomes the resource name.
+# -- Kubernetes Secret resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 secrets: {}
 #   my-secret:
 #     type: Opaque
@@ -288,7 +288,7 @@ secrets: {}
 #     keepOnDelete: true
 #     immutable: false
 
-# -- Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key becomes the resource name.
+# -- Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 storageClasses: {}
 #   fast-ssd:
 #     provisioner: disk.csi.azure.com
@@ -298,7 +298,7 @@ storageClasses: {}
 #     parameters:
 #       skuName: Premium_LRS
 
-# -- Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key becomes the resource name.
+# -- Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 persistentVolumes: {}
 #   azure-share:
 #     spec:
@@ -369,7 +369,7 @@ serviceAccount: []
 # @section Monitoring
 # =============================================================================
 
-# -- Prometheus ServiceMonitor resources. Each key becomes the resource name.
+# -- Prometheus ServiceMonitor resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 serviceMonitors: {}
 #   app:
 #     endpoints:
@@ -381,7 +381,7 @@ serviceMonitors: {}
 # @section Istio
 # =============================================================================
 
-# -- Istio Gateway resources. Each key becomes the resource name.
+# -- Istio Gateway resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 istioGateways: {}
 #   nginx:
 #     selector: { istio: ingress }
@@ -389,7 +389,7 @@ istioGateways: {}
 #       - port: { number: 80, name: http, protocol: HTTP }
 #         hosts: ["nginx.example.com"]
 
-# -- Istio VirtualService resources. Each key becomes the resource name.
+# -- Istio VirtualService resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 istioVirtualServices: {}
 #   nginx:
 #     gateways: [nginx-gateway]
@@ -401,20 +401,20 @@ istioVirtualServices: {}
 #               host: nginx-svc.default.svc.cluster.local
 #               port: { number: 80 }
 
-# -- Istio DestinationRule resources. Each key becomes the resource name.
+# -- Istio DestinationRule resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 istioDestinationRules: {}
 #   nginx:
 #     host: nginx-svc.default.svc.cluster.local
 #     trafficPolicy:
 #       loadBalancer: { simple: ROUND_ROBIN }
 
-# -- Istio PeerAuthentication resources (mTLS policy). Each key becomes the resource name.
+# -- Istio PeerAuthentication resources (mTLS policy). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 istioPeerAuthentications: {}
 #   default:
 #     spec:
 #       mtls: { mode: STRICT }
 
-# -- Istio AuthorizationPolicy resources. Each key becomes the resource name.
+# -- Istio AuthorizationPolicy resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 istioAuthorizationPolicies: {}
 #   deny-all:
 #     spec:
@@ -434,24 +434,24 @@ externalSecret: {}
 #     target: { name: my-secret }
 #     data: []
 
-# -- External Secrets Operator SecretStore resources (namespace-scoped). Each key becomes the resource name.
+# -- External Secrets Operator SecretStore resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 secretStores: {}
 #   my-store:
 #     spec:
 #       provider:
 #         azurekv: { vaultUrl: "https://my-vault.vault.azure.net", authType: WorkloadIdentity }
 
-# -- External Secrets Operator ClusterSecretStore resources (cluster-scoped). Each key becomes the resource name.
+# -- External Secrets Operator ClusterSecretStore resources (cluster-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 clusterSecretStores: {}
 
-# -- External Secrets Operator ClusterExternalSecret resources (cluster-scoped). Each key becomes the resource name.
+# -- External Secrets Operator ClusterExternalSecret resources (cluster-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 clusterExternalSecrets: {}
 
 # =============================================================================
 # @section cert-manager
 # =============================================================================
 
-# -- cert-manager Certificate resources (namespace-scoped). Each key becomes the resource name.
+# -- cert-manager Certificate resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 certificates: {}
 #   my-cert:
 #     spec:
@@ -459,7 +459,7 @@ certificates: {}
 #       issuerRef: { name: letsencrypt-prod, kind: ClusterIssuer }
 #       dnsNames: [example.com]
 
-# -- cert-manager Issuer resources (namespace-scoped). Each key becomes the resource name.
+# -- cert-manager Issuer resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 issuers: {}
 #   letsencrypt-staging:
 #     spec:
@@ -468,7 +468,7 @@ issuers: {}
 #         email: devops@example.com
 #         privateKeySecretRef: { name: letsencrypt-staging }
 
-# -- cert-manager ClusterIssuer resources (cluster-scoped, no namespace). Each key becomes the resource name.
+# -- cert-manager ClusterIssuer resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 clusterIssuers: {}
 #   letsencrypt-prod:
 #     spec:
