@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.6](https://img.shields.io/badge/Version-1.9.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.7](https://img.shields.io/badge/Version-1.9.7-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart, one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
 
@@ -248,24 +248,83 @@ The selector automatically targets the workload's `app.kubernetes.io/component` 
 
 ## ServiceAccount (with RBAC)
 
+`serviceAccount` is a list — each item creates one ServiceAccount. Use one item for the common case, multiple items when a release needs separate cloud identities (e.g. a migration job with its own WorkloadIdentity):
+
 ```yaml
 serviceAccount:
-  name: my-sa
-  role:
-    name: my-role
-    rules:
-      - apiGroups: [""]
-        resources: [pods]
-        verbs: [get, list, watch]
-  clusterRole:
-    name: my-cr
-    rules:
-      - apiGroups: [""]
-        resources: [nodes]
-        verbs: [get, list]
+  - name: my-app
+    role:
+      name: my-role
+      rules:
+        - apiGroups: [""]
+          resources: [pods]
+          verbs: [get, list, watch]
+    clusterRole:
+      name: my-cr
+      rules:
+        - apiGroups: [""]
+          resources: [nodes]
+          verbs: [get, list]
+  - name: my-app-migration
+    annotations:
+      azure.workload.identity/client-id: "migration-client-id"
+      argocd.argoproj.io/sync-wave: "-3"
 ```
 
-Generates: ServiceAccount + Role + RoleBinding (and optionally ClusterRole + ClusterRoleBinding).
+Each item supports: `name`, `labels`, `annotations`, `automountServiceAccountToken`, `imagePullSecrets`, `secrets`, `role`, `clusterRole`.
+
+`role` generates: Role + RoleBinding. `clusterRole` generates: ClusterRole + ClusterRoleBinding.
+
+### PreSync migration job pattern
+
+A common pattern for apps that run DB migrations before deployment — two separate cloud identities, migration job runs as a PreSync hook:
+
+```yaml
+serviceAccount:
+  - name: my-app
+    labels:
+      azure.workload.identity/use: "true"
+    annotations:
+      azure.workload.identity/client-id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+      azure.workload.identity/tenant-id: "ffffffff-0000-1111-2222-333333333333"
+  - name: my-app-migration
+    labels:
+      azure.workload.identity/use: "true"
+    annotations:
+      azure.workload.identity/client-id: "11111111-2222-3333-4444-555555555555"
+      azure.workload.identity/tenant-id: "ffffffff-0000-1111-2222-333333333333"
+      argocd.argoproj.io/sync-wave: "-3"
+
+job:
+  name: my-app-migration
+  image: myregistry.azurecr.io/my-app
+  imageTag: ""
+  serviceAccountName: my-app-migration
+  restartPolicy: Never
+  ttlSecondsAfterFinished: 60
+  activeDeadlineSeconds: 300
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/sync-wave: "-1"
+  podAnnotations:
+    sidecar.istio.io/inject: "false"
+  podLabels:
+    azure.workload.identity/use: "true"
+
+deployment:
+  name: my-app
+  image: myregistry.azurecr.io/my-app
+  imageTag: ""
+  serviceAccountName: my-app
+
+service:
+  name: my-app
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+```
 
 ---
 
@@ -530,7 +589,7 @@ The following v1.x features have been removed:
 | `*General` sections | Use `defaults:` for shared config |
 | `releasePrefix` | Use `name:` field on each block |
 | `envs:` / `secretEnvs:` auto-generation | Define `env:` inline on the workload |
-| `hooks:` section | Define `job:` with Helm hook annotations in `extraDeploy:` |
+| `hooks:` section | Define `job:` with ArgoCD hook annotations on `job.annotations:` |
 | `disabled: true` on resources | Omit the resource block entirely |
 
 ### Migration Steps
@@ -558,7 +617,7 @@ The following v1.x features have been removed:
    - `pvcs:` → `pvc:`
    - `externalSecrets:` → `externalSecret:`
    - `imageUpdaters:` → `imageUpdater:`
-   - `serviceAccounts:` → `serviceAccount:`
+   - `serviceAccounts:` → `serviceAccount:` (now a list — each item is `{name: ..., annotations: ...}`)
 
 3. **Move *General values to defaults or inline:**
    ```yaml
@@ -657,7 +716,7 @@ The following v1.x features have been removed:
 | secretStores | object | `{}` | External Secrets Operator SecretStore resources (namespace-scoped). Each key becomes the resource name. |
 | secrets | object | `{}` | Kubernetes Secret resources. Each key becomes the resource name. |
 | service | object | `{}` | Kubernetes Service.  Only one per release. |
-| serviceAccount | object | `{}` | Kubernetes ServiceAccount.  Only one per release. |
+| serviceAccount | list | `[]` | Kubernetes ServiceAccount(s). List — each item creates one ServiceAccount. Supports Role/ClusterRole per item. |
 | serviceMonitors | object | `{}` | Prometheus ServiceMonitor resources. Each key becomes the resource name. |
 | statefulset | object | `{}` | Kubernetes StatefulSet.  Only one per release. |
 | storageClasses | object | `{}` | Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key becomes the resource name. |

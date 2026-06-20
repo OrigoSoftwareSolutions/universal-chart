@@ -350,20 +350,20 @@ pdb: {}
 # @section Identity & Access
 # =============================================================================
 
-# -- Kubernetes ServiceAccount.  Only one per release.
-serviceAccount: {}
-#   name: my-sa
-#   automountServiceAccountToken: false
-#   imagePullSecrets: []
-#   secrets: []
-#   labels: {}
-#   annotations: {}
-#   role:
-#     name: my-sa-role
-#     rules: []
-#   clusterRole:
-#     name: my-sa-cr
-#     rules: []
+# -- Kubernetes ServiceAccount(s). List — each item creates one ServiceAccount. Supports Role/ClusterRole per item.
+serviceAccount: []
+#   - name: my-app
+#     automountServiceAccountToken: false
+#     imagePullSecrets: []
+#     secrets: []
+#     labels: {}
+#     annotations: {}
+#     role:
+#       name: my-app-role
+#       rules: []
+#     clusterRole:
+#       name: my-app-cr
+#       rules: []
 
 # =============================================================================
 # @section Monitoring
