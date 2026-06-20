@@ -4,7 +4,7 @@
 apiVersion: {{ include "helpers.capabilities.istiosecurity.apiVersion" $ }}
 kind: AuthorizationPolicy
 metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  name: {{ $ap.name | default (include "helpers.app.fullname" (dict "name" $name "context" $)) | trunc 63 | trimSuffix "-" }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}

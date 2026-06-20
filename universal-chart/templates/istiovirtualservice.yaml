@@ -4,7 +4,7 @@
 apiVersion: {{ include "helpers.capabilities.istiovirtualservice.apiVersion" $ }}
 kind: VirtualService
 metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" ($virtualservice.name | default $host) "context" $) }}
+  name: {{ $virtualservice.name | default (include "helpers.app.fullname" (dict "name" $host "context" $)) | trunc 63 | trimSuffix "-" }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
