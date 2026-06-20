@@ -4,7 +4,7 @@
 kind: Certificate
 apiVersion: {{ include "helpers.capabilities.certManager.apiVersion" $ }}
 metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  name: {{ $cert.name | default (include "helpers.app.fullname" (dict "name" $name "context" $)) | trunc 63 | trimSuffix "-" }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}

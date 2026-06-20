@@ -4,7 +4,7 @@
 apiVersion: {{ include "helpers.capabilities.istiodestinationrule.apiVersion" $ }}
 kind: DestinationRule
 metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" ($destinationrule.name | default $host) "context" $) }}
+  name: {{ $destinationrule.name | default (include "helpers.app.fullname" (dict "name" $host "context" $)) | trunc 63 | trimSuffix "-" }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}

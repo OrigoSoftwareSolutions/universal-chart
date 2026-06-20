@@ -5,7 +5,7 @@
 kind: ServiceMonitor
 apiVersion: monitoring.coreos.com/v1
 metadata:
-  name: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
+  name: {{ $sm.name | default (include "helpers.app.fullname" (dict "name" $name "context" $)) | trunc 63 | trimSuffix "-" }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}

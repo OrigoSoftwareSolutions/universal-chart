@@ -109,14 +109,43 @@ service:
     - port: 80
 ```
 
-Dict-based resources use `{release-name}-{key}`:
+Dict-based resources default to `{release-name}-{key}`, but accept an optional `name:` field for a literal name:
 
 ```yaml
 configMaps:
-  app-config:        # → K8s resource named "my-app-app-config"
+  app-config:        # → K8s resource named "my-app-app-config" (default)
     data:
       KEY: value
+
+secretStores:
+  main:
+    name: my-app-store   # → K8s resource named "my-app-store" (literal override)
+    spec: ...
 ```
+
+Use the literal `name:` whenever you need to cross-reference the resource from another block in the same values file — so both sides use the same string:
+
+```yaml
+secretStores:
+  main:
+    name: my-app-store      # defined here
+
+externalSecret:
+  spec:
+    secretStoreRef:
+      name: my-app-store    # referenced here — same string, no release-name prefix to track
+
+istioGateways:
+  public:
+    name: my-app-gateway    # defined here
+
+istioVirtualServices:
+  main:
+    gateways:
+      - my-app-gateway      # referenced here — same string
+```
+
+Without `name:`, the rendered name is `{release-name}-{key}` and you must use the full expanded name in any cross-reference.
 
 ---
 
