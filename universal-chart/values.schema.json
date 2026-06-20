@@ -51,7 +51,10 @@
     "job": { "$ref": "#/$defs/workload" },
     "cronJob": { "$ref": "#/$defs/workload" },
     "service": { "$ref": "#/$defs/service" },
-    "serviceAccount": { "$ref": "#/$defs/serviceAccount" },
+    "serviceAccount": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/serviceAccount" }
+    },
     "hpa": { "$ref": "#/$defs/hpa" },
     "pdb": { "$ref": "#/$defs/pdb" },
     "pvc": { "$ref": "#/$defs/pvc" },
