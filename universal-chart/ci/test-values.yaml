@@ -1,31 +1,44 @@
-# Smoke test: one deployment, one service
-deployments:
-  web:
-    containers:
-      - name: web
-        image: nginx
-        imageTag: "1.25"
+# Smoke test: one deployment, one service, plus all supported dict-based resources.
+# Uses the current singular-block API. Each singular workload key may appear at most once.
+deployment:
+  image: nginx
+  imageTag: "1.25"
 
-services:
-  web:
-    ports:
-      - port: 80
-        targetPort: 80
+service:
+  ports:
+    - port: 80
+      targetPort: 80
 
-externalSecrets:
-  my-db-secret:
-    spec:
-      refreshInterval: 1h
-      secretStoreRef:
-        name: azure-secrets
-        kind: SecretStore
-      target:
-        name: my-db-secret
-      data:
-        - secretKey: password
-          remoteRef:
-            key: prod/myapp/db
-            property: password
+hpa:
+  scaleTargetRef:
+    kind: Deployment
+    name: test
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPU: 70
+
+pdb:
+  minAvailable: 1
+
+pvc:
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+  storageClassName: standard
+
+externalSecret:
+  spec:
+    refreshInterval: 1h
+    secretStoreRef:
+      name: azure-secrets
+      kind: SecretStore
+    target:
+      name: my-db-secret
+    data:
+      - secretKey: password
+        remoteRef:
+          key: prod/myapp/db
+          property: password
 
 secretStores:
   azure-store:
@@ -113,60 +126,12 @@ istioAuthorizationPolicies:
       rules:
         - {}
 
-# --- StatefulSet ---
-statefulSets:
-  cache:
-    serviceName: cache
-    containers:
-      - name: cache
-        image: redis
-        imageTag: "7"
-
-
-# --- DaemonSet ---
-daemonSets:
-  log-collector:
-    containers:
-      - name: fluent
-        image: fluent/fluentd
-        imageTag: "latest"
-# --- CronJob ---
-cronJobs:
-  cleanup:
-    schedule: "0 3 * * *"
-    containers:
-      - name: cleanup
-        image: busybox
-        imageTag: "latest"
-        command: ["/bin/sh", "-c", "echo cleanup"]
-
-# --- Job ---
-jobs:
-  migrate:
-    containers:
-      - name: migrate
-        image: busybox
-        imageTag: "latest"
-        command: ["/bin/sh", "-c", "echo migrate"]
-
-# --- ConfigMap ---
 configMaps:
   app-config:
     data:
       APP_ENV: production
       LOG_LEVEL: info
 
-# --- HPA ---
-hpas:
-  web:
-    scaleTargetRef:
-      kind: Deployment
-      name: web
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPU: 70
-
-# --- Certificate (requires cert-manager.io/v1) ---
 certificates:
   app-tls:
     dnsNames:
@@ -176,12 +141,10 @@ certificates:
       kind: ClusterIssuer
       group: cert-manager.io
 
-# --- Issuer (requires cert-manager.io/v1) ---
 issuers:
   self-signed:
     selfSigned: {}
 
-# --- ServiceMonitor ---
 serviceMonitors:
   web:
     endpoints:
@@ -189,7 +152,6 @@ serviceMonitors:
         interval: 30s
         path: /metrics
 
-# --- IstioVirtualService ---
 istioVirtualServices:
   web:
     hosts:
@@ -204,7 +166,6 @@ istioVirtualServices:
               port:
                 number: 80
 
-# --- IstioDestinationRule ---
 istioDestinationRules:
   web:
     host: web.default.svc.cluster.local
@@ -213,7 +174,6 @@ istioDestinationRules:
         tcp:
           maxConnections: 100
 
-# --- IstioGateway ---
 istioGateways:
   main:
     selector:
@@ -226,13 +186,6 @@ istioGateways:
           number: 443
           protocol: HTTPS
 
-
-# --- PodDisruptionBudget ---
-pdbs:
-  web:
-    minAvailable: 1
-
-# --- PersistentVolume ---
 persistentVolumes:
   shared-data:
     spec:
@@ -244,15 +197,6 @@ persistentVolumes:
         path: /mnt/data
       persistentVolumeReclaimPolicy: Retain
 
-# --- PersistentVolumeClaim ---
-pvcs:
-  data:
-    accessModes:
-      - ReadWriteOnce
-    size: 5Gi
-    storageClassName: standard
-
-# --- Secret ---
 secrets:
   app-secret:
     data:
