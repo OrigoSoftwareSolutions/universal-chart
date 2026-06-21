@@ -38,18 +38,6 @@ tests:
       - isNotEmpty:
           path: metadata.labels["app.kubernetes.io/managed-by"]
 
-  - it: includes defaults.annotations
-    capabilities:
-      apiVersions:
-        - cert-manager.io/v1
-    set:
-      defaults.annotations.team: platform
-      clusterIssuers.letsencrypt.spec.acme.server: https://acme-v02.api.letsencrypt.org/directory
-    asserts:
-      - equal:
-          path: metadata.annotations.team
-          value: platform
-
   - it: renders annotations through tplvalues.render
     capabilities:
       apiVersions:

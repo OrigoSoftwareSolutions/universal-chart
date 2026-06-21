@@ -65,17 +65,11 @@
 {{- define "helpers.volumes.renderVolume" -}}
   {{- $ctx := .context -}}
   {{- $val := .value -}}
-  {{- if or (or $val.volumes $val.extraVolumes) (or $ctx.Values.defaults.extraVolumes $ctx.Values.defaults.volumes) }}
+  {{- if or $val.volumes $val.extraVolumes }}
     {{- with $val.volumes }}
       {{ include "helpers.volumes.typed" ( dict "volumes" . "context" $ctx) }}
     {{- end }}
-    {{- with $ctx.Values.defaults.volumes }}
-      {{ include "helpers.volumes.typed" ( dict "volumes" . "context" $ctx) }}
-    {{- end }}
     {{- with $val.extraVolumes }}
-      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
-    {{- end }}
-    {{- with $ctx.Values.defaults.extraVolumes }}
       {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
     {{- end }}
   {{- else }}
@@ -86,14 +80,8 @@
 {{- define "helpers.volumes.renderVolumeMounts" -}}
   {{- $ctx := .context -}}
   {{- $val := .value -}}
-  {{- if or (or $val.volumeMounts $val.extraVolumeMounts) (or $ctx.Values.defaults.extraVolumeMounts $ctx.Values.defaults.volumeMounts) -}}
+  {{- if or $val.volumeMounts $val.extraVolumeMounts -}}
     {{- with $val.volumeMounts }}
-      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
-    {{- end }}
-    {{- with $ctx.Values.defaults.volumeMounts }}
-      {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
-    {{- end }}
-    {{- with $ctx.Values.defaults.extraVolumeMounts }}
       {{ include "helpers.tplvalues.render" ( dict "value" . "context" $ctx) }}
     {{- end }}
     {{- with $val.extraVolumeMounts }}

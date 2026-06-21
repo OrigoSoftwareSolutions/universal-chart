@@ -31,15 +31,10 @@ metadata:
   labels:
   {{- include "helpers.app.labels" $ | nindent 4 }}
   {{- with $val.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{ end }}
-  {{- $defaultAnnots := include "helpers.app.defaultAnnotations" $ | trim }}
-  {{- if or $val.annotations $defaultAnnots }}
+  {{- if $val.annotations }}
   annotations:
-    {{- if $val.annotations -}}
-      {{- $_ := include "helpers.tplvalues.render" (dict "value" $val.annotations "context" $) }}
-      {{- include "helpers.app.annotations" (dict "value" $_ "context" $) | nindent 4 -}}
-    {{- else }}
-      {{- if $defaultAnnots }}{{ $defaultAnnots | nindent 4 }}{{- end }}
-    {{- end }}
+    {{- $_ := include "helpers.tplvalues.render" (dict "value" $val.annotations "context" $) }}
+    {{- include "helpers.app.annotations" (dict "value" $_ "context" $) | nindent 4 -}}
   {{- end }}
   {{- if and $val.data $val.binaryData }}{{- fail "Cannot set both data and binaryData in single ConfigMap" }} {{- end }}
   {{- with $val.immutable }}

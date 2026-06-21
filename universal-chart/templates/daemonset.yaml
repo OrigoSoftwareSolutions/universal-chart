@@ -9,7 +9,7 @@ metadata:
   namespace: {{ $.Release.Namespace | quote }}
   {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "context" $) | nindent 2 }}
 spec:
-  {{- $rhl := $d.revisionHistoryLimit | default $.Values.defaults.revisionHistoryLimit }}
+  {{- $rhl := $d.revisionHistoryLimit }}
   {{- if ne $rhl nil }}
   revisionHistoryLimit: {{ $rhl | int }}
   {{- end }}

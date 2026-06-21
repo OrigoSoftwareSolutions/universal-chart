@@ -37,33 +37,6 @@ tests:
       - notExists:
           path: spec.selector.matchLabels.app.kubernetes.io/name
 
-  - it: merges defaults.annotations into metadata
-    set:
-      defaults:
-        annotations:
-          team: platform
-      serviceMonitors.app.endpoints[0].port: http
-    asserts:
-      - equal:
-          path: metadata.annotations.team
-          value: platform
-
-  - it: merges defaults.annotations with instance annotations
-    set:
-      defaults:
-        annotations:
-          team: platform
-      serviceMonitors.app.annotations:
-        custom: value
-      serviceMonitors.app.endpoints[0].port: http
-    asserts:
-      - equal:
-          path: metadata.annotations.team
-          value: platform
-      - equal:
-          path: metadata.annotations.custom
-          value: value
-
   - it: renders jobLabel when set
     set:
       serviceMonitors.app.endpoints[0].port: http

@@ -14,18 +14,14 @@ value   — the workload instance (e.g. $d inside range)
 context — the root context ($)
 
 Controlled by:
-defaults.autoChecksum  (bool, default true)  — global opt-out
-<instance>.autoChecksum (bool)                — per-workload override
+<instance>.autoChecksum (bool, default true)  — per-workload opt-out
 */}}
 {{- define "helpers.workload.autoChecksums" -}}
   {{- $ctx := .context -}}
   {{- $v := .value -}}
 
-  {{- /* Two-level merge for the autoChecksum flag: instance > defaults (true) */}}
+  {{- /* Per-instance opt-out; default true */}}
   {{- $enabled := true -}}
-  {{- if hasKey $ctx.Values.defaults "autoChecksum" -}}
-    {{- $enabled = $ctx.Values.defaults.autoChecksum -}}
-  {{- end -}}
   {{- if hasKey $v "autoChecksum" -}}
     {{- $enabled = $v.autoChecksum -}}
   {{- end -}}

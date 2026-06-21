@@ -96,25 +96,6 @@ tests:
           content:
             note: important
 
-  - it: merges defaults.annotations into PV metadata
-    set:
-      defaults:
-        annotations:
-          team: platform
-      persistentVolumes:
-        data:
-          spec:
-            capacity:
-              storage: 10Gi
-            accessModes:
-              - ReadWriteOnce
-            hostPath:
-              path: /mnt/data
-    asserts:
-      - equal:
-          path: metadata.annotations.team
-          value: platform
-
   - it: renders multiple PVs
     set:
       persistentVolumes:

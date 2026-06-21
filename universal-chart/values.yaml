@@ -35,91 +35,11 @@ diagnosticMode:
   args: ["infinity"]
 
 # =============================================================================
-# @section Default Settings
-# =============================================================================
-
-# -- Default settings applied to all templates.  Labels, annotations, pod
-# metadata, security contexts, resources, etc.  Most fields are accessed
-# directly (no merge cascade) — the workload block simply references defaults
-# as needed.  Exceptions: `podSecurityContext` and `containerSecurityContext`
-# are deep-merged; `extraImagePullSecrets`, `extraVolumes`, and
-# `extraVolumeMounts` are appended (both defaults and workload values included).
-defaults:
-  # -- Labels added to every resource's `metadata.labels`.
-  labels: {}
-  # -- Annotations added to every resource's `metadata.annotations`.
-  annotations: {}
-
-  # -- Extra selector labels merged into workload `matchLabels`.
-  extraSelectorLabels: {}
-  # -- Labels added to pod templates.
-  podLabels: {}
-  # -- Annotations added to pod templates.
-  podAnnotations: {}
-
-  # -- Additional volumes appended to every workload's pod spec.
-  extraVolumes: []
-  # -- Additional volume mounts appended to every container.
-  extraVolumeMounts: []
-  # -- Additional image pull secrets appended to every pod spec.
-  extraImagePullSecrets: []
-
-  # -- Use the chart's built-in pod affinity/anti-affinity rules.
-  usePredefinedAffinity: true
-
-  # -- Default ServiceAccount name assigned to pods when not overridden per-workload.
-  # serviceAccountName: ""
-  # -- Default hostAliases injected into every pod spec.
-  # hostAliases: []
-  # -- Default PriorityClass name for pods.
-  # priorityClassName: ""
-  # -- Default DNS policy for pods.
-  # dnsPolicy: ""
-  # -- Default pod DNS configuration.
-  # dnsConfig:
-  #   options:
-  #     - name: ndots
-  #       value: "2"
-  # -- Default nodeSelector applied to every pod spec.
-  # nodeSelector: {}
-  # -- Default tolerations applied to every pod spec.
-  # tolerations: []
-  # -- Default volumes (typed format) added to every pod spec.
-  # volumes: []
-  #   - name: app-config
-  #     type: configMap
-  #     configMapName: my-configmap
-  # -- Default resource requests/limits.
-  # resources:
-  #   requests:
-  #     cpu: 100m
-  #     memory: 128Mi
-  #   limits:
-  #     memory: 512Mi
-  # -- Default pod-level securityContext.
-  podSecurityContext:
-    runAsNonRoot: true
-    seccompProfile:
-      type: RuntimeDefault
-  # -- Default container-level securityContext.
-  containerSecurityContext:
-    allowPrivilegeEscalation: false
-    readOnlyRootFilesystem: true
-    capabilities:
-      drop:
-        - ALL
-  # -- Default topologySpreadConstraints.
-  # topologySpreadConstraints: []
-  # -- Default terminationGracePeriodSeconds.
-  # terminationGracePeriodSeconds: 60
-  # -- Default revisionHistoryLimit for Deployments and StatefulSets.
-  revisionHistoryLimit: 3
-  # -- Default preStop sleep duration (seconds).
-  # preStopSleep: 5
-
-# =============================================================================
 # @section Pod Scheduling & Affinity
 # =============================================================================
+
+# -- Use the chart's built-in pod affinity/anti-affinity rules.
+usePredefinedAffinity: true
 
 # -- Pod affinity preset. Allowed values: `soft`, `hard`, or empty string to disable.
 podAffinityPreset: soft
@@ -166,6 +86,7 @@ deployment: {}
 #   resources: {}
 #   securityContext: {}
 #   containerSecurityContext: {}
+#   lifecycle: {}
 #   affinity: {}
 #   nodeSelector: {}
 #   tolerations: []

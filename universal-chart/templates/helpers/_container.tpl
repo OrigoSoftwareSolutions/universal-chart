@@ -32,9 +32,8 @@
       {{- end }}
     {{- end }}
   imagePullPolicy: {{ include "helpers.tplvalues.render" (dict "value" (.imagePullPolicy | default $.Values.defaultImagePullPolicy) "context" $) }}
-    {{- /* Deep-merge container securityContext: defaults → workload → container. Each tier overrides previous keys. */ -}}
+    {{- /* Deep-merge container securityContext: workload → container. Each tier overrides previous keys. */ -}}
     {{- $effectiveContainerSecCtx := dict -}}
-    {{- with $.Values.defaults.containerSecurityContext }}{{ $effectiveContainerSecCtx = mustMergeOverwrite $effectiveContainerSecCtx (deepCopy .) }}{{ end -}}
     {{- with $workloadContainerSecurityContext }}{{ $effectiveContainerSecCtx = mustMergeOverwrite $effectiveContainerSecCtx (deepCopy .) }}{{ end -}}
     {{- with .securityContext }}{{ $effectiveContainerSecCtx = mustMergeOverwrite $effectiveContainerSecCtx (deepCopy .) }}{{ end -}}
     {{- if $effectiveContainerSecCtx }}
@@ -65,14 +64,6 @@
     {{- end }}
     {{- if .lifecycle }}
   lifecycle: {{- include "helpers.tplvalues.render" ( dict "value" .lifecycle "context" $) | nindent 4 }}
-    {{- else if not $isInitContainer }}
-      {{- $preStopSleep := $c.preStopSleep | default $.Values.defaults.preStopSleep -}}
-      {{- if $preStopSleep }}
-  lifecycle:
-    preStop:
-      exec:
-        command: ["sh", "-c", "sleep {{ $preStopSleep }}"]
-      {{- end }}
     {{- end }}
     {{- if not $.Values.diagnosticMode.enabled }}
       {{- $effectiveHealthCheck := "" -}}
@@ -95,10 +86,8 @@
         {{- end }}
       {{- end }}
     {{- end }}
-    {{- if .resources }}
-  resources: {{- include "helpers.tplvalues.render" ( dict "value" .resources "context" $) | nindent 4 }}
-    {{- else if $.Values.defaults.resources }}
-  resources: {{- include "helpers.tplvalues.render" ( dict "value" $.Values.defaults.resources "context" $) | nindent 4 }}
+    {{- with .resources }}
+  resources: {{- include "helpers.tplvalues.render" ( dict "value" . "context" $) | nindent 4 }}
     {{- end }}
     {{- $vmounts := include "helpers.volumes.renderVolumeMounts" (dict "value" . "context" $) }}
   volumeMounts:{{- if eq (trim $vmounts) "[]" }} []{{- else }}{{ $vmounts | trim | nindent 2 }}{{- end }}

@@ -9,11 +9,9 @@ metadata:
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
-    {{- if or $annots .annotations }}
+    {{- with .annotations }}
   annotations:
-      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
-      {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+      {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}
 spec:
     {{- with .subject }}
@@ -62,10 +60,9 @@ spec:
   secretName: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
     {{- end }}
   secretTemplate:
-    {{- if or (.secretTemplate).annotations ($.Values.defaults).annotations }}
+    {{- with (.secretTemplate).annotations }}
     annotations:
-      {{- $_ := include "helpers.tplvalues.render" (dict "value" (default dict (.secretTemplate).annotations) "context" $) }}
-      {{- include "helpers.app.annotations" (dict "value" $_ "context" $) |  nindent 6  -}}
+      {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}
     {{- end }}
     labels:
     {{- include "helpers.app.labels" $ | nindent 6 }}
