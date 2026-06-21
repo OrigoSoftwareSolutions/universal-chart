@@ -127,10 +127,11 @@ secretStores:
   main:
     name: my-app-store      # defined here
 
-externalSecret:
-  spec:
-    secretStoreRef:
-      name: my-app-store    # referenced here — same string, no release-name prefix to track
+externalSecrets:
+  my-secret:
+    spec:
+      secretStoreRef:
+        name: my-app-store    # referenced here — same string, no release-name prefix to track
 
 istioGateways:
   public:
@@ -539,23 +540,87 @@ secrets:
 
 ## External Secrets Operator
 
+### ExternalSecrets
+
+Use `externalSecrets` (dict) — one key per secret, works for one or many:
+
 ```yaml
-externalSecret:
-  name: my-secrets
-  spec:
-    refreshInterval: 1h
-    secretStoreRef:
-      name: cluster-secret-store
-      kind: ClusterSecretStore
-    target:
-      name: myapp-secrets
-    data:
-      - secretKey: db-password
-        remoteRef:
-          key: azure-kv-db-password
-      - secretKey: api-key
-        remoteRef:
-          key: azure-kv-api-key
+externalSecrets:
+  # data: explicit key-by-key mapping
+  db-credentials:
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: my-store
+        kind: SecretStore
+      target:
+        name: db-credentials
+      data:
+        - secretKey: db-password
+          remoteRef:
+            key: prod/myapp/db-password
+        - secretKey: db-username
+          remoteRef:
+            key: prod/myapp/db-username
+
+  # dataFrom.find: bulk-fetch all keys whose path matches a regexp
+  app-config:
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: my-store
+        kind: SecretStore
+      target:
+        name: app-config
+      dataFrom:
+        - find:
+            name:
+              regexp: "^prod/myapp/config/"
+```
+
+### ClusterExternalSecret
+
+Use `clusterExternalSecrets` to push a secret into multiple namespaces at once:
+
+```yaml
+clusterExternalSecrets:
+  # data: explicit key mapping, pushed to a specific namespace
+  db-credentials:
+    spec:
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: my-namespace
+      refreshTime: 1h
+      externalSecretSpec:
+        refreshInterval: 1h
+        secretStoreRef:
+          name: cluster-store
+          kind: ClusterSecretStore
+        target:
+          name: db-credentials
+        data:
+          - secretKey: db-password
+            remoteRef:
+              key: prod/shared/db-password
+
+  # dataFrom.find: bulk-fetch by regexp, pushed to all production namespaces
+  app-secrets:
+    spec:
+      namespaceSelector:
+        matchLabels:
+          environment: production
+      refreshTime: 1h
+      externalSecretSpec:
+        refreshInterval: 1h
+        secretStoreRef:
+          name: cluster-store
+          kind: ClusterSecretStore
+        target:
+          name: app-secrets
+        dataFrom:
+          - find:
+              name:
+                regexp: "^prod/shared/"
 ```
 
 ---
@@ -701,5 +766,57 @@ extraDeploy:
       podSelector: {}
       policyTypes: [Ingress, Egress]
 ```
+
+---
+
+## Chart Maintenance
+
+### Required tooling
+
+| Tool | Repo |
+|---|---|
+| [Helm](https://helm.sh/docs/intro/install/) | https://github.com/helm/helm |
+| [helm-unittest](https://github.com/helm-unittest/helm-unittest) | https://github.com/helm-unittest/helm-unittest |
+| [helm-docs](https://github.com/norwoodj/helm-docs) | https://github.com/norwoodj/helm-docs |
+| [helmfmt](https://github.com/digitalstudium/helmfmt) | https://github.com/digitalstudium/helmfmt |
+| [kubeconform](https://github.com/yannh/kubeconform) | https://github.com/yannh/kubeconform |
+| [pre-commit](https://pre-commit.com/) | https://github.com/pre-commit/pre-commit |
+| [yamllint](https://yamllint.readthedocs.io/) | https://github.com/adrienverge/yamllint |
+
+After installing, enable the git hooks once per clone:
+
+```bash
+pre-commit install
+```
+
+The hooks run `helmfmt` and `helm-docs` automatically on every commit, keeping formatting and README in sync without manual intervention.
+
+### Verification commands
+
+```bash
+# Lint
+helm lint universal-chart/ --strict
+
+# Unit tests
+helm unittest universal-chart/ --strict --file 'tests/*.yaml'
+
+# Render smoke test (validates values against schema)
+helm template test universal-chart/ -f universal-chart/ci/test-values.yaml
+
+# Schema validation
+helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
+  | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.33.6 \
+    -schema-location default \
+    -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{"{{"}} .Group {{"}}"}}/{{"{{"}} .ResourceKind {{"}}"}}_{{"{{"}} .ResourceAPIVersion {{"}}"}}.json'
+
+# Regenerate README after any values.yaml change
+helm-docs --chart-search-root universal-chart/ -o ../README.md
+```
+
+All five must pass before merging a PR.
+
+### Version bumping
+
+Every change to chart templates, values, or schema should be accompanied by a `version:` bump in `Chart.yaml`. Even a one-line fix. This keeps the release history honest — a version number that didn't change signals "nothing significant happened", and silently shipping unreleased template changes into a future bump makes it impossible to know what a given version actually contains. Bump early, bump often. The release pipeline skips already-published versions, so there is no cost to bumping.
 
 {{ template "chart.valuesSection" . }}

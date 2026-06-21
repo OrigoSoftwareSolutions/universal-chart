@@ -333,20 +333,6 @@ tests:
       - equal:
           path: spec.resources.requests.storage
           value: 10Gi
-  - it: renders an externalSecret
-    templates:
-      - externalsecrets.yaml
-    set:
-      externalSecret.spec.refreshInterval: 1h
-      externalSecret.spec.secretStoreRef.name: cluster-secret-store
-      externalSecret.spec.secretStoreRef.kind: ClusterSecretStore
-      externalSecret.spec.target.name: my-secret
-    asserts:
-      - isKind:
-          of: ExternalSecret
-      - equal:
-          path: spec.refreshInterval
-          value: 1h
   - it: renders an imageUpdater
     templates:
       - imageupdater.yaml
