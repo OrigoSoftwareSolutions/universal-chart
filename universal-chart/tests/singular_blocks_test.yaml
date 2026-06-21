@@ -118,16 +118,6 @@ tests:
           path: spec.strategy.type
           value: RollingUpdate
 
-  - it: deployment inherits revisionHistoryLimit from defaults
-    templates:
-      - deployment.yaml
-    set:
-      deployment.image: nginx
-    asserts:
-      - equal:
-          path: spec.revisionHistoryLimit
-          value: 3
-
   - it: deployment overrides revisionHistoryLimit
     templates:
       - deployment.yaml

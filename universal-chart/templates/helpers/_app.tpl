@@ -29,15 +29,11 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
   {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
   {{- end }}
-  {{- with .Values.defaults.labels }}
-    {{- "\n" }}{{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
-  {{- end }}
 {{- end }}
 
 {{- define "helpers.app.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "helpers.app.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-  {{- include "helpers.app.genericSelectorLabels" $ }}
 {{- end }}
 
 {{/*
@@ -50,32 +46,8 @@ Expects dict with: name (string), context ($ root).
 app.kubernetes.io/component: {{ .name | trunc 63 | trimSuffix "-" }}
 {{- end -}}
 
-{{- define "helpers.app.genericSelectorLabels" -}}
-  {{- with .Values.defaults.extraSelectorLabels }}
-    {{- "\n" }}{{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
-  {{- end }}
-{{- end }}
+{{- define "helpers.app.defaultAnnotations" -}}{{- end -}}
 
-{{- define "helpers.app.defaultAnnotations" -}}
-  {{- with .Values.defaults.annotations }}
-    {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
-  {{- end }}
-{{- end }}
-
-{{/*
-Template for default hook annotations for configmaps and secrets
-*/}}
-{{- define "helpers.app.defaultHookAnnotations" -}}
-  {{- with .Values.defaults.hookAnnotations }}
-    {{- include "helpers.tplvalues.render" ( dict "value" . "context" $ ) }}
-  {{- end }}
-{{- end }}
-
-{{/*
-Merge the user defined annotations and the chart-default annotations.
-Hook annotations are NOT merged here — they belong only on hook Jobs and are
-applied directly in helm-hooks.yaml.
-*/}}
 {{- define "helpers.app.annotations" -}}
   {{- $defaultAnnotations := include "helpers.app.defaultAnnotations" .context | fromYaml }}
   {{- $userValues := .value | fromYaml }}

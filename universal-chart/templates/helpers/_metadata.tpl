@@ -20,15 +20,13 @@ annotations:
   {{- $selectorLabels := .selectorLabels | default false -}}
   {{- $extraSelectorLabels := .extraSelectorLabels -}}
   {{- $autoChecksums := include "helpers.workload.autoChecksums" (dict "name" .name "value" $value "context" $context) | trim -}}
-  {{- if or $selectorLabels (or $extraSelectorLabels (or $context.Values.defaults.podLabels $value.podLabels)) }}labels:
+  {{- if or $selectorLabels (or $extraSelectorLabels $value.podLabels) }}labels:
     {{- if $selectorLabels }}{{- include "helpers.app.workloadSelectorLabels" (dict "name" .name "context" $context) | nindent 2 }}{{- end }}
     {{- with $extraSelectorLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $context) | nindent 2 }}{{- end }}
-    {{- with $context.Values.defaults.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $context) | nindent 2 }}{{- end }}
     {{- with $value.podLabels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $context) | nindent 2 }}{{- end }}
   {{- end }}
-  {{- if or $context.Values.defaults.podAnnotations (or $value.podAnnotations $autoChecksums) }}
+  {{- if or $value.podAnnotations $autoChecksums }}
 annotations:
-    {{- with $context.Values.defaults.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $context) | nindent 2 }}{{- end }}
     {{- with $value.podAnnotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $context) | nindent 2 }}{{- end }}
     {{- if $autoChecksums }}{{ $autoChecksums | nindent 2 }}{{- end }}
   {{- end }}

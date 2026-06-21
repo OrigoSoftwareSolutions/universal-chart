@@ -39,34 +39,6 @@ tests:
       - isNotEmpty:
           path: metadata.labels["app.kubernetes.io/managed-by"]
 
-  - it: includes defaults.annotations on httproute
-    capabilities:
-      apiVersions:
-        - gateway.networking.k8s.io/v1
-    set:
-      defaults.annotations.team: platform
-      httpRoutes.my-route.spec.parentRefs[0].name: gateway
-    asserts:
-      - equal:
-          path: metadata.annotations.team
-          value: platform
-
-  - it: merges defaults.annotations with instance annotations
-    capabilities:
-      apiVersions:
-        - gateway.networking.k8s.io/v1
-    set:
-      defaults.annotations.team: platform
-      httpRoutes.my-route.annotations.env: prod
-      httpRoutes.my-route.spec.parentRefs[0].name: gateway
-    asserts:
-      - equal:
-          path: metadata.annotations.team
-          value: platform
-      - equal:
-          path: metadata.annotations.env
-          value: prod
-
   - it: renders annotations through tplvalues.render
     capabilities:
       apiVersions:
@@ -91,14 +63,3 @@ tests:
           path: spec.hostnames[0]
           value: RELEASE-NAME.example.com
 
-  - it: includes defaults.labels on httproute
-    capabilities:
-      apiVersions:
-        - gateway.networking.k8s.io/v1
-    set:
-      defaults.labels.team: platform
-      httpRoutes.my-route.spec.parentRefs[0].name: gateway
-    asserts:
-      - equal:
-          path: metadata.labels.team
-          value: platform
