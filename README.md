@@ -389,14 +389,10 @@ A common pattern for apps that run DB migrations before deployment — two separ
 ```yaml
 serviceAccount:
   - name: my-app
-    labels:
-      azure.workload.identity/use: "true"
     annotations:
       azure.workload.identity/client-id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
       azure.workload.identity/tenant-id: "ffffffff-0000-1111-2222-333333333333"
   - name: my-app-migration
-    labels:
-      azure.workload.identity/use: "true"
     annotations:
       azure.workload.identity/client-id: "11111111-2222-3333-4444-555555555555"
       azure.workload.identity/tenant-id: "ffffffff-0000-1111-2222-333333333333"
@@ -417,7 +413,7 @@ job:
   podAnnotations:
     sidecar.istio.io/inject: "false"
   podLabels:
-    azure.workload.identity/use: "true"
+    azure.workload.identity/use: "true"   # label goes on the pod, not the ServiceAccount
 
 deployment:
   name: my-app
