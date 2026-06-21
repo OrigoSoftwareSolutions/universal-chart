@@ -121,9 +121,6 @@
     "pvc": {
       "$ref": "#/$defs/pvc"
     },
-    "externalSecret": {
-      "$ref": "#/$defs/externalSecret"
-    },
     "imageUpdater": {
       "$ref": "#/$defs/imageUpdater"
     },
@@ -248,6 +245,13 @@
       "type": "object",
       "additionalProperties": {},
       "description": "Raw Kubernetes manifests keyed by name."
+    },
+    "externalSecrets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true
+      }
     }
   },
   "$defs": {
@@ -1010,30 +1014,6 @@
           "type": "boolean"
         },
         "selector": {
-          "type": "object",
-          "additionalProperties": true
-        },
-        "labels": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "annotations": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "externalSecret": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "spec": {
           "type": "object",
           "additionalProperties": true
         },

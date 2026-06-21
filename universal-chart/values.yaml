@@ -346,14 +346,37 @@ istioAuthorizationPolicies: {}
 # @section External Secrets Operator
 # =============================================================================
 
-# -- External Secrets Operator ExternalSecret.  Only one per release.
-externalSecret: {}
-#   name: my-secret
-#   spec:
-#     refreshInterval: 1h
-#     secretStoreRef: { name: my-store, kind: SecretStore }
-#     target: { name: my-secret }
-#     data: []
+# -- External Secrets Operator ExternalSecret resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
+externalSecrets: {}
+#   # data example — explicit key-by-key mapping
+#   db-credentials:
+#     spec:
+#       refreshInterval: 1h
+#       secretStoreRef:
+#         name: my-store
+#         kind: SecretStore
+#       target:
+#         name: db-credentials
+#       data:
+#         - secretKey: db-password
+#           remoteRef:
+#             key: prod/myapp/db-password
+#         - secretKey: db-username
+#           remoteRef:
+#             key: prod/myapp/db-username
+#   # dataFrom.find example — fetch all keys whose path matches a regexp
+#   app-config:
+#     spec:
+#       refreshInterval: 1h
+#       secretStoreRef:
+#         name: my-store
+#         kind: SecretStore
+#       target:
+#         name: app-config
+#       dataFrom:
+#         - find:
+#             name:
+#               regexp: "^prod/myapp/config/"
 
 # -- External Secrets Operator SecretStore resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 secretStores: {}
@@ -367,6 +390,42 @@ clusterSecretStores: {}
 
 # -- External Secrets Operator ClusterExternalSecret resources (cluster-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 clusterExternalSecrets: {}
+#   # data example — explicit key-by-key mapping pushed to all matching namespaces
+#   db-credentials:
+#     spec:
+#       namespaceSelector:
+#         matchLabels:
+#           kubernetes.io/metadata.name: my-namespace
+#       refreshTime: 1h
+#       externalSecretSpec:
+#         refreshInterval: 1h
+#         secretStoreRef:
+#           name: cluster-store
+#           kind: ClusterSecretStore
+#         target:
+#           name: db-credentials
+#         data:
+#           - secretKey: db-password
+#             remoteRef:
+#               key: prod/shared/db-password
+#   # dataFrom.find example — bulk-fetch keys matching a regexp across namespaces
+#   app-secrets:
+#     spec:
+#       namespaceSelector:
+#         matchLabels:
+#           environment: production
+#       refreshTime: 1h
+#       externalSecretSpec:
+#         refreshInterval: 1h
+#         secretStoreRef:
+#           name: cluster-store
+#           kind: ClusterSecretStore
+#         target:
+#           name: app-secrets
+#         dataFrom:
+#           - find:
+#               name:
+#                 regexp: "^prod/shared/"
 
 # =============================================================================
 # @section cert-manager

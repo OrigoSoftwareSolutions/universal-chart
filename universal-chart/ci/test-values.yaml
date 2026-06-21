@@ -26,19 +26,33 @@ pvc:
   size: 5Gi
   storageClassName: standard
 
-externalSecret:
-  spec:
-    refreshInterval: 1h
-    secretStoreRef:
-      name: azure-secrets
-      kind: SecretStore
-    target:
-      name: my-db-secret
-    data:
-      - secretKey: password
-        remoteRef:
-          key: prod/myapp/db
-          property: password
+externalSecrets:
+  docker-registry:
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: azure-secrets
+        kind: SecretStore
+      target:
+        name: docker-pull-secret
+        template:
+          type: kubernetes.io/dockerconfigjson
+      data:
+        - secretKey: .dockerconfigjson
+          remoteRef:
+            key: prod/myapp/docker-config
+  api-keys:
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: azure-secrets
+        kind: SecretStore
+      target:
+        name: api-keys
+      data:
+        - secretKey: token
+          remoteRef:
+            key: prod/myapp/api-token
 
 secretStores:
   azure-store:
