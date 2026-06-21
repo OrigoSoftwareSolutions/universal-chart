@@ -1,13 +1,31 @@
-# Smoke test: one deployment, one service, plus all supported dict-based resources.
-# Uses the current singular-block API. Each singular workload key may appear at most once.
+# Smoke test values — exercises every resource type.
+# Dict-based resources have two live instances (different spec paths) plus one
+# disabled entry to prove the disabled guard suppresses rendering.
+# Singular blocks are kept intentionally minimal; dict blocks cover the variation.
+
+# ── Workload ──────────────────────────────────────────────────────────────────
 deployment:
   image: nginx
   imageTag: "1.25"
+  replicas: 1
+  env:
+    - name: LOG_LEVEL
+      value: info
+    - name: APP_ENV
+      value: production
+  initContainers:
+    - name: wait-for-config
+      image: busybox
+      command: ["sh", "-c", "echo init step one done"]
+    - image: busybox
+      command: ["sh", "-c", "echo init step two done; name auto-generated"]
 
 service:
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 80
+      protocol: TCP
 
 hpa:
   scaleTargetRef:
@@ -16,6 +34,9 @@ hpa:
   minReplicas: 2
   maxReplicas: 5
   targetCPU: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120
 
 pdb:
   minAvailable: 1
@@ -26,8 +47,48 @@ pvc:
   size: 5Gi
   storageClassName: standard
 
+# ── ConfigMaps ────────────────────────────────────────────────────────────────
+configMaps:
+  app-config:
+    labels:
+      app.kubernetes.io/component: config
+    annotations:
+      config.kubernetes.io/local-config: "true"
+    data:
+      APP_ENV: production
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+  nginx-config:
+    name: ci-nginx-config-override
+    data:
+      PROXY_PASS: "http://localhost:8080"
+      SERVER_NAME: "app.example.com"
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+secrets:
+  app-secret:
+    labels:
+      app.kubernetes.io/component: credentials
+    annotations:
+      reloader.stakater.com/match: "true"
+    keepOnDelete: true
+    data:
+      API_KEY: c2VjcmV0
+      DB_PASSWORD: cGFzc3dvcmQ=
+  tls-manual:
+    name: ci-tls-manual
+    type: kubernetes.io/tls
+    stringData:
+      tls.crt: fake-cert-data
+      tls.key: fake-key-data
+
+# ── External Secrets ──────────────────────────────────────────────────────────
 externalSecrets:
   docker-registry:
+    labels:
+      app.kubernetes.io/component: pull-secret
+    annotations:
+      app.example.com/managed-by: eso
     spec:
       refreshInterval: 1h
       secretStoreRef:
@@ -35,6 +96,7 @@ externalSecrets:
         kind: SecretStore
       target:
         name: docker-pull-secret
+        creationPolicy: Owner
         template:
           type: kubernetes.io/dockerconfigjson
       data:
@@ -42,20 +104,31 @@ externalSecrets:
           remoteRef:
             key: prod/myapp/docker-config
   api-keys:
+    name: ci-api-keys-override
     spec:
-      refreshInterval: 1h
+      refreshInterval: 30m
       secretStoreRef:
         name: azure-secrets
         kind: SecretStore
       target:
         name: api-keys
-      data:
-        - secretKey: token
-          remoteRef:
-            key: prod/myapp/api-token
+      dataFrom:
+        - find:
+            name:
+              regexp: "^prod/myapp/api/"
+  disabled-es:
+    disabled: true
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: azure-secrets
+        kind: SecretStore
 
+# ── Secret Stores ─────────────────────────────────────────────────────────────
 secretStores:
   azure-store:
+    labels:
+      app.kubernetes.io/component: secret-store
     spec:
       provider:
         azurekv:
@@ -63,9 +136,34 @@ secretStores:
           authType: WorkloadIdentity
           serviceAccountRef:
             name: eso-sa
+  vault-store:
+    annotations:
+      app.example.com/store-type: vault
+    spec:
+      provider:
+        vault:
+          server: "https://vault.example.com"
+          path: secret
+          version: v2
+          auth:
+            kubernetes:
+              mountPath: kubernetes
+              role: eso-role
+              serviceAccountRef:
+                name: eso-sa
+  disabled-store:
+    disabled: true
+    spec:
+      provider:
+        azurekv:
+          vaultUrl: "https://disabled.vault.azure.net"
+          authType: WorkloadIdentity
 
+# ── Cluster Secret Stores ─────────────────────────────────────────────────────
 clusterSecretStores:
   cluster-store:
+    labels:
+      app.kubernetes.io/component: cluster-secret-store
     spec:
       provider:
         kubernetes:
@@ -78,9 +176,31 @@ clusterSecretStores:
           auth:
             serviceAccount:
               name: cluster-store-sa
+  cluster-vault:
+    spec:
+      provider:
+        vault:
+          server: "https://vault.example.com"
+          path: shared
+          version: v2
+          auth:
+            kubernetes:
+              mountPath: kubernetes
+              role: cluster-eso-role
+              serviceAccountRef:
+                name: cluster-store-sa
+  disabled-css:
+    disabled: true
+    spec:
+      provider:
+        kubernetes:
+          remoteNamespace: default
 
+# ── Cluster External Secrets ──────────────────────────────────────────────────
 clusterExternalSecrets:
   shared-config:
+    labels:
+      app.kubernetes.io/component: shared-secret
     spec:
       namespaceSelector:
         matchLabels:
@@ -93,14 +213,52 @@ clusterExternalSecrets:
           kind: ClusterSecretStore
         target:
           name: shared-config
-        data: []
+        data:
+          - secretKey: db-url
+            remoteRef:
+              key: shared/db-url
+  all-namespaces:
+    spec:
+      namespaceSelector:
+        matchExpressions:
+          - key: environment
+            operator: In
+            values:
+              - production
+              - staging
+      refreshTime: 30m
+      externalSecretSpec:
+        refreshInterval: 30m
+        secretStoreRef:
+          name: cluster-store
+          kind: ClusterSecretStore
+        target:
+          name: platform-secrets
+        dataFrom:
+          - find:
+              name:
+                regexp: "^shared/platform/"
+  disabled-ces:
+    disabled: true
+    spec:
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: default
+      externalSecretSpec:
+        refreshInterval: 1h
+        secretStoreRef:
+          name: cluster-store
+          kind: ClusterSecretStore
 
+# ── Cluster Issuers ───────────────────────────────────────────────────────────
 clusterIssuers:
   letsencrypt-prod:
+    labels:
+      cert-manager.io/environment: production
     spec:
       acme:
         server: https://acme-v02.api.letsencrypt.org/directory
-        email: devops@origo.is
+        email: devops@example.com
         privateKeySecretRef:
           name: letsencrypt-prod
         solvers:
@@ -108,16 +266,87 @@ clusterIssuers:
               azureDNS:
                 subscriptionID: fake-sub-id
                 resourceGroupName: fake-rg
-                hostedZoneName: origo.is
+                hostedZoneName: example.com
+  self-signed-cluster:
+    annotations:
+      app.example.com/issuer-type: self-signed
+    spec:
+      selfSigned: {}
+  disabled-ci:
+    disabled: true
+    spec:
+      selfSigned: {}
 
+# ── Issuers ───────────────────────────────────────────────────────────────────
+issuers:
+  self-signed:
+    labels:
+      app.kubernetes.io/component: issuer
+    selfSigned: {}
+  ca-issuer:
+    annotations:
+      app.example.com/issuer-type: ca
+    ca:
+      secretName: ci-internal-ca
+  disabled-issuer:
+    disabled: true
+    selfSigned: {}
+
+# ── Certificates ──────────────────────────────────────────────────────────────
+certificates:
+  app-tls:
+    labels:
+      cert-manager.io/environment: production
+    annotations:
+      cert-manager.io/issue-temporary-certificate: "true"
+    duration: 2160h
+    renewBefore: 360h
+    dnsNames:
+      - app.example.com
+      - www.example.com
+    issuerRef:
+      name: letsencrypt-prod
+      kind: ClusterIssuer
+      group: cert-manager.io
+    privateKey:
+      algorithm: RSA
+      size: 2048
+    usages:
+      - digital signature
+      - key encipherment
+  internal-ca:
+    name: ci-internal-ca
+    isCA: true
+    commonName: internal-ca
+    secretName: ci-internal-ca
+    issuerRef:
+      name: self-signed
+      kind: Issuer
+      group: cert-manager.io
+    privateKey:
+      algorithm: ECDSA
+      size: 256
+  disabled-cert:
+    disabled: true
+    dnsNames:
+      - disabled.example.com
+    issuerRef:
+      name: self-signed
+      kind: Issuer
+
+# ── HTTP Routes ───────────────────────────────────────────────────────────────
 httpRoutes:
   web:
+    labels:
+      app.kubernetes.io/component: ingress
+    annotations:
+      app.example.com/traffic: external
     spec:
       parentRefs:
         - name: istio-gateway
           namespace: istio-ingress
       hostnames:
-        - app.origo.is
+        - app.example.com
       rules:
         - matches:
             - path:
@@ -126,50 +355,92 @@ httpRoutes:
           backendRefs:
             - name: web
               port: 80
+  api:
+    spec:
+      parentRefs:
+        - name: istio-gateway
+          namespace: istio-ingress
+      hostnames:
+        - api.example.com
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /v1
+          backendRefs:
+            - name: api
+              port: 8080
+  disabled-route:
+    disabled: true
+    spec:
+      parentRefs:
+        - name: istio-gateway
+          namespace: istio-ingress
 
+# ── Istio PeerAuthentications ─────────────────────────────────────────────────
 istioPeerAuthentications:
   default:
+    labels:
+      app.kubernetes.io/component: mtls-policy
+    annotations:
+      app.example.com/policy: strict
+    spec:
+      mtls:
+        mode: STRICT
+  permissive:
+    spec:
+      selector:
+        matchLabels:
+          app: legacy-service
+      mtls:
+        mode: PERMISSIVE
+      portLevelMtls:
+        8080:
+          mode: DISABLE
+  disabled-pa:
+    disabled: true
     spec:
       mtls:
         mode: STRICT
 
+# ── Istio AuthorizationPolicies ───────────────────────────────────────────────
 istioAuthorizationPolicies:
   deny-all:
+    labels:
+      app.kubernetes.io/component: authz-policy
+    spec:
+      action: DENY
+      rules:
+        - {}
+  allow-monitoring:
+    spec:
+      action: ALLOW
+      selector:
+        matchLabels:
+          app: web
+      rules:
+        - from:
+            - source:
+                principals:
+                  - cluster.local/ns/monitoring/sa/prometheus
+          to:
+            - operation:
+                ports: ["9090"]
+                paths: ["/metrics"]
+  disabled-ap:
+    disabled: true
     spec:
       action: DENY
       rules:
         - {}
 
-configMaps:
-  app-config:
-    data:
-      APP_ENV: production
-      LOG_LEVEL: info
-
-certificates:
-  app-tls:
-    dnsNames:
-      - app.origo.is
-    issuerRef:
-      name: letsencrypt-prod
-      kind: ClusterIssuer
-      group: cert-manager.io
-
-issuers:
-  self-signed:
-    selfSigned: {}
-
-serviceMonitors:
-  web:
-    endpoints:
-      - port: http
-        interval: 30s
-        path: /metrics
-
+# ── Istio VirtualServices ─────────────────────────────────────────────────────
 istioVirtualServices:
   web:
+    labels:
+      app.kubernetes.io/component: virtual-service
     hosts:
-      - app.origo.is
+      - app.example.com
     gateways:
       - istio-ingress/istio-gateway
     http:
@@ -179,29 +450,90 @@ istioVirtualServices:
               host: web
               port:
                 number: 80
+  api:
+    hosts:
+      - api.example.com
+    gateways:
+      - istio-ingress/istio-gateway
+    http:
+      - name: v1
+        timeout: 30s
+        retries:
+          attempts: 3
+          perTryTimeout: 10s
+        route:
+          - destination:
+              host: api
+              port:
+                number: 8080
+  disabled-vs:
+    disabled: true
+    hosts:
+      - disabled.example.com
 
+# ── Istio DestinationRules ────────────────────────────────────────────────────
 istioDestinationRules:
   web:
+    labels:
+      app.kubernetes.io/component: destination-rule
     host: web.default.svc.cluster.local
     trafficPolicy:
       connectionPool:
         tcp:
           maxConnections: 100
+        http:
+          h2UpgradePolicy: UPGRADE
+      loadBalancer:
+        simple: ROUND_ROBIN
+  api-circuit-breaker:
+    host: api.default.svc.cluster.local
+    trafficPolicy:
+      outlierDetection:
+        consecutive5xxErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+        maxEjectionPercent: 50
+  disabled-dr:
+    disabled: true
+    host: disabled.default.svc.cluster.local
 
+# ── Istio Gateways ────────────────────────────────────────────────────────────
 istioGateways:
   main:
+    labels:
+      app.kubernetes.io/component: gateway
     selector:
       istio: ingressgateway
     servers:
       - hosts:
-          - app.origo.is
+          - app.example.com
+          - api.example.com
         port:
           name: https
           number: 443
           protocol: HTTPS
+  http-redirect:
+    selector:
+      istio: ingressgateway
+    servers:
+      - hosts:
+          - "www.example.com"
+        port:
+          name: http
+          number: 80
+          protocol: HTTP
+        tls:
+          httpsRedirect: true
+  disabled-gw:
+    disabled: true
+    selector:
+      istio: ingressgateway
 
+# ── Persistent Volumes ────────────────────────────────────────────────────────
 persistentVolumes:
   shared-data:
+    labels:
+      app.kubernetes.io/component: storage
     spec:
       capacity:
         storage: 10Gi
@@ -210,8 +542,75 @@ persistentVolumes:
       hostPath:
         path: /mnt/data
       persistentVolumeReclaimPolicy: Retain
+  nfs-volume:
+    spec:
+      capacity:
+        storage: 50Gi
+      accessModes:
+        - ReadWriteMany
+      nfs:
+        server: nfs.example.com
+        path: /exports/data
+      persistentVolumeReclaimPolicy: Retain
+  disabled-pv:
+    disabled: true
+    spec:
+      capacity:
+        storage: 1Gi
+      accessModes:
+        - ReadWriteOnce
+      hostPath:
+        path: /tmp/disabled
 
-secrets:
-  app-secret:
-    data:
-      API_KEY: c2VjcmV0
+# ── Storage Classes ───────────────────────────────────────────────────────────
+storageClasses:
+  standard:
+    labels:
+      app.kubernetes.io/component: storage-class
+    isDefault: true
+    provisioner: kubernetes.io/no-provisioner
+    volumeBindingMode: WaitForFirstConsumer
+    reclaimPolicy: Delete
+  premium:
+    annotations:
+      storageclass.kubernetes.io/tier: premium
+    provisioner: disk.csi.azure.com
+    parameters:
+      skuName: Premium_LRS
+    volumeBindingMode: WaitForFirstConsumer
+    reclaimPolicy: Retain
+    allowVolumeExpansion: true
+  disabled-sc:
+    disabled: true
+    provisioner: kubernetes.io/no-provisioner
+
+# ── Service Monitors ──────────────────────────────────────────────────────────
+serviceMonitors:
+  web:
+    labels:
+      app.kubernetes.io/component: service-monitor
+    annotations:
+      monitoring.example.com/team: platform
+    endpoints:
+      - port: http
+        interval: 30s
+        path: /metrics
+        honorLabels: true
+    targetLabels:
+      - app.kubernetes.io/name
+    jobLabel: app
+  api-metrics:
+    workload: api
+    endpoints:
+      - port: metrics
+        interval: 15s
+        path: /metrics
+        scrapeTimeout: 10s
+    namespaceSelector:
+      matchNames:
+        - default
+  disabled-sm:
+    disabled: true
+    endpoints:
+      - port: http
+        interval: 30s

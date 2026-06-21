@@ -1,7 +1,3 @@
-{{- define "helpers.workload.checksum" -}}
-{{ . | toString | sha256sum }}
-{{- end -}}
-
 
 {{- /*
 helpers.workload.autoChecksums — Automatically generates checksum/... pod

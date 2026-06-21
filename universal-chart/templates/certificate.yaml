@@ -1,17 +1,19 @@
 {{- range $name, $cert := .Values.certificates }}
   {{- if not (.disabled | default false) }}
 ---
-kind: Certificate
 apiVersion: {{ include "helpers.capabilities.certManager.apiVersion" $ }}
+kind: Certificate
 metadata:
   name: {{ $cert.name | default (include "helpers.app.fullname" (dict "name" $name "context" $)) | trunc 63 | trimSuffix "-" }}
   namespace: {{ $.Release.Namespace | quote }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with .labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
-    {{- with .annotations }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots .annotations }}
   annotations:
-      {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- with .annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- end }}
 spec:
     {{- with .subject }}

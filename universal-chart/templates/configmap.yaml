@@ -21,7 +21,7 @@
   {{ if hasPrefix "b64:" .value }}{{ trimPrefix "b64:" .value | b64dec | quote }}{{ else }}{{ quote .value }}{{ end }}
 {{- end -}}
 
-{{- range $cName, $val := .Values.configMaps -}}
+{{- range $cName, $val := .Values.configMaps }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -31,10 +31,11 @@ metadata:
   labels:
   {{- include "helpers.app.labels" $ | nindent 4 }}
   {{- with $val.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{ end }}
-  {{- if $val.annotations }}
+  {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+  {{- if or $annots $val.annotations }}
   annotations:
-    {{- $_ := include "helpers.tplvalues.render" (dict "value" $val.annotations "context" $) }}
-    {{- include "helpers.app.annotations" (dict "value" $_ "context" $) | nindent 4 -}}
+    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+    {{- with $val.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
   {{- end }}
   {{- if and $val.data $val.binaryData }}{{- fail "Cannot set both data and binaryData in single ConfigMap" }} {{- end }}
   {{- with $val.immutable }}

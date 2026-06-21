@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.91](https://img.shields.io/badge/Version-1.9.91-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.92](https://img.shields.io/badge/Version-1.9.92-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart, designed for one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
 
@@ -274,7 +274,7 @@ This generates startup, liveness, and readiness HTTP probes automatically.
 
 ### Lifecycle Hooks
 
-Set `lifecycle:` directly on the workload (single-container shorthand) or on each entry in `containers:`. The value is rendered verbatim — no automatic injection occurs. Init containers are exempt.
+Set `lifecycle:` directly on the workload (single-container shorthand) or on each entry in `containers:`. The value is rendered verbatim — no automatic injection occurs. Init containers receive the same treatment as regular containers — lifecycle is applied when present.
 
 The most common use case is a preStop drain delay to let in-flight requests complete before the container is terminated:
 
@@ -302,6 +302,37 @@ deployment:
     - name: sidecar
       image: envoy
 ```
+
+---
+
+### Init Containers
+
+Use `initContainers:` on any workload to run setup steps before the main container starts. Each entry follows the same structure as `containers:` — `name:` is optional and defaults to `{workload-name}-init-{index}`. The `healthCheck` shorthand and port mapping are not available for init containers.
+
+```yaml
+deployment:
+  image: myapp
+  initContainers:
+    # wait for the database to be ready before starting the app
+    - name: wait-for-db
+      image: busybox
+      command: ["sh", "-c", "until nc -z db 5432; do sleep 2; done"]
+      env:
+        - name: DB_HOST
+          value: db
+    # run migrations as a second init step
+    - name: migrate
+      image: myapp
+      command: ["./migrate", "--up"]
+      env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: url
+```
+
+Init containers share the workload's `volumes:` and `containerSecurityContext:` (deep-merged with any per-container `securityContext:`, same as regular containers).
 
 ---
 
@@ -534,7 +565,34 @@ secrets:
       api.key: {{ .Values.myApiKey }}    # plain value — chart applies b64enc automatically
     stringData:
       other.key: plain-text-value
+  docker-pull:
+    keepOnDelete: true
+    type: kubernetes.io/dockerconfigjson
+    stringData:
+      .dockerconfigjson: '{"auths":{}}'
 ```
+
+### StorageClasses (dict)
+
+StorageClass fields are specified **directly** on each dict entry — there is no `spec:` wrapper.
+
+```yaml
+storageClasses:
+  fast:
+    provisioner: disk.csi.azure.com
+    volumeBindingMode: WaitForFirstConsumer
+    reclaimPolicy: Retain
+    allowVolumeExpansion: true
+    parameters:
+      skuName: Premium_LRS
+  standard:
+    isDefault: true              # adds storageclass.kubernetes.io/is-default-class: "true"
+    provisioner: kubernetes.io/no-provisioner
+    volumeBindingMode: WaitForFirstConsumer
+    reclaimPolicy: Delete
+```
+
+Supported fields: `provisioner` (required), `reclaimPolicy`, `volumeBindingMode`, `allowVolumeExpansion`, `parameters`, `mountOptions`, `allowedTopologies`, `isDefault`, `name`, `labels`, `annotations`, `disabled`.
 
 ---
 
@@ -627,6 +685,10 @@ clusterExternalSecrets:
 
 ## Istio
 
+Three resource types — `istioGateways`, `istioVirtualServices`, `istioDestinationRules` — use **direct fields** (no `spec:` wrapper). Two — `istioAuthorizationPolicies`, `istioPeerAuthentications` — use **`spec:` passthrough**.
+
+### Gateways and VirtualServices
+
 ```yaml
 istioGateways:
   public:
@@ -635,24 +697,87 @@ istioGateways:
       istio: ingressgateway
     servers:
       - port:
-          number: 80
-          name: http
-          protocol: HTTP
-        hosts: ["myapp.example.com"]
+          number: 443
+          name: https
+          protocol: HTTPS
+        hosts:
+          - myapp.example.com
 
 istioVirtualServices:
   myapp:
-    gateways: [my-app-gateway]
-    hosts: ["myapp.example.com"]
+    hosts:
+      - myapp.example.com
+    gateways:
+      - my-app-gateway
     http:
-      - match:
-          - uri:
-              prefix: /
+      - name: default
+        timeout: 30s
+        retries:
+          attempts: 3
+          perTryTimeout: 10s
         route:
           - destination:
               host: my-svc.{{ .Release.Namespace }}.svc.cluster.local
               port:
                 number: 80
+```
+
+### DestinationRules
+
+```yaml
+istioDestinationRules:
+  my-svc:
+    host: my-svc.default.svc.cluster.local
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 100
+      loadBalancer:
+        simple: ROUND_ROBIN
+      outlierDetection:
+        consecutive5xxErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+```
+
+### AuthorizationPolicies and PeerAuthentications
+
+These two use `spec:` passthrough — all CRD fields go under `spec:`.
+
+```yaml
+istioAuthorizationPolicies:
+  deny-external:
+    spec:
+      action: DENY
+      rules:
+        - from:
+            - source:
+                notPrincipals:
+                  - "cluster.local/ns/my-ns/sa/my-service"
+  allow-internal:
+    spec:
+      action: ALLOW
+      selector:
+        matchLabels:
+          app: my-svc
+      rules:
+        - from:
+            - source:
+                principals:
+                  - "cluster.local/ns/my-ns/sa/my-client"
+
+istioPeerAuthentications:
+  default:
+    spec:
+      mtls:
+        mode: STRICT
+  legacy-svc:
+    spec:
+      selector:
+        matchLabels:
+          app: legacy
+      mtls:
+        mode: PERMISSIVE
 ```
 
 ---
@@ -818,6 +943,7 @@ All five must pass before merging a PR.
 ### Version bumping
 
 Every change to chart templates, values, or schema should be accompanied by a `version:` bump in `Chart.yaml`. Even a one-line fix. This keeps the release history honest — a version number that didn't change signals "nothing significant happened", and silently shipping unreleased template changes into a future bump makes it impossible to know what a given version actually contains. Bump early, bump often. The release pipeline skips already-published versions, so there is no cost to bumping.
+Also, if this maintenance hygiene is honored, chart [Release](https://github.com/OrigoSoftwareSolutions/universal-chart/releases) page will be populated with all changes neatly instead of having to chase diffs between releases manually.
 
 ## Values
 

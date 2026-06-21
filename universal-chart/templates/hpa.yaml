@@ -2,8 +2,8 @@
   {{- $hpa := .Values.hpa }}
   {{- $name := $hpa.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
 ---
-kind: HorizontalPodAutoscaler
 apiVersion: {{ include "helpers.capabilities.hpa.apiVersion" $ }}
+kind: HorizontalPodAutoscaler
 metadata:
   name: {{ $name }}
   namespace: {{ $.Release.Namespace | quote }}

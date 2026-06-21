@@ -2,8 +2,8 @@
   {{- $pvc := .Values.pvc }}
   {{- $name := $pvc.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
 ---
-kind: PersistentVolumeClaim
 apiVersion: v1
+kind: PersistentVolumeClaim
 metadata:
   name: {{ $name }}
   namespace: {{ $.Release.Namespace | quote }}
