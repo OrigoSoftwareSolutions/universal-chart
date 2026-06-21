@@ -30,8 +30,8 @@ spec:
   resources:
     requests:
       storage: {{ $pvc.size | default "1Gi" }}
-  {{- with $pvc.storageClassName }}
-  storageClassName: {{ . }}
+  {{- if hasKey $pvc "storageClassName" }}
+  storageClassName: {{ $pvc.storageClassName | quote }}
   {{- end }}
   {{- with $pvc.selector }}
   selector:

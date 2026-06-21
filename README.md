@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.92](https://img.shields.io/badge/Version-1.9.92-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.93](https://img.shields.io/badge/Version-1.9.93-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart, designed for one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
 
@@ -468,6 +468,7 @@ pvc:
   accessModes: [ReadWriteOnce]
   size: 8Gi
   storageClassName: managed-premium
+  keepOnDelete: true    # adds helm.sh/resource-policy: keep — PVC survives helm uninstall
 ```
 
 ### PersistentVolume
@@ -522,9 +523,10 @@ persistentVolumes:
 pvc:
   name: my-claim
   accessModes: [ReadWriteMany]
-  storageClassName: ""
+  storageClassName: ""          # empty string = disable dynamic provisioning (static binding)
   volumeName: my-pv             # matches persistentVolumes entry name above
   size: 50Gi
+  keepOnDelete: true            # adds helm.sh/resource-policy: keep
 
 deployment:
   image: myapp

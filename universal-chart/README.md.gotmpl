@@ -468,6 +468,7 @@ pvc:
   accessModes: [ReadWriteOnce]
   size: 8Gi
   storageClassName: managed-premium
+  keepOnDelete: true    # adds helm.sh/resource-policy: keep — PVC survives helm uninstall
 ```
 
 ### PersistentVolume
@@ -522,9 +523,10 @@ persistentVolumes:
 pvc:
   name: my-claim
   accessModes: [ReadWriteMany]
-  storageClassName: ""
+  storageClassName: ""          # empty string = disable dynamic provisioning (static binding)
   volumeName: my-pv             # matches persistentVolumes entry name above
   size: 50Gi
+  keepOnDelete: true            # adds helm.sh/resource-policy: keep
 
 deployment:
   image: myapp
