@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.92](https://img.shields.io/badge/Version-1.9.92-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.93](https://img.shields.io/badge/Version-1.9.93-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart, designed for one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
 
@@ -389,14 +389,10 @@ A common pattern for apps that run DB migrations before deployment — two separ
 ```yaml
 serviceAccount:
   - name: my-app
-    labels:
-      azure.workload.identity/use: "true"
     annotations:
       azure.workload.identity/client-id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
       azure.workload.identity/tenant-id: "ffffffff-0000-1111-2222-333333333333"
   - name: my-app-migration
-    labels:
-      azure.workload.identity/use: "true"
     annotations:
       azure.workload.identity/client-id: "11111111-2222-3333-4444-555555555555"
       azure.workload.identity/tenant-id: "ffffffff-0000-1111-2222-333333333333"
@@ -417,7 +413,7 @@ job:
   podAnnotations:
     sidecar.istio.io/inject: "false"
   podLabels:
-    azure.workload.identity/use: "true"
+    azure.workload.identity/use: "true"   # label goes on the pod, not the ServiceAccount
 
 deployment:
   name: my-app
@@ -472,6 +468,7 @@ pvc:
   accessModes: [ReadWriteOnce]
   size: 8Gi
   storageClassName: managed-premium
+  keepOnDelete: true    # adds helm.sh/resource-policy: keep — PVC survives helm uninstall
 ```
 
 ### PersistentVolume
@@ -526,9 +523,10 @@ persistentVolumes:
 pvc:
   name: my-claim
   accessModes: [ReadWriteMany]
-  storageClassName: ""
+  storageClassName: ""          # empty string = disable dynamic provisioning (static binding)
   volumeName: my-pv             # matches persistentVolumes entry name above
   size: 50Gi
+  keepOnDelete: true            # adds helm.sh/resource-policy: keep
 
 deployment:
   image: myapp
