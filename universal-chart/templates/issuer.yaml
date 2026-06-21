@@ -3,8 +3,8 @@
     {{- $kind := ternary "ClusterIssuer" "Issuer" (eq (include "helpers.tplvalues.render" (dict "value" .kind "context" $)) "ClusterIssuer") }}
 
 ---
-kind: {{ $kind }}
 apiVersion: {{ include "helpers.capabilities.certManager.apiVersion" $ }}
+kind: {{ $kind }}
 metadata:
   name: {{ $iss.name | default (include "helpers.app.fullname" (dict "name" $name "context" $)) | trunc 63 | trimSuffix "-" }}
     {{- if ne $kind "ClusterIssuer" }}

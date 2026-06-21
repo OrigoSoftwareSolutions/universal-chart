@@ -2,8 +2,8 @@
   {{- if not ($sm.disabled | default false) }}
     {{- $workloadName := $sm.workload | default $name }}
 ---
-kind: ServiceMonitor
 apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
 metadata:
   name: {{ $sm.name | default (include "helpers.app.fullname" (dict "name" $name "context" $)) | trunc 63 | trimSuffix "-" }}
   namespace: {{ $.Release.Namespace | quote }}

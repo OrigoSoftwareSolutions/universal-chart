@@ -47,10 +47,3 @@ app.kubernetes.io/component: {{ .name | trunc 63 | trimSuffix "-" }}
 {{- end -}}
 
 {{- define "helpers.app.defaultAnnotations" -}}{{- end -}}
-
-{{- define "helpers.app.annotations" -}}
-  {{- $defaultAnnotations := include "helpers.app.defaultAnnotations" .context | fromYaml }}
-  {{- $userValues := .value | fromYaml }}
-  {{- $mergedValues := mustMergeOverwrite $defaultAnnotations $userValues }}
-{{ $mergedValues | toYaml -}}
-{{- end -}}

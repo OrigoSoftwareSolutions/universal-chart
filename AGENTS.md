@@ -71,11 +71,11 @@ and if `values.yaml` changed, `README.md` was regenerated and committed.
 - **`workload` on ServiceMonitors** scopes the default selector to one workload via `app.kubernetes.io/component` (defaults to the ServiceMonitor key when omitted). Services (singular) use the service's own name for the selector — see [svc.yaml:3,94](file:///home/dzhi/git/origo/universal-chart/universal-chart/templates/svc.yaml#L3). Mirror that pattern when adding new selector-bearing kinds.
 - **`keepOnDelete: true`** on PVCs and Secrets adds `helm.sh/resource-policy: keep`.
 - **Auto-checksums** (`helpers.workload.autoChecksums`) generate `checksum/configmap-*` and `checksum/secret-*` pod annotations for chart-managed ConfigMaps/Secrets the workload references via `envConfigmaps`/`envSecrets` (whole-resource envFrom refs) or `envsFromConfigmap`/`envsFromSecret` (cherry-pick valueFrom refs). Only entries with `.data:` populated produce an annotation — `stringData:`-only secrets and `binaryData:`-only configMaps are skipped. Matching uses `helpers.app.fullname({key})` (i.e. `{release}-{key}`), not any literal `.name:` override — if a ConfigMap or Secret uses a `.name:` override, list its `{release}-{key}` form in `envConfigmaps`/`envSecrets`, not the overridden name. External (ESO etc.) sources need Reloader. Opt-out via `autoChecksum: false` at instance level.
-- **`envConfigmaps`/`envSecrets`** declare which chart-managed ConfigMaps/Secrets a workload consumes — used exclusively by autoChecksums to decide which resources to hash. They do **not** inject `envFrom` entries; add those manually under `envFrom:` on the workload. Global `envs:`/`secretEnvs:` auto-inject was removed in 1.9.0 — use inline `env:` or `envFrom:` on the workload instead.
+- **`envConfigmaps`/`envSecrets`** declare which chart-managed ConfigMaps/Secrets a workload consumes — used exclusively by autoChecksums to decide which resources to hash. They do **not** inject `envFrom` entries; add those manually under `envFrom:` on the workload.
 - **`extra.yaml`** renders the top-level `extraDeploy:` escape hatch — string values are template-rendered against `$`.
 - **No `defaultImage` fallback** (removed in 1.7.3). Workloads without `image:` (or `containers[].image:`) emit a clear `required`-template error pointing at the missing path. Test suites that previously relied on the fallback must `set:` the image explicitly.
 - **`containerSecurityContext` deep-merge** — workload-level `containerSecurityContext:` is deep-merged with each container's own `securityContext:` (container value wins on key conflict). Set shared defaults at the workload level; override per-container via `securityContext:` on each entry in `containers:`. Init containers receive the same merge. Implemented in `_container.tpl:35-41`.
-- **`lifecycle:`** renders verbatim on the container (`_container.tpl`). Set at workload level for the single-container shorthand or per entry in `containers:`. No automatic hooks are injected. Init containers are exempt.
+- **`lifecycle:`** renders verbatim on the container (`_container.tpl`). Set at workload level for the single-container shorthand or per entry in `containers:`. No automatic hooks are injected. Init containers receive the same treatment as regular containers — lifecycle is applied when present.
 - **PDB is singular** — `pdb:` creates one PodDisruptionBudget per release. Selector uses `helpers.app.workloadSelectorLabels`. Requires either `minAvailable:` or `maxUnavailable:` (fails at template time otherwise). Supports `unhealthyPodEvictionPolicy` on K8s ≥1.27.
 - **helm-docs comment syntax**: `# -- <description>` starting the comment block directly above a values key is what helm-docs picks up into the README's Values table. Continuation `#` lines (including `# @default --`) extend the block — they are allowed between the `# --` line and the key. A blank line between the block and the key breaks pickup entirely. `# @section <Title>` introduces a section break. A new values key without a `# --` line silently disappears from the docs table — `docs-check` won't catch this since the diff is generated-vs-generated.
 
@@ -129,13 +129,13 @@ Define as `{{- define "helpers.<group>.<name>" -}}…{{- end -}}`.
 
 | File | Key helpers (verified against source) |
 |---|---|
-| `_app.tpl` | `helpers.app.fullname`, `.name`, `.chart`, `.labels`, `.selectorLabels`, `.workloadSelectorLabels`, `.annotations`, `.defaultAnnotations` |
+| `_app.tpl` | `helpers.app.fullname`, `.name`, `.chart`, `.labels`, `.selectorLabels`, `.workloadSelectorLabels`, `.defaultAnnotations` |
 | `_pod.tpl` | `helpers.pod` — the single pod spec used by **every** workload (~150 lines). Changes here ripple to deployments, statefulsets, daemonsets, jobs, and cronjobs — test all five. |
 | `_container.tpl` | `helpers.container.render` — single-container shorthand expansion. |
-| `_workloads.tpl` | `helpers.workload.checksum`, `.autoChecksums`, `.singleContainerPorts`, `.healthCheckProbe`. |
+| `_workloads.tpl` | `helpers.workload.autoChecksums`, `.singleContainerPorts`, `.healthCheckProbe`. |
 | `_volumes.tpl` | `helpers.volumes.typed`, `.renderVolume`, `.renderVolumeMounts`. |
 | `_capabilities.tpl` | `helpers.capabilities.<kind>.apiVersion` — static strings for stable Kubernetes APIs (`apps/v1`, `batch/v1`, `policy/v1`, `autoscaling/v2`); `.Capabilities.APIVersions.Has`-based version negotiation for CRD-backed kinds (ExternalSecret, cert-manager, Gateway API, Istio). |
-| `_affinities.tpl` | `helpers.affinities.pods{.soft,.hard,.labelSelector}`, `helpers.affinities.nodes{.soft,.hard}`. |
+| `_affinities.tpl` | `helpers.affinities.nodes`, `.nodes.soft`, `.nodes.hard`, `helpers.affinities.pods`, `.pods.soft`, `.pods.hard`, `.pods.labelSelector`. |
 | `_tplvalues.tpl` | `helpers.tplvalues.render` — evaluates Go template expressions inside user-provided values. |
 | `_metadata.tpl` | `helpers.workload.metadata`, `.podTemplateMetadata` — metadata labels/annotations for workload-level and pod-template-level resources. |
 

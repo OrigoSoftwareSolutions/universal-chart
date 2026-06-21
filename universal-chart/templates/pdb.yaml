@@ -5,8 +5,8 @@
     {{- fail (printf "pdb: must set either minAvailable or maxUnavailable") }}
   {{- end }}
 ---
-kind: PodDisruptionBudget
 apiVersion: {{ include "helpers.capabilities.pdb.apiVersion" $ }}
+kind: PodDisruptionBudget
 metadata:
   name: {{ $name }}
   namespace: {{ $.Release.Namespace | quote }}
