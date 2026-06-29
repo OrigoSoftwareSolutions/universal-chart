@@ -1,0 +1,132 @@
+suite: istioenvoyfilter template
+templates:
+  - istioenvoyfilters.yaml
+tests:
+  - it: renders an envoyfilter with api version name and namespace
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istioenvoyfilter.yaml
+    asserts:
+      - isKind:
+          of: EnvoyFilter
+      - equal:
+          path: apiVersion
+          value: networking.istio.io/v1
+      - matchRegex:
+          path: metadata.name
+          pattern: -my-filter$
+      - isNotEmpty:
+          path: metadata.namespace
+
+  - it: passes spec through verbatim
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istioenvoyfilter.yaml
+    asserts:
+      - equal:
+          path: spec.configPatches[0].applyTo
+          value: HTTP_FILTER
+      - equal:
+          path: spec.configPatches[0].patch.operation
+          value: INSERT_FIRST
+
+  - it: disabled entry suppresses rendering
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istioEnvoyFilters.my-filter.disabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: accepts custom name override
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istioenvoyfilter.yaml
+    set:
+      istioEnvoyFilters.my-filter.name: custom-envoy
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-envoy
+
+  - it: renders labels and annotations
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istioenvoyfilter.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.team
+          value: platform
+      - equal:
+          path: metadata.annotations["example.com/envoyfilter"]
+          value: "true"
+
+  - it: renders multiple envoyfilter documents
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istioEnvoyFilters.first.spec.configPatches[0].applyTo: HTTP_FILTER
+      istioEnvoyFilters.second.spec.configPatches[0].applyTo: HTTP_FILTER
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: falls back to v1beta1 when networking.istio.io/v1 is unavailable
+    set:
+      istioEnvoyFilters.my-filter.spec.configPatches[0].applyTo: HTTP_FILTER
+    asserts:
+      - equal:
+          path: apiVersion
+          value: networking.istio.io/v1beta1
+
+  - it: renders workloadSelector and priority through spec
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istioenvoyfilter.yaml
+    asserts:
+      - equal:
+          path: spec.priority
+          value: 10
+      - equal:
+          path: spec.workloadSelector.labels.app
+          value: my-app
+
+  - it: renders tplvalues expressions in spec fields
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    values:
+      - values/istioenvoyfilter_tplvalues.yaml
+    asserts:
+      - equal:
+          path: spec.configPatches[0].patch.value.name
+          value: RELEASE-NAME-lua
+      - equal:
+          path: metadata.labels["app"]
+          value: RELEASE-NAME-app
+      - equal:
+          path: metadata.annotations["example.com/owner"]
+          value: RELEASE-NAME-owner
+
+  - it: omits annotations block when no annotations and no default annotations
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      istioEnvoyFilters.my-filter.spec.configPatches[0].applyTo: HTTP_FILTER
+    asserts:
+      - notExists:
+          path: metadata.annotations

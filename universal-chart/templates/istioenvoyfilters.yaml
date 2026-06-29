@@ -1,0 +1,23 @@
+{{- range $name, $ef := .Values.istioEnvoyFilters }}
+  {{- if not ($ef.disabled | default false) }}
+---
+apiVersion: {{ include "helpers.capabilities.istioenvoyfilter.apiVersion" $ }}
+kind: EnvoyFilter
+metadata:
+  name: {{ $ef.name | default (include "helpers.app.fullname" (dict "name" $name "context" $)) | trunc 63 | trimSuffix "-" }}
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+    {{- include "helpers.app.labels" $ | nindent 4 }}
+    {{- with $ef.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots $ef.annotations }}
+  annotations:
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- with $ef.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- end }}
+    {{- with $ef.spec }}
+spec:
+      {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
+    {{- end }}
+  {{- end }}
+{{- end }}

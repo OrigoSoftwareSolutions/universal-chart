@@ -1,0 +1,14 @@
+istioEnvoyFilters:
+  my-filter:
+    labels:
+      app: '{{ .Release.Name }}-app'
+    annotations:
+      example.com/owner: '{{ .Release.Name }}-owner'
+    spec:
+      priority: 10
+      configPatches:
+        - applyTo: HTTP_FILTER
+          patch:
+            operation: INSERT_FIRST
+            value:
+              name: '{{ .Release.Name }}-lua'

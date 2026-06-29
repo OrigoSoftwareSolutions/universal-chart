@@ -366,6 +366,25 @@ istioAuthorizationPolicies: {}
 #       action: DENY
 #       rules: [{}]
 
+# -- Istio EnvoyFilter resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
+istioEnvoyFilters: {}
+#   add-header:
+#     spec:
+#       configPatches:
+#         - applyTo: HTTP_FILTER
+#           match:
+#             context: SIDECAR_INBOUND
+#           patch:
+#             operation: INSERT_FIRST
+#             value:
+#               name: envoy.filters.http.lua
+#               typed_config:
+#                 '@type': type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+#                 inlineCode: |
+#                   function envoy_on_request(request_handle)
+#                     request_handle:headers():add("X-Custom-Header", "value")
+#                   end
+
 # =============================================================================
 # @section External Secrets Operator
 # =============================================================================
