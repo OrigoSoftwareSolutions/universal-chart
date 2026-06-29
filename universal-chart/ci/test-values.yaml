@@ -377,6 +377,60 @@ httpRoutes:
         - name: istio-gateway
           namespace: istio-ingress
 
+# ── NetworkPolicies ───────────────────────────────────────────────────────────
+networkPolicies:
+  deny-all:
+    labels:
+      app.kubernetes.io/component: network-policy
+    annotations:
+      app.example.com/network-policy: deny-all
+    spec:
+      podSelector:
+        matchLabels:
+          app: my-app
+      policyTypes:
+        - Ingress
+        - Egress
+  allow-frontend:
+    spec:
+      podSelector:
+        matchLabels:
+          app: frontend
+      ingress:
+        - from:
+            - ipBlock:
+                cidr: 10.0.0.0/8
+                except:
+                  - 10.96.0.0/12
+          ports:
+            - port: "8080"
+              protocol: TCP
+      policyTypes:
+        - Ingress
+  disabled-np:
+    disabled: true
+    spec:
+      podSelector:
+        matchLabels:
+          app: disabled
+  allow-egress-db:
+    spec:
+      podSelector:
+        matchLabels:
+          app: my-app
+      egress:
+        - to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: database
+              podSelector:
+                matchLabels:
+                  app: db
+          ports:
+            - port: "5432"
+              protocol: TCP
+      policyTypes:
+        - Egress
 # ── Istio PeerAuthentications ─────────────────────────────────────────────────
 istioPeerAuthentications:
   default:
