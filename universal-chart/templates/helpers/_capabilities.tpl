@@ -77,3 +77,12 @@
 {{- print "networking.istio.io/v1beta1" -}}
   {{- end -}}
 {{- end -}}
+
+
+{{- define "helpers.capabilities.istioenvoyfilter.apiVersion" -}}
+  {{- if .Capabilities.APIVersions.Has "networking.istio.io/v1" -}}
+{{- print "networking.istio.io/v1" -}}
+  {{- else -}}
+{{- print "networking.istio.io/v1beta1" -}}
+  {{- end -}}
+{{- end -}}

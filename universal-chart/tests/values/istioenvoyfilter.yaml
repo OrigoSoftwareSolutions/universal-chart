@@ -1,0 +1,25 @@
+istioEnvoyFilters:
+  my-filter:
+    labels:
+      team: platform
+    annotations:
+      example.com/envoyfilter: "true"
+    spec:
+      priority: 10
+      workloadSelector:
+        labels:
+          app: my-app
+      configPatches:
+        - applyTo: HTTP_FILTER
+          match:
+            context: SIDECAR_INBOUND
+          patch:
+            operation: INSERT_FIRST
+            value:
+              name: envoy.filters.http.lua
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+                inlineCode: |
+                  function envoy_on_request(request_handle)
+                    request_handle:headers():add("X-Custom-Header", "value")
+                  end

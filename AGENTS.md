@@ -23,7 +23,7 @@ examples/                  ← static example values (`*-values.yaml`); not cons
 .github/workflows/         ← ci.yaml (PR gates) + release.yaml (OCI push on main, skip-existing on Chart.yaml version)
 ```
 
-Pinned tool versions (match these locally): Helm `v4.2.0`, helm-unittest `1.1.0`
+Pinned tool versions (match these locally): Helm `v4.2.0`, helm-unittest `1.1.1`
 (install with `--verify=false` on Helm 4), helm-docs `v1.14.2`, helmfmt `v0.4.3`,
 kubeconform `v0.7.0`, K8s schema target `1.33.6`.
 

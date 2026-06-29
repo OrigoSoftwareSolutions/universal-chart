@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.94](https://img.shields.io/badge/Version-1.9.94-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.95](https://img.shields.io/badge/Version-1.9.95-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart, designed for one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
 
@@ -15,7 +15,7 @@ One Helm chart, designed for one workload per release. Define your Kubernetes re
 | DaemonSet | Istio VirtualService | PVC | Certificate / Issuer / ClusterIssuer |
 | CronJob / Job | Istio Gateway | StorageClass / PV | PrometheusRule (via job / cronJob) |
 | HPA / PDB | ServiceMonitor / NetworkPolicy | ServiceAccount | ImageUpdater (Argo CD) |
-| | | | Istio DestinationRule / PeerAuthentication / AuthorizationPolicy |
+| | | | Istio DestinationRule / PeerAuthentication / AuthorizationPolicy / EnvoyFilter |
 
 ## Quick Start
 
@@ -683,7 +683,7 @@ clusterExternalSecrets:
 
 ## Istio
 
-Three resource types — `istioGateways`, `istioVirtualServices`, `istioDestinationRules` — use **direct fields** (no `spec:` wrapper). Two — `istioAuthorizationPolicies`, `istioPeerAuthentications` — use **`spec:` passthrough**.
+Three resource types — `istioGateways`, `istioVirtualServices`, `istioDestinationRules` — use **direct fields** (no `spec:` wrapper). Three — `istioAuthorizationPolicies`, `istioPeerAuthentications`, `istioEnvoyFilters` — use **`spec:` passthrough**.
 
 ### Gateways and VirtualServices
 
@@ -776,6 +776,36 @@ istioPeerAuthentications:
           app: legacy
       mtls:
         mode: PERMISSIVE
+```
+
+### EnvoyFilters
+
+EnvoyFilter uses `spec:` passthrough — all CRD fields go under `spec:`. This includes `configPatches`, `workloadSelector`, `priority`, and any other EnvoyFilter-specific fields.
+
+```yaml
+istioEnvoyFilters:
+  add-header:
+    labels:
+      app.kubernetes.io/component: envoyfilter
+    spec:
+      priority: 10
+      workloadSelector:
+        labels:
+          app: my-app
+      configPatches:
+        - applyTo: HTTP_FILTER
+          match:
+            context: SIDECAR_INBOUND
+          patch:
+            operation: INSERT_FIRST
+            value:
+              name: envoy.filters.http.lua
+              typed_config:
+                '@type': type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+                inlineCode: |
+                  function envoy_on_request(request_handle)
+                    request_handle:headers():add("X-Custom-Header", "value")
+                  end
 ```
 
 ---
@@ -1030,6 +1060,7 @@ Also, if this maintenance hygiene is honored, chart [Release](https://github.com
 | issuers | object | `{}` | cert-manager Issuer resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | istioAuthorizationPolicies | object | `{}` | Istio AuthorizationPolicy resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | istioDestinationRules | object | `{}` | Istio DestinationRule resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| istioEnvoyFilters | object | `{}` | Istio EnvoyFilter resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | istioGateways | object | `{}` | Istio Gateway resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | istioPeerAuthentications | object | `{}` | Istio PeerAuthentication resources (mTLS policy). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | istioVirtualServices | object | `{}` | Istio VirtualService resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |

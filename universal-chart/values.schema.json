@@ -227,6 +227,13 @@
         "additionalProperties": true
       }
     },
+    "istioEnvoyFilters": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
     "serviceMonitors": {
       "type": "object",
       "additionalProperties": {
