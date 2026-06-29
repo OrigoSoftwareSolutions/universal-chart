@@ -183,6 +183,30 @@ httpRoutes: {}
 #       hostnames: [app.example.com]
 #       rules: []
 
+# -- Kubernetes NetworkPolicy resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
+networkPolicies: {}
+#   deny-all:
+#     spec:
+#       podSelector:
+#         matchLabels:
+#           app: my-app
+#       policyTypes: [Ingress, Egress]
+#     labels: {}
+#     annotations: {}
+#   allow-specific:
+#     spec:
+#       podSelector:
+#         matchLabels:
+#           app: frontend
+#       ingress:
+#         - from:
+#             - ipBlock:
+#                 cidr: 10.0.0.0/8
+#           ports:
+#             - port: "8080"
+#               protocol: TCP
+#       policyTypes: [Ingress]
+
 # =============================================================================
 # @section Storage
 # =============================================================================

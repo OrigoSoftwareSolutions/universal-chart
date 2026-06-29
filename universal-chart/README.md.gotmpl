@@ -14,7 +14,7 @@ One Helm chart, designed for one workload per release. Define your Kubernetes re
 | StatefulSet | HTTPRoute (Gateway API) | Secret | SecretStore / ClusterSecretStore |
 | DaemonSet | Istio VirtualService | PVC | Certificate / Issuer / ClusterIssuer |
 | CronJob / Job | Istio Gateway | StorageClass / PV | PrometheusRule (via job / cronJob) |
-| HPA / PDB | ServiceMonitor | ServiceAccount | ImageUpdater (Argo CD) |
+| HPA / PDB | ServiceMonitor / NetworkPolicy | ServiceAccount | ImageUpdater (Argo CD) |
 | | | | Istio DestinationRule / PeerAuthentication / AuthorizationPolicy |
 
 ## Quick Start
@@ -889,6 +889,67 @@ extraDeploy:
       podSelector: {}
       policyTypes: [Ingress, Egress]
 ```
+
+---
+
+## NetworkPolicy
+
+Kubernetes NetworkPolicy resources use `spec:` passthrough — all NetworkPolicy fields go under `spec:`.
+
+```yaml
+networkPolicies:
+  # Deny all ingress traffic (default deny)
+  deny-all:
+    labels:
+      team: platform
+    annotations:
+      app.example.com/policy: deny-all
+    spec:
+      podSelector: {}
+      policyTypes:
+        - Ingress
+        - Egress
+
+  # Allow specific ingress from a CIDR range
+  allow-frontend:
+    spec:
+      podSelector:
+        matchLabels:
+          app: frontend
+      ingress:
+        - from:
+            - ipBlock:
+                cidr: 10.0.0.0/8
+                except:
+                  - 10.96.0.0/12
+          ports:
+            - port: "8080"
+              protocol: TCP
+      policyTypes:
+        - Ingress
+
+  # Allow egress to a specific namespace + pod combination
+  allow-egress-db:
+    spec:
+      podSelector:
+        matchLabels:
+          app: my-app
+      egress:
+        - to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: database
+              podSelector:
+                matchLabels:
+                  app: db
+          ports:
+            - port: "5432"
+              protocol: TCP
+      policyTypes:
+        - Egress
+```
+
+Supported fields: `name`, `labels`, `annotations`, `disabled`, `spec` (passthrough — all NetworkPolicy spec fields).
 
 ---
 

@@ -241,6 +241,13 @@
         "additionalProperties": true
       }
     },
+    "networkPolicies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
     "extraDeploy": {
       "type": "object",
       "additionalProperties": {},

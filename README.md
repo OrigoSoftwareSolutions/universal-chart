@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.93](https://img.shields.io/badge/Version-1.9.93-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.94](https://img.shields.io/badge/Version-1.9.94-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart, designed for one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
 
@@ -14,7 +14,7 @@ One Helm chart, designed for one workload per release. Define your Kubernetes re
 | StatefulSet | HTTPRoute (Gateway API) | Secret | SecretStore / ClusterSecretStore |
 | DaemonSet | Istio VirtualService | PVC | Certificate / Issuer / ClusterIssuer |
 | CronJob / Job | Istio Gateway | StorageClass / PV | PrometheusRule (via job / cronJob) |
-| HPA / PDB | ServiceMonitor | ServiceAccount | ImageUpdater (Argo CD) |
+| HPA / PDB | ServiceMonitor / NetworkPolicy | ServiceAccount | ImageUpdater (Argo CD) |
 | | | | Istio DestinationRule / PeerAuthentication / AuthorizationPolicy |
 
 ## Quick Start
@@ -892,6 +892,67 @@ extraDeploy:
 
 ---
 
+## NetworkPolicy
+
+Kubernetes NetworkPolicy resources use `spec:` passthrough — all NetworkPolicy fields go under `spec:`.
+
+```yaml
+networkPolicies:
+  # Deny all ingress traffic (default deny)
+  deny-all:
+    labels:
+      team: platform
+    annotations:
+      app.example.com/policy: deny-all
+    spec:
+      podSelector: {}
+      policyTypes:
+        - Ingress
+        - Egress
+
+  # Allow specific ingress from a CIDR range
+  allow-frontend:
+    spec:
+      podSelector:
+        matchLabels:
+          app: frontend
+      ingress:
+        - from:
+            - ipBlock:
+                cidr: 10.0.0.0/8
+                except:
+                  - 10.96.0.0/12
+          ports:
+            - port: "8080"
+              protocol: TCP
+      policyTypes:
+        - Ingress
+
+  # Allow egress to a specific namespace + pod combination
+  allow-egress-db:
+    spec:
+      podSelector:
+        matchLabels:
+          app: my-app
+      egress:
+        - to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: database
+              podSelector:
+                matchLabels:
+                  app: db
+          ports:
+            - port: "5432"
+              protocol: TCP
+      policyTypes:
+        - Egress
+```
+
+Supported fields: `name`, `labels`, `annotations`, `disabled`, `spec` (passthrough — all NetworkPolicy spec fields).
+
+---
+
 ## Chart Maintenance
 
 ### Required tooling
@@ -973,6 +1034,7 @@ Also, if this maintenance hygiene is honored, chart [Release](https://github.com
 | istioPeerAuthentications | object | `{}` | Istio PeerAuthentication resources (mTLS policy). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | istioVirtualServices | object | `{}` | Istio VirtualService resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | job | object | `{}` | Kubernetes Job (non-hook).  Only one per release. |
+| networkPolicies | object | `{}` | Kubernetes NetworkPolicy resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | nodeAffinityPreset | object | `{"key":"","type":"","values":[]}` | Node affinity preset configuration. |
 | nodeAffinityPreset.key | string | `""` | Node label key to match (e.g. `kubernetes.io/e2e-az-name`). |
 | nodeAffinityPreset.type | string | `""` | Affinity type. Allowed values: `soft`, `hard`, or empty string to disable. |
