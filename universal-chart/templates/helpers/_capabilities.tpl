@@ -80,9 +80,11 @@
 
 
 {{- define "helpers.capabilities.istioenvoyfilter.apiVersion" -}}
-  {{- if .Capabilities.APIVersions.Has "networking.istio.io/v1" -}}
+  {{- if .Capabilities.APIVersions.Has "networking.istio.io/v1/EnvoyFilter" -}}
 {{- print "networking.istio.io/v1" -}}
-  {{- else -}}
+  {{- else if .Capabilities.APIVersions.Has "networking.istio.io/v1beta1/EnvoyFilter" -}}
 {{- print "networking.istio.io/v1beta1" -}}
+  {{- else -}}
+{{- print "networking.istio.io/v1alpha3" -}}
   {{- end -}}
 {{- end -}}

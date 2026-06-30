@@ -5,7 +5,7 @@ tests:
   - it: renders an envoyfilter with api version name and namespace
     capabilities:
       apiVersions:
-        - networking.istio.io/v1
+        - networking.istio.io/v1/EnvoyFilter
     values:
       - values/istioenvoyfilter.yaml
     asserts:
@@ -83,6 +83,9 @@ tests:
           count: 2
 
   - it: falls back to v1beta1 when networking.istio.io/v1 is unavailable
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1beta1/EnvoyFilter
     set:
       istioEnvoyFilters.my-filter.spec.configPatches[0].applyTo: HTTP_FILTER
     asserts:
