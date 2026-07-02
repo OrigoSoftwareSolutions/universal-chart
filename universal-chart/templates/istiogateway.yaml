@@ -22,7 +22,7 @@ spec:
     {{- range $gateway.servers }}
   - hosts:
       {{- range .hosts }}
-    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     port:
       name: {{ .port.name }}

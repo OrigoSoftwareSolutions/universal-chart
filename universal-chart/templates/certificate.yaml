@@ -35,25 +35,25 @@ spec:
     {{- if .dnsNames }}
   dnsNames:
       {{- range .dnsNames }}
-    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     {{- end }}
     {{- if .ipAddresses }}
   ipAddresses:
       {{- range .ipAddresses }}
-    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     {{- end }}
     {{- if .uris }}
   uris:
       {{- range .uris }}
-    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     {{- end }}
     {{- if .emailAddresses }}
   emailAddresses:
       {{- range .emailAddresses }}
-    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     {{- end }}
     {{- with .secretName }}
@@ -93,7 +93,7 @@ spec:
     {{- if .usages }}
   usages:
       {{- range .usages }}
-    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     {{- end }}
     {{- with .privateKey }}
