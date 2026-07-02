@@ -22,14 +22,14 @@ metadata:
 spec:
   accessModes: {{- include "helpers.tplvalues.render" (dict "value" $pvc.accessModes "context" $) | nindent 4 }}
   {{- with $pvc.volumeMode }}
-  volumeMode: {{ . }}
+  volumeMode: {{ . | quote }}
   {{- end }}
   {{- with $pvc.volumeName }}
-  volumeName: {{ . }}
+  volumeName: {{ . | quote }}
   {{- end }}
   resources:
     requests:
-      storage: {{ $pvc.size | default "1Gi" }}
+      storage: {{ $pvc.size | default "1Gi" | quote }}
   {{- if hasKey $pvc "storageClassName" }}
   storageClassName: {{ $pvc.storageClassName | quote }}
   {{- end }}

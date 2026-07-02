@@ -21,43 +21,43 @@ spec:
       {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
     {{- end }}
     {{- with .literalSubject }}
-  literalSubject: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+  literalSubject: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
     {{- end }}
     {{- with .commonName }}
-  commonName: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+  commonName: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
     {{- end }}
     {{- with .duration }}
-  duration: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+  duration: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
     {{- end }}
     {{- with .renewBefore }}
-  renewBefore: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+  renewBefore: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
     {{- end }}
     {{- if .dnsNames }}
   dnsNames:
       {{- range .dnsNames }}
-    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     {{- end }}
     {{- if .ipAddresses }}
   ipAddresses:
       {{- range .ipAddresses }}
-    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     {{- end }}
     {{- if .uris }}
   uris:
       {{- range .uris }}
-    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     {{- end }}
     {{- if .emailAddresses }}
   emailAddresses:
       {{- range .emailAddresses }}
-    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     {{- end }}
     {{- with .secretName }}
-  secretName: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+  secretName: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
     {{- else }}
   secretName: {{ include "helpers.app.fullname" (dict "name" $name "context" $) }}
     {{- end }}
@@ -76,15 +76,15 @@ spec:
     {{- with .issuerRef }}
   issuerRef:
       {{- with .originalName }}
-    name: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    name: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- else }}
     name: {{ include "helpers.app.fullname" (dict "name" .name "context" $) }}
       {{- end }}
       {{- with .kind }}
-    kind: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    kind: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
       {{- with .group }}
-    group: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    group: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     {{- end }}
     {{- with .isCA }}
@@ -93,7 +93,7 @@ spec:
     {{- if .usages }}
   usages:
       {{- range .usages }}
-    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     {{- end }}
     {{- with .privateKey }}

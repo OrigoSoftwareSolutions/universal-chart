@@ -20,7 +20,7 @@ spec:
   endpoints:
     {{- include "helpers.tplvalues.render" (dict "value" $sm.endpoints "context" $) | nindent 4 }}
     {{- with $sm.jobLabel }}
-  jobLabel: {{ . }}
+  jobLabel: {{ . | quote }}
     {{- end }}
     {{- with $sm.targetLabels }}
   targetLabels:

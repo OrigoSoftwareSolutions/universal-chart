@@ -24,7 +24,7 @@ spec:
     {{- if $destinationrule.subsets }}
   subsets:
       {{- range $subset := $destinationrule.subsets }}
-    - name: {{ $subset.name }}
+    - name: {{ $subset.name | quote }}
       labels:
         {{- range $key, $value := $subset.labels }}
         {{ $key }}: {{ $value | quote }}

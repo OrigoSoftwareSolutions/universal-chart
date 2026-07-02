@@ -27,20 +27,20 @@ spec:
     {{- with .ca }}
   ca:
       {{- with .originalSecretName }}
-    secretName: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+    secretName: {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- else }}
     secretName: {{ include "helpers.app.fullname" (dict "name" .secretName "context" $) }}
       {{- end }}
       {{- if .crlDistributionPoints }}
     crlDistributionPoints:
         {{- range .crlDistributionPoints }}
-      - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+      - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
         {{- end }}
       {{- end }}
       {{- if .ocspServers }}
     ocspServers:
         {{- range .ocspServers }}
-      - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) }}
+      - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
         {{- end }}
       {{- end }}
     {{- end }}

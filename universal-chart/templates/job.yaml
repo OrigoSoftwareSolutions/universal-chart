@@ -35,7 +35,7 @@ spec:
   {{- end }}
     spec:
   {{- include "helpers.pod" (dict "value" $d "name" $name "context" $) | trim | nindent 6 }}
-      restartPolicy: {{ $d.restartPolicy | default "Never" }}
+      restartPolicy: {{ $d.restartPolicy | default "Never" | quote }}
   {{- $cda := $d.commandDurationAlert }}
   {{- if ne $cda nil }}
     {{- $cdaLabels := $d.commandDurationAlertLabels | default (dict "prometheus" "k8s" "role" "alert-rules") }}
