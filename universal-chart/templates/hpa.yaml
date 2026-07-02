@@ -19,9 +19,9 @@ metadata:
 spec:
   {{- with $hpa.scaleTargetRef }}
   scaleTargetRef:
-    apiVersion: {{ .apiVersion | default "apps/v1" }}
-    kind: {{ .kind | default "Deployment" }}
-    name: {{ .name | default $name }}
+    apiVersion: {{ .apiVersion | default "apps/v1" | quote }}
+    kind: {{ .kind | default "Deployment" | quote }}
+    name: {{ .name | default $name | quote }}
   {{- end }}
   minReplicas: {{ $hpa.minReplicas | default 2 | int }}
   maxReplicas: {{ $hpa.maxReplicas | default 3 | int }}

@@ -21,10 +21,10 @@ spec:
     - namePattern: {{ include "helpers.tplvalues.render" (dict "value" $img.applicationName "context" $) | quote }}
       images:
   {{- range $img.images }}
-        - alias: {{ .alias }}
-          imageName: {{ .imageName }}
+        - alias: {{ .alias | quote }}
+          imageName: {{ .imageName | quote }}
           commonUpdateSettings:
-            updateStrategy: {{ .updateStrategy | default "latest" }}
+            updateStrategy: {{ .updateStrategy | default "latest" | quote }}
     {{- with .allowTags }}
             allowTags: {{ . | quote }}
     {{- end }}

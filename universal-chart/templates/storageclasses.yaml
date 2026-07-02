@@ -17,12 +17,12 @@ metadata:
       {{- end }}
       {{- with $sc.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
     {{- end }}
-provisioner: {{ required (printf "storageClasses.%s.provisioner is required" $name) $sc.provisioner }}
+provisioner: {{ required (printf "storageClasses.%s.provisioner is required" $name) $sc.provisioner | quote }}
     {{- with $sc.reclaimPolicy }}
-reclaimPolicy: {{ . }}
+reclaimPolicy: {{ . | quote }}
     {{- end }}
     {{- with $sc.volumeBindingMode }}
-volumeBindingMode: {{ . }}
+volumeBindingMode: {{ . | quote }}
     {{- end }}
     {{- if hasKey $sc "allowVolumeExpansion" }}
 allowVolumeExpansion: {{ $sc.allowVolumeExpansion }}

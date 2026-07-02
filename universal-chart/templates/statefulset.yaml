@@ -17,12 +17,12 @@ spec:
   {{- with $d.updateStrategy }}
   updateStrategy: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
   {{- end }}
-  serviceName: {{ $d.serviceName | default $name }}
+  serviceName: {{ $d.serviceName | default $name | quote }}
   {{- if $d.minReadySeconds }}
   minReadySeconds: {{ $d.minReadySeconds }}
   {{- end }}
   {{- with $d.podManagementPolicy }}
-  podManagementPolicy: {{ . }}
+  podManagementPolicy: {{ . | quote }}
   {{- end }}
   selector:
     matchLabels:

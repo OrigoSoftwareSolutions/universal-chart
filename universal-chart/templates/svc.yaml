@@ -18,26 +18,26 @@ metadata:
   {{- end }}
 spec:
   {{- if not (empty $svc.clusterIP) }}
-  clusterIP: {{ $svc.clusterIP }}
+  clusterIP: {{ $svc.clusterIP | quote }}
   {{- end }}
   {{- if not (empty $svc.type) }}
-  type: {{ $svc.type }}
+  type: {{ $svc.type | quote }}
     {{- if eq $svc.type "ExternalName" }}
       {{- with $svc.externalName }}
-  externalName: {{ . }}
+  externalName: {{ . | quote }}
       {{- end }}
     {{- else if eq $svc.type "LoadBalancer" }}
       {{- if not (empty $svc.loadBalancerIP) }}
-  loadBalancerIP: {{ $svc.loadBalancerIP }}
+  loadBalancerIP: {{ $svc.loadBalancerIP | quote }}
       {{- end }}
       {{- if not (empty $svc.loadBalancerClass) }}
-  loadBalancerClass: {{ $svc.loadBalancerClass }}
+  loadBalancerClass: {{ $svc.loadBalancerClass | quote }}
       {{- end }}
       {{- if hasKey $svc "allocateLoadBalancerNodePorts" }}
   allocateLoadBalancerNodePorts: {{ $svc.allocateLoadBalancerNodePorts }}
       {{- end }}
       {{- with $svc.externalTrafficPolicy }}
-  externalTrafficPolicy: {{ . }}
+  externalTrafficPolicy: {{ . | quote }}
       {{- end }}
       {{- if $svc.loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
@@ -45,7 +45,7 @@ spec:
       {{- end }}
     {{- else if (eq $svc.type "NodePort") }}
       {{- with $svc.externalTrafficPolicy }}
-  externalTrafficPolicy: {{ . }}
+  externalTrafficPolicy: {{ . | quote }}
       {{- end }}
       {{- if not (empty $svc.healthCheckNodePort) }}
   healthCheckNodePort: {{ $svc.healthCheckNodePort }}
@@ -55,7 +55,7 @@ spec:
   publishNotReadyAddresses: {{ $svc.publishNotReadyAddresses }}
     {{- end }}
     {{- with $svc.sessionAffinity }}
-  sessionAffinity: {{ . }}
+  sessionAffinity: {{ . | quote }}
     {{- end }}
     {{- with $svc.sessionAffinityConfig }}
   sessionAffinityConfig:
@@ -66,7 +66,7 @@ spec:
       {{- toYaml $svc.ipFamilies | nindent 4 }}
     {{- end }}
     {{- with $svc.ipFamilyPolicy }}
-  ipFamilyPolicy: {{ . }}
+  ipFamilyPolicy: {{ . | quote }}
     {{- end }}
     {{- if $svc.externalIPs }}
   externalIPs: {{- toYaml $svc.externalIPs | nindent 4 }}
@@ -75,8 +75,8 @@ spec:
   {{- if $svc.ports }}
   ports:
     {{- range $svc.ports }}
-    - name: {{ .name | default $name }}
-      protocol: {{ .protocol | default "TCP" }}
+    - name: {{ .name | default $name | quote }}
+      protocol: {{ .protocol | default "TCP" | quote }}
       port: {{ .port }}
       {{- if not (empty .targetPort) }}
       targetPort: {{ .targetPort }}
