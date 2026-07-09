@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.97](https://img.shields.io/badge/Version-1.9.97-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.98](https://img.shields.io/badge/Version-1.9.98-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart, designed for one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
 
@@ -378,7 +378,7 @@ serviceAccount:
       argocd.argoproj.io/sync-wave: "-3"
 ```
 
-Each item supports: `name`, `labels`, `annotations`, `automountServiceAccountToken`, `imagePullSecrets`, `secrets`, `role`, `clusterRole`.
+Each item supports: `name`, `labels`, `annotations`, `imagePullSecrets`, `secrets`, `role`, `clusterRole`.
 
 `role` with `rules:` generates Role + RoleBinding; without `rules:` generates only a RoleBinding to an existing Role. `clusterRole` works the same: with `rules:` generates ClusterRole + ClusterRoleBinding; without `rules:` generates only a ClusterRoleBinding.
 

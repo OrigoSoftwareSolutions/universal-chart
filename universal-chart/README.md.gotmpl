@@ -378,7 +378,7 @@ serviceAccount:
       argocd.argoproj.io/sync-wave: "-3"
 ```
 
-Each item supports: `name`, `labels`, `annotations`, `automountServiceAccountToken`, `imagePullSecrets`, `secrets`, `role`, `clusterRole`.
+Each item supports: `name`, `labels`, `annotations`, `imagePullSecrets`, `secrets`, `role`, `clusterRole`.
 
 `role` with `rules:` generates Role + RoleBinding; without `rules:` generates only a RoleBinding to an existing Role. `clusterRole` works the same: with `rules:` generates ClusterRole + ClusterRoleBinding; without `rules:` generates only a ClusterRoleBinding.
 
