@@ -840,9 +840,6 @@
         "name": {
           "type": "string"
         },
-        "automountServiceAccountToken": {
-          "type": "boolean"
-        },
         "imagePullSecrets": {
           "type": "array"
         },
