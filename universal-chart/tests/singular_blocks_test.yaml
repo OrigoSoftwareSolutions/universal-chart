@@ -184,6 +184,29 @@ tests:
       - equal:
           path: spec.ttlSecondsAfterFinished
           value: 120
+
+  - it: job backoffLimit zero is rendered
+    templates:
+      - job.yaml
+    set:
+      job.image: migration
+      job.backoffLimit: 0
+    asserts:
+      - equal:
+          path: spec.backoffLimit
+          value: 0
+
+  - it: job ttlSecondsAfterFinished zero is rendered
+    templates:
+      - job.yaml
+    set:
+      job.image: migration
+      job.ttlSecondsAfterFinished: 0
+    asserts:
+      - equal:
+          path: spec.ttlSecondsAfterFinished
+          value: 0
+
   - it: renders a cronjob
     templates:
       - cronjob.yaml
@@ -208,6 +231,43 @@ tests:
       - equal:
           path: spec.concurrencyPolicy
           value: Replace
+
+  - it: cronjob backoffLimit zero is rendered
+    templates:
+      - cronjob.yaml
+    set:
+      cronJob.image: reporter
+      cronJob.schedule: "*/15 * * * *"
+      cronJob.backoffLimit: 0
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.backoffLimit
+          value: 0
+
+  - it: cronjob successfulJobsHistoryLimit zero is rendered
+    templates:
+      - cronjob.yaml
+    set:
+      cronJob.image: reporter
+      cronJob.schedule: "*/15 * * * *"
+      cronJob.successfulJobsHistoryLimit: 0
+    asserts:
+      - equal:
+          path: spec.successfulJobsHistoryLimit
+          value: 0
+
+  - it: cronjob failedJobsHistoryLimit zero is rendered
+    templates:
+      - cronjob.yaml
+    set:
+      cronJob.image: reporter
+      cronJob.schedule: "*/15 * * * *"
+      cronJob.failedJobsHistoryLimit: 0
+    asserts:
+      - equal:
+          path: spec.failedJobsHistoryLimit
+          value: 0
+
   - it: renders a service
     templates:
       - svc.yaml

@@ -10,20 +10,20 @@ metadata:
   namespace: {{ $.Release.Namespace | quote }}
   {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "context" $) | nindent 2 }}
 spec:
-  {{- with $d.parallelism }}
-  parallelism: {{ . }}
+  {{- if hasKey $d "parallelism" }}
+  parallelism: {{ $d.parallelism }}
   {{- end }}
-  {{- with $d.completions }}
-  completions: {{ . }}
+  {{- if hasKey $d "completions" }}
+  completions: {{ $d.completions }}
   {{- end }}
-  {{- with $d.activeDeadlineSeconds }}
-  activeDeadlineSeconds: {{ . }}
+  {{- if hasKey $d "activeDeadlineSeconds" }}
+  activeDeadlineSeconds: {{ $d.activeDeadlineSeconds }}
   {{- end }}
-  {{- with $d.backoffLimit }}
-  backoffLimit: {{ . }}
+  {{- if hasKey $d "backoffLimit" }}
+  backoffLimit: {{ $d.backoffLimit }}
   {{- end }}
-  {{- with $d.ttlSecondsAfterFinished }}
-  ttlSecondsAfterFinished: {{ . }}
+  {{- if hasKey $d "ttlSecondsAfterFinished" }}
+  ttlSecondsAfterFinished: {{ $d.ttlSecondsAfterFinished }}
   {{- end }}
   template:
     metadata:
