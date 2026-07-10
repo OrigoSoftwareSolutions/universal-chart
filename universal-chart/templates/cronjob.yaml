@@ -23,31 +23,31 @@ spec:
   {{- else if $d.singleOnly }}
   concurrencyPolicy: Forbid
   {{- end }}
-  {{- with $d.startingDeadlineSeconds }}
-  startingDeadlineSeconds: {{ . }}
+  {{- if hasKey $d "startingDeadlineSeconds" }}
+  startingDeadlineSeconds: {{ $d.startingDeadlineSeconds }}
   {{- end }}
-  {{- with $d.successfulJobsHistoryLimit }}
-  successfulJobsHistoryLimit: {{ . }}
+  {{- if hasKey $d "successfulJobsHistoryLimit" }}
+  successfulJobsHistoryLimit: {{ $d.successfulJobsHistoryLimit }}
   {{- end }}
-  {{- with $d.failedJobsHistoryLimit }}
-  failedJobsHistoryLimit: {{ . }}
+  {{- if hasKey $d "failedJobsHistoryLimit" }}
+  failedJobsHistoryLimit: {{ $d.failedJobsHistoryLimit }}
   {{- end }}
   jobTemplate:
     spec:
-  {{- with $d.parallelism }}
-      parallelism: {{ . }}
+  {{- if hasKey $d "parallelism" }}
+      parallelism: {{ $d.parallelism }}
   {{- end }}
-  {{- with $d.completions }}
-      completions: {{ . }}
+  {{- if hasKey $d "completions" }}
+      completions: {{ $d.completions }}
   {{- end }}
-  {{- with $d.activeDeadlineSeconds }}
-      activeDeadlineSeconds: {{ . }}
+  {{- if hasKey $d "activeDeadlineSeconds" }}
+      activeDeadlineSeconds: {{ $d.activeDeadlineSeconds }}
   {{- end }}
-  {{- with $d.backoffLimit }}
-      backoffLimit: {{ . }}
+  {{- if hasKey $d "backoffLimit" }}
+      backoffLimit: {{ $d.backoffLimit }}
   {{- end }}
-  {{- with $d.ttlSecondsAfterFinished }}
-      ttlSecondsAfterFinished: {{ . }}
+  {{- if hasKey $d "ttlSecondsAfterFinished" }}
+      ttlSecondsAfterFinished: {{ $d.ttlSecondsAfterFinished }}
   {{- end }}
       template:
         metadata:
