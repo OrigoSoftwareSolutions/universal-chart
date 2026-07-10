@@ -23,14 +23,9 @@ spec:
   {{- range $img.images }}
         - alias: {{ .alias | quote }}
           imageName: {{ .imageName | quote }}
+    {{- with .commonUpdateSettings }}
           commonUpdateSettings:
-            updateStrategy: {{ .updateStrategy | default "latest" | quote }}
-    {{- with .allowTags }}
-            allowTags: {{ . | quote }}
-    {{- end }}
-    {{- with .ignoreTags }}
-            ignoreTags:
-      {{- toYaml . | nindent 14 }}
+      {{- toYaml . | nindent 12 }}
     {{- end }}
     {{- with .manifestTargets }}
           manifestTargets:

@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.98](https://img.shields.io/badge/Version-1.9.98-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.99](https://img.shields.io/badge/Version-1.9.99-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart, designed for one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
 
@@ -857,8 +857,9 @@ imageUpdater:
   images:
     - alias: app
       imageName: ghcr.io/myorg/myapp
-      updateStrategy: newest-build
-      allowTags: 'regexp:^\d+\.\d+\.\d+$'
+      commonUpdateSettings:
+        updateStrategy: newest-build
+        allowTags: 'regexp:^\d+\.\d+\.\d+$'
       manifestTargets:
         helm:
           name: deployment.image
