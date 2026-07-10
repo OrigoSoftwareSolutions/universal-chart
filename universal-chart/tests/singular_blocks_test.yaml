@@ -351,6 +351,37 @@ tests:
       - equal:
           path: metadata.namespace
           value: argocd
+
+  - it: imageUpdater renders commonUpdateSettings via toYaml passthrough
+    templates:
+      - imageupdater.yaml
+    set:
+      imageUpdater.applicationName: my-argocd-app
+      imageUpdater.images:
+        - alias: app
+          imageName: ghcr.io/origo/myapp
+          commonUpdateSettings:
+            updateStrategy: newest-build
+            forceUpdate: true
+    asserts:
+      - equal:
+          path: spec.applicationRefs[0].images[0].commonUpdateSettings.updateStrategy
+          value: newest-build
+      - equal:
+          path: spec.applicationRefs[0].images[0].commonUpdateSettings.forceUpdate
+          value: true
+
+  - it: imageUpdater omits commonUpdateSettings when not set
+    templates:
+      - imageupdater.yaml
+    set:
+      imageUpdater.applicationName: my-argocd-app
+      imageUpdater.images:
+        - alias: app
+          imageName: ghcr.io/origo/myapp
+    asserts:
+      - notExists:
+          path: spec.applicationRefs[0].images[0].commonUpdateSettings
   - it: renders configmaps
     templates:
       - configmap.yaml
