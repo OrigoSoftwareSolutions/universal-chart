@@ -19,16 +19,16 @@ spec:
   selector:
     {{- include "helpers.tplvalues.render" (dict "value" $gateway.selector "context" $) | nindent 4 }}
   servers:
-    {{- range $gateway.servers }}
+    {{- range $_, $server := $gateway.servers }}
   - hosts:
-      {{- range .hosts }}
+      {{- range $server.hosts }}
     - {{ include "helpers.tplvalues.render" (dict "value" . "context" $) | quote }}
       {{- end }}
     port:
-      name: {{ .port.name }}
-      number: {{ .port.number }}
-      protocol: {{ .port.protocol }}
-      {{- with .tls }}
+      name: {{ $server.port.name }}
+      number: {{ $server.port.number }}
+      protocol: {{ $server.port.protocol }}
+      {{- with $server.tls }}
     tls:
         {{- toYaml . | nindent 6 }}
       {{- end }} {{/* end with .tls */}}

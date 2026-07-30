@@ -3,7 +3,8 @@ istioGateways:
     selector:
       istio: ingressgateway
     servers:
-      - hosts:
+      my-gw-https:
+        hosts:
           - app.example.com
         port:
           name: https
