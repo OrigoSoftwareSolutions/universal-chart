@@ -585,7 +585,8 @@ istioGateways:
     selector:
       istio: ingressgateway
     servers:
-      - hosts:
+      main-https:
+        hosts:
           - app.example.com
           - api.example.com
         port:
@@ -596,7 +597,8 @@ istioGateways:
     selector:
       istio: ingressgateway
     servers:
-      - hosts:
+      http-redirect-http:
+        hosts:
           - "www.example.com"
         port:
           name: http

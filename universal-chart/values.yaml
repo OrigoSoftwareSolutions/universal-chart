@@ -326,12 +326,22 @@ serviceMonitors: {}
 # =============================================================================
 
 # -- Istio Gateway resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
+# `servers` is a map (keys are logical names) so entries from multiple value files are merged by Helm — enabling per-project gateway server definitions.
 istioGateways: {}
 #   nginx:
 #     selector: { istio: ingress }
 #     servers:
-#       - port: { number: 80, name: http, protocol: HTTP }
+#       nginx-http:
+#         port: { number: 80, name: http, protocol: HTTP }
 #         hosts: ["nginx.example.com"]
+#         tls:
+#           httpsRedirect: true
+#       nginx-https:
+#         port: { number: 443, name: https, protocol: HTTPS }
+#         hosts: ["nginx.example.com"]
+#         tls:
+#           mode: SIMPLE
+#           credentialName: nginx-cert
 
 # -- Istio VirtualService resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 istioVirtualServices: {}
