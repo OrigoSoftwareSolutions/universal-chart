@@ -51,7 +51,7 @@ jobs:
       - name: Install helm-unittest plugin
         # --verify=false required on Helm 4: GPG verification of git plugin
         # sources is not supported. See helm-unittest README and issue #785.
-        run: helm plugin install https://github.com/helm-unittest/helm-unittest --version 1.1.0 --verify=false
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest --version 1.1.2 --verify=false
 
       - name: Run unit tests
         run: helm unittest universal-chart/ --strict --file 'tests/*.yaml'
