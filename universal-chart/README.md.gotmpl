@@ -448,6 +448,8 @@ hpa:
       stabilizationWindowSeconds: 300
 ```
 
+When `hpa` is set, the chart omits `replicas` from the Deployment/StatefulSet spec entirely, giving HPA full ownership of the replica count. This prevents GitOps tools such as ArgoCD from showing a perpetual diff on `spec.replicas` caused by HPA scaling the live count away from the chart-rendered value.
+
 ### PDB
 
 ```yaml

@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.992](https://img.shields.io/badge/Version-1.9.992-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.993](https://img.shields.io/badge/Version-1.9.993-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart, designed for one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
 
@@ -447,6 +447,8 @@ hpa:
     scaleDown:
       stabilizationWindowSeconds: 300
 ```
+
+When `hpa` is set, the chart omits `replicas` from the Deployment/StatefulSet spec entirely, giving HPA full ownership of the replica count. This prevents GitOps tools such as ArgoCD from showing a perpetual diff on `spec.replicas` caused by HPA scaling the live count away from the chart-rendered value.
 
 ### PDB
 
@@ -1075,7 +1077,7 @@ Also, if this maintenance hygiene is honored, chart [Release](https://github.com
 | diagnosticMode.enabled | bool | `false` | Enable diagnostic mode globally. |
 | externalSecrets | object | `{}` | External Secrets Operator ExternalSecret resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | extraDeploy | object | `{}` | Raw Kubernetes manifests to deploy alongside chart resources. Supports template expressions. |
-| hpa | object | `{}` | Kubernetes HorizontalPodAutoscaler (autoscaling/v2).  Only one per release. |
+| hpa | object | `{}` | Kubernetes HorizontalPodAutoscaler (autoscaling/v2).  Only one per release. When `hpa` is set, `replicas` is omitted from the Deployment/StatefulSet spec so HPA has full ownership of the replica count — prevents GitOps tools (e.g. ArgoCD) from showing a perpetual diff on `spec.replicas`. |
 | httpRoutes | object | `{}` | Gateway API HTTPRoute resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | imagePullSecrets | list | `[]` | Image pull secret names referenced in every pod spec. Secrets must be pre-created in the namespace. |
 | imageUpdater | object | `{}` | Argo CD Image Updater.  Only one per release. |
