@@ -48,6 +48,19 @@ tests:
           path: spec.template.spec.containers[0].image
           value: myapp:1.2.3
 
+  - it: deployment omits replicas when hpa is enabled
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+      hpa.minReplicas: 2
+      hpa.maxReplicas: 5
+    asserts:
+      - isKind:
+          of: Deployment
+      - notExists:
+          path: spec.replicas
+
   - it: deployment with ports shorthand
     templates:
       - deployment.yaml
@@ -151,6 +164,20 @@ tests:
       - equal:
           path: spec.serviceName
           value: my-sts-svc
+
+  - it: statefulset omits replicas when hpa is enabled
+    templates:
+      - statefulset.yaml
+    set:
+      statefulset.image: nginx
+      hpa.minReplicas: 2
+      hpa.maxReplicas: 5
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - notExists:
+          path: spec.replicas
+
   - it: renders a daemonset
     templates:
       - daemonset.yaml

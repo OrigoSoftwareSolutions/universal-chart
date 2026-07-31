@@ -269,6 +269,9 @@ pvc: {}
 # =============================================================================
 
 # -- Kubernetes HorizontalPodAutoscaler (autoscaling/v2).  Only one per release.
+# When `hpa` is set, `replicas` is omitted from the Deployment/StatefulSet spec so HPA
+# has full ownership of the replica count — prevents GitOps tools (e.g. ArgoCD) from
+# showing a perpetual diff on `spec.replicas`.
 hpa: {}
 #   scaleTargetRef:
 #     kind: Deployment
