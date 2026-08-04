@@ -489,19 +489,17 @@ clusterExternalSecrets: {}
 # -- cert-manager Certificate resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 certificates: {}
 #   my-cert:
-#     spec:
-#       secretName: my-cert-tls
-#       issuerRef: { name: letsencrypt-prod, kind: ClusterIssuer }
-#       dnsNames: [example.com]
+#     secretName: my-cert-tls
+#     issuerRef: { name: letsencrypt-prod, kind: ClusterIssuer }
+#     dnsNames: [example.com]
 
 # -- cert-manager Issuer resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 issuers: {}
 #   letsencrypt-staging:
-#     spec:
-#       acme:
-#         server: https://acme-staging-v02.api.letsencrypt.org/directory
-#         email: devops@example.com
-#         privateKeySecretRef: { name: letsencrypt-staging }
+#     acme:
+#       server: https://acme-staging-v02.api.letsencrypt.org/directory
+#       email: devops@example.com
+#       privateKeySecretRef: { name: letsencrypt-staging }
 
 # -- cert-manager ClusterIssuer resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
 clusterIssuers: {}
@@ -524,8 +522,9 @@ imageUpdater: {}
 #   images:
 #     - alias: api
 #       imageName: registry.example.com/my-image
-#       updateStrategy: newest-build
-#       allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
+#       commonUpdateSettings:
+#         updateStrategy: newest-build
+#         allowTags: 'regexp:^\d+\.\d+\.\d+-main-[a-z0-9]+-\d+$'
 #       manifestTargets:
 #         helm:
 #           name: deployment.image
