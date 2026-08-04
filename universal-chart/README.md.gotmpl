@@ -696,12 +696,13 @@ istioGateways:
     selector:
       istio: ingressgateway
     servers:
-      - port:
-          number: 443
-          name: https
-          protocol: HTTPS
+      https:
         hosts:
           - myapp.example.com
+        port:
+          name: https
+          number: 443
+          protocol: HTTPS
 
 istioVirtualServices:
   myapp:
@@ -911,7 +912,7 @@ job:
 defaultImagePullPolicy: IfNotPresent
 imagePullSecrets:
   - acr-pull-secret
-nameOverride: ""        # Override chart name in resource labels
+nameOverride: ""        # Override the chart name used in resource name generation and labels
 
 usePredefinedAffinity: true
 podAffinityPreset: soft
