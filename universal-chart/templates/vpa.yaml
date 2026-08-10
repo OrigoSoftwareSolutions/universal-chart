@@ -1,0 +1,42 @@
+{{- if and .Values.vpa .Values.hpa }}
+  {{- fail "You can't use both VPA + HPA together, make up your mind" }}
+{{- end }}
+{{- if .Values.vpa }}
+  {{- $vpa := .Values.vpa }}
+  {{- $name := $vpa.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+---
+apiVersion: {{ include "helpers.capabilities.vpa.apiVersion" $ }}
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+  {{- include "helpers.app.labels" $ | nindent 4 }}
+  {{- with $vpa.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+  {{- if or $annots $vpa.annotations }}
+  annotations:
+    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+    {{- with $vpa.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- end }}
+spec:
+  {{- with $vpa.targetRef }}
+  targetRef:
+    apiVersion: {{ .apiVersion | default "apps/v1" | quote }}
+    kind: {{ .kind | default "Deployment" | quote }}
+    name: {{ .name | default $name | quote }}
+  {{- else }}
+  targetRef:
+    apiVersion: "apps/v1"
+    kind: "Deployment"
+    name: {{ $name | quote }}
+  {{- end }}
+  {{- with $vpa.updatePolicy }}
+  updatePolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $vpa.resourcePolicy }}
+  resourcePolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

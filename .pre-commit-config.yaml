@@ -12,4 +12,5 @@ repos:
         args:
           - --chart-search-root=universal-chart/
           - --output-file=../README.md
+          - --sort-values-order=file
 

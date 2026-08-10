@@ -53,7 +53,7 @@ helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
     -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
 
 # Docs — regenerate after ANY values.yaml change (CI `docs-check` fails on git diff)
-helm-docs --chart-search-root universal-chart/ -o ../README.md
+helm-docs --chart-search-root universal-chart/ -o ../README.md --sort-values-order=file
 
 # Format
 helmfmt universal-chart/

@@ -396,6 +396,149 @@ tests:
       - equal:
           path: spec.maxReplicas
           value: 10
+
+  - it: renders a VPA with defaults
+    templates:
+      - vpa.yaml
+    set:
+      vpa.updatePolicy.updateMode: Auto
+    asserts:
+      - isKind:
+          of: VerticalPodAutoscaler
+      - equal:
+          path: apiVersion
+          value: autoscaling.k8s.io/v1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME
+      - isNotEmpty:
+          path: metadata.namespace
+      - equal:
+          path: spec.targetRef.apiVersion
+          value: apps/v1
+      - equal:
+          path: spec.targetRef.kind
+          value: Deployment
+      - equal:
+          path: spec.targetRef.name
+          value: RELEASE-NAME
+      - equal:
+          path: spec.updatePolicy.updateMode
+          value: Auto
+
+  - it: VPA with explicit targetRef
+    templates:
+      - vpa.yaml
+    set:
+      vpa.targetRef.apiVersion: apps/v1
+      vpa.targetRef.kind: StatefulSet
+      vpa.targetRef.name: my-sts
+    asserts:
+      - isKind:
+          of: VerticalPodAutoscaler
+      - equal:
+          path: spec.targetRef.kind
+          value: StatefulSet
+      - equal:
+          path: spec.targetRef.name
+          value: my-sts
+
+  - it: VPA with resourcePolicy containerPolicies
+    templates:
+      - vpa.yaml
+    set:
+      vpa.resourcePolicy.containerPolicies:
+        - containerName: "*"
+          minAllowed:
+            cpu: 100m
+            memory: 50Mi
+          maxAllowed:
+            cpu: "1"
+            memory: 500Mi
+    asserts:
+      - isKind:
+          of: VerticalPodAutoscaler
+      - equal:
+          path: spec.resourcePolicy.containerPolicies[0].containerName
+          value: "*"
+      - equal:
+          path: spec.resourcePolicy.containerPolicies[0].minAllowed.cpu
+          value: 100m
+      - equal:
+          path: spec.resourcePolicy.containerPolicies[0].maxAllowed.memory
+          value: 500Mi
+
+  - it: VPA omits updatePolicy when not set
+    templates:
+      - vpa.yaml
+    set:
+      vpa.targetRef.name: my-app
+    asserts:
+      - isKind:
+          of: VerticalPodAutoscaler
+      - notExists:
+          path: spec.updatePolicy
+
+  - it: VPA omits resourcePolicy when not set
+    templates:
+      - vpa.yaml
+    set:
+      vpa.targetRef.name: my-app
+    asserts:
+      - isKind:
+          of: VerticalPodAutoscaler
+      - notExists:
+          path: spec.resourcePolicy
+
+  - it: VPA with custom name
+    templates:
+      - vpa.yaml
+    set:
+      vpa.name: my-app-vpa
+      vpa.targetRef.name: my-app
+    asserts:
+      - equal:
+          path: metadata.name
+          value: my-app-vpa
+
+  - it: VPA not rendered when not set
+    templates:
+      - vpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: HPA not rendered when not set
+    templates:
+      - hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: enabling both VPA and HPA fails with error
+    templates:
+      - vpa.yaml
+    set:
+      vpa.updatePolicy.updateMode: Auto
+      hpa.minReplicas: 2
+      hpa.maxReplicas: 5
+    asserts:
+      - failedTemplate:
+          errorMessage: "You can't use both VPA + HPA together, make up your mind"
+
+  - it: deployment keeps replicas when vpa is set (VPA does not own replica count)
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+      deployment.replicas: 1
+      vpa.updatePolicy.updateMode: Auto
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.replicas
+          value: 1
   - it: renders a PDB with minAvailable
     templates:
       - pdb.yaml

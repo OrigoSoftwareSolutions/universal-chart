@@ -22,6 +22,10 @@
 {{- print "autoscaling/v2" -}}
 {{- end -}}
 
+{{- define "helpers.capabilities.vpa.apiVersion" -}}
+{{- print "autoscaling.k8s.io/v1" -}}
+{{- end -}}
+
 {{- define "helpers.capabilities.externalSecret.apiVersion" -}}
   {{- if .Capabilities.APIVersions.Has "external-secrets.io/v1" -}}
 {{- print "external-secrets.io/v1" -}}

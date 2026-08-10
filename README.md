@@ -1,6 +1,6 @@
 # Origo Universal Helm Chart
 
-![Version: 1.9.993](https://img.shields.io/badge/Version-1.9.993-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 1.9.994](https://img.shields.io/badge/Version-1.9.994-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 One Helm chart, designed for one workload per release. Define your Kubernetes resources — Deployment (or StatefulSet, DaemonSet, Job, CronJob) plus supporting resources (Service, HPA, ServiceAccount, ExternalSecret, Istio configs, and more) — in a single values file.
 
@@ -14,7 +14,7 @@ One Helm chart, designed for one workload per release. Define your Kubernetes re
 | StatefulSet | HTTPRoute (Gateway API) | Secret | SecretStore / ClusterSecretStore |
 | DaemonSet | Istio VirtualService | PVC | Certificate / Issuer / ClusterIssuer |
 | CronJob / Job | Istio Gateway | StorageClass / PV | PrometheusRule (via job / cronJob) |
-| HPA / PDB | ServiceMonitor / NetworkPolicy | ServiceAccount | ImageUpdater (Argo CD) |
+| HPA / VPA / PDB | ServiceMonitor / NetworkPolicy | ServiceAccount | ImageUpdater (Argo CD) |
 | | | | Istio DestinationRule / PeerAuthentication / AuthorizationPolicy / EnvoyFilter |
 
 ## Quick Start
@@ -449,6 +449,82 @@ hpa:
 ```
 
 When `hpa` is set, the chart omits `replicas` from the Deployment/StatefulSet spec entirely, giving HPA full ownership of the replica count. This prevents GitOps tools such as ArgoCD from showing a perpetual diff on `spec.replicas` caused by HPA scaling the live count away from the chart-rendered value.
+
+### VPA
+
+VPA adjusts CPU and memory **requests** on running pods without changing the replica count — a good fit for single-replica workloads where horizontal scaling is not needed. Cannot be combined with `hpa`; the chart fails at render time if both are set.
+
+```yaml
+deployment:
+  image: myapp
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+vpa:
+  updatePolicy:
+    updateMode: Recreate
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        minAllowed:
+          cpu: 50m
+          memory: 64Mi
+        maxAllowed:
+          cpu: "2"
+          memory: 2Gi
+```
+
+`targetRef` defaults to `apps/v1 / Deployment / <release-name>` and can be overridden:
+
+```yaml
+vpa:
+  targetRef:
+    kind: StatefulSet
+    name: my-sts
+  updatePolicy:
+    updateMode: Recreate
+```
+
+#### Update modes
+
+| Mode | Behaviour | Min AKS version |
+|---|---|---|
+| `Recreate` | Evicts pods and recreates them with updated requests. Default when `updateMode` is omitted. | 1.24 |
+| `Initial` | Sets requests only at pod creation; never updates live pods. | 1.24 |
+| `Off` | Computes recommendations but makes no changes — read via `kubectl describe vpa`. | 1.24 |
+| `InPlaceOrRecreate` | Resizes containers in-place first; evicts only if in-place is not possible. | 1.34 (AKS) |
+
+> `Auto` is accepted but deprecated since VPA 1.4.0 — it is an alias for `Recreate`. Use `Recreate` explicitly.
+
+#### AKS cluster prerequisites
+
+VPA on AKS is a managed addon — no manual CRD installation required. Enable it via the `workload_autoscaler_profile` block in `azurerm_kubernetes_cluster` (requires azurerm provider **`>= 3.47.0`**):
+
+```hcl
+resource "azurerm_kubernetes_cluster" "main" {
+  # ... your existing cluster config ...
+
+  workload_autoscaler_profile {
+    vertical_pod_autoscaler_enabled = true
+  }
+}
+```
+
+The addon installs `autoscaling.k8s.io/v1` CRDs and the three VPA components (`vpa-recommender`, `vpa-updater`, `vpa-admission-controller`) into `kube-system`. Metrics Server — included by default on AKS — is the only additional dependency.
+
+**Limitations to be aware of:**
+
+- **Minimum Kubernetes version:** 1.24. `InPlaceOrRecreate` mode requires AKS 1.34+.
+- **Windows containers** are not supported by VPA.
+- **JVM workloads** — VPA cannot see inside JVM heap, so memory recommendations will be inaccurate. Consider setting `Off` mode and treating recommendations as advisory only.
+- **VPA object count** — memory overhead grows with the number of pods under VPA management; Microsoft recommends staying under 1,000 pods per cluster with VPA objects attached.
+- **Pre-existing CRDs** — if another tool (e.g. Goldilocks) already installed VPA CRDs, delete them before applying the Terraform change or the addon will fail silently:
+  ```bash
+  kubectl delete crd verticalpodautoscalers.autoscaling.k8s.io \
+                      verticalpodautoscalercheckpoints.autoscaling.k8s.io
+  ```
 
 ### PDB
 
@@ -1049,7 +1125,7 @@ helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
     -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{ .Group }}/{{ .ResourceKind }}_{{ .ResourceAPIVersion }}.json'
 
 # Regenerate README after any values.yaml change
-helm-docs --chart-search-root universal-chart/ -o ../README.md
+helm-docs --chart-search-root universal-chart/ -o ../README.md --sort-values-order=file
 ```
 
 All five must pass before merging a PR.
@@ -1063,48 +1139,49 @@ Also, if this maintenance hygiene is honored, chart [Release](https://github.com
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| certificates | object | `{}` | cert-manager Certificate resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| clusterExternalSecrets | object | `{}` | External Secrets Operator ClusterExternalSecret resources (cluster-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| clusterIssuers | object | `{}` | cert-manager ClusterIssuer resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| clusterSecretStores | object | `{}` | External Secrets Operator ClusterSecretStore resources (cluster-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| configMaps | object | `{}` | Kubernetes ConfigMap resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| cronJob | object | `{}` | Kubernetes CronJob.  Only one per release. |
-| daemonset | object | `{}` | Kubernetes DaemonSet.  Only one per release. |
 | defaultImagePullPolicy | string | `"IfNotPresent"` | Fallback image pull policy. One of: `Always`, `IfNotPresent`, `Never`. |
-| deployment | object | `{}` | Kubernetes Deployment.  Only one per release. Single-container shorthand: set `image:` at workload level instead of `containers:`. `ports:` (map form) auto-creates containerPorts. Use the full `containers:` list for multi-container workloads. |
-| diagnosticMode | object | `{"args":["infinity"],"command":["sleep"],"enabled":false}` | Diagnostic mode — overrides command/args on main containers only (init containers are not affected). |
-| diagnosticMode.args | list | `["infinity"]` | Args override applied to every container. |
-| diagnosticMode.command | list | `["sleep"]` | Command override applied to every container. |
-| diagnosticMode.enabled | bool | `false` | Enable diagnostic mode globally. |
-| externalSecrets | object | `{}` | External Secrets Operator ExternalSecret resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| extraDeploy | object | `{}` | Raw Kubernetes manifests to deploy alongside chart resources. Supports template expressions. |
-| hpa | object | `{}` | Kubernetes HorizontalPodAutoscaler (autoscaling/v2).  Only one per release. When `hpa` is set, `replicas` is omitted from the Deployment/StatefulSet spec so HPA has full ownership of the replica count — prevents GitOps tools (e.g. ArgoCD) from showing a perpetual diff on `spec.replicas`. |
-| httpRoutes | object | `{}` | Gateway API HTTPRoute resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
 | imagePullSecrets | list | `[]` | Image pull secret names referenced in every pod spec. Secrets must be pre-created in the namespace. |
-| imageUpdater | object | `{}` | Argo CD Image Updater.  Only one per release. |
-| issuers | object | `{}` | cert-manager Issuer resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| istioAuthorizationPolicies | object | `{}` | Istio AuthorizationPolicy resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| istioDestinationRules | object | `{}` | Istio DestinationRule resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| istioEnvoyFilters | object | `{}` | Istio EnvoyFilter resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| istioGateways | object | `{}` | Istio Gateway resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. `servers` is a map (keys are logical names) so entries from multiple value files are merged by Helm — enabling per-project gateway server definitions. |
-| istioPeerAuthentications | object | `{}` | Istio PeerAuthentication resources (mTLS policy). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| istioVirtualServices | object | `{}` | Istio VirtualService resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| job | object | `{}` | Kubernetes Job (non-hook).  Only one per release. |
-| networkPolicies | object | `{}` | Kubernetes NetworkPolicy resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| nodeAffinityPreset | object | `{"key":"","type":"","values":[]}` | Node affinity preset configuration. |
-| nodeAffinityPreset.key | string | `""` | Node label key to match (e.g. `kubernetes.io/e2e-az-name`). |
-| nodeAffinityPreset.type | string | `""` | Affinity type. Allowed values: `soft`, `hard`, or empty string to disable. |
-| nodeAffinityPreset.values | list | `[]` | Node label values to match. |
-| pdb | object | `{}` | Kubernetes PodDisruptionBudget.  Only one per release. |
-| persistentVolumes | object | `{}` | Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| diagnosticMode | object | `{"args":["infinity"],"command":["sleep"],"enabled":false}` | Diagnostic mode — overrides command/args on main containers only (init containers are not affected). |
+| diagnosticMode.enabled | bool | `false` | Enable diagnostic mode globally. |
+| diagnosticMode.command | list | `["sleep"]` | Command override applied to every container. |
+| diagnosticMode.args | list | `["infinity"]` | Args override applied to every container. |
+| usePredefinedAffinity | bool | `true` | Use the chart's built-in pod affinity/anti-affinity rules. |
 | podAffinityPreset | string | `"soft"` | Pod affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
 | podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset. Allowed values: `soft`, `hard`, or empty string to disable. |
-| pvc | object | `{}` | Kubernetes PersistentVolumeClaim.  Only one per release. |
-| secretStores | object | `{}` | External Secrets Operator SecretStore resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| secrets | object | `{}` | Kubernetes Secret resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| nodeAffinityPreset | object | `{"key":"","type":"","values":[]}` | Node affinity preset configuration. |
+| nodeAffinityPreset.type | string | `""` | Affinity type. Allowed values: `soft`, `hard`, or empty string to disable. |
+| nodeAffinityPreset.key | string | `""` | Node label key to match (e.g. `kubernetes.io/e2e-az-name`). |
+| nodeAffinityPreset.values | list | `[]` | Node label values to match. |
+| deployment | object | `{}` | Kubernetes Deployment.  Only one per release. Single-container shorthand: set `image:` at workload level instead of `containers:`. `ports:` (map form) auto-creates containerPorts. Use the full `containers:` list for multi-container workloads. |
+| statefulset | object | `{}` | Kubernetes StatefulSet.  Only one per release. |
+| daemonset | object | `{}` | Kubernetes DaemonSet.  Only one per release. |
+| job | object | `{}` | Kubernetes Job (non-hook).  Only one per release. |
+| cronJob | object | `{}` | Kubernetes CronJob.  Only one per release. |
 | service | object | `{}` | Kubernetes Service.  Only one per release. |
+| httpRoutes | object | `{}` | Gateway API HTTPRoute resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| networkPolicies | object | `{}` | Kubernetes NetworkPolicy resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| configMaps | object | `{}` | Kubernetes ConfigMap resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| secrets | object | `{}` | Kubernetes Secret resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| storageClasses | object | `{}` | Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| persistentVolumes | object | `{}` | Kubernetes PersistentVolume resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| pvc | object | `{}` | Kubernetes PersistentVolumeClaim.  Only one per release. |
+| hpa | object | `{}` | Kubernetes HorizontalPodAutoscaler (autoscaling/v2).  Only one per release. When `hpa` is set, `replicas` is omitted from the Deployment/StatefulSet spec so HPA has full ownership of the replica count — prevents GitOps tools (e.g. ArgoCD) from showing a perpetual diff on `spec.replicas`. Cannot be used together with `vpa` — enabling both fails with an error at render time. |
+| vpa | object | `{}` | Kubernetes VerticalPodAutoscaler (autoscaling.k8s.io/v1).  Only one per release. Adjusts CPU/memory requests on existing pods without changing the replica count. Well-suited for single-replica workloads where horizontal scaling is not desired. Cannot be used together with `hpa` — enabling both fails with an error at render time. |
+| pdb | object | `{}` | Kubernetes PodDisruptionBudget.  Only one per release. |
 | serviceAccount | list | `[]` | Kubernetes ServiceAccount(s). List — each item creates one ServiceAccount. Supports Role/ClusterRole per item. |
 | serviceMonitors | object | `{}` | Prometheus ServiceMonitor resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| statefulset | object | `{}` | Kubernetes StatefulSet.  Only one per release. |
-| storageClasses | object | `{}` | Kubernetes StorageClass resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
-| usePredefinedAffinity | bool | `true` | Use the chart's built-in pod affinity/anti-affinity rules. |
+| istioGateways | object | `{}` | Istio Gateway resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. `servers` is a map (keys are logical names) so entries from multiple value files are merged by Helm — enabling per-project gateway server definitions. |
+| istioVirtualServices | object | `{}` | Istio VirtualService resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| istioDestinationRules | object | `{}` | Istio DestinationRule resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| istioPeerAuthentications | object | `{}` | Istio PeerAuthentication resources (mTLS policy). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| istioAuthorizationPolicies | object | `{}` | Istio AuthorizationPolicy resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| istioEnvoyFilters | object | `{}` | Istio EnvoyFilter resources. Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| externalSecrets | object | `{}` | External Secrets Operator ExternalSecret resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| secretStores | object | `{}` | External Secrets Operator SecretStore resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| clusterSecretStores | object | `{}` | External Secrets Operator ClusterSecretStore resources (cluster-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| clusterExternalSecrets | object | `{}` | External Secrets Operator ClusterExternalSecret resources (cluster-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| certificates | object | `{}` | cert-manager Certificate resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| issuers | object | `{}` | cert-manager Issuer resources (namespace-scoped). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| clusterIssuers | object | `{}` | cert-manager ClusterIssuer resources (cluster-scoped, no namespace). Each key creates one instance; name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field. |
+| imageUpdater | object | `{}` | Argo CD Image Updater.  Only one per release. |
+| extraDeploy | object | `{}` | Raw Kubernetes manifests to deploy alongside chart resources. Supports template expressions. |

@@ -14,7 +14,7 @@ One Helm chart, designed for one workload per release. Define your Kubernetes re
 | StatefulSet | HTTPRoute (Gateway API) | Secret | SecretStore / ClusterSecretStore |
 | DaemonSet | Istio VirtualService | PVC | Certificate / Issuer / ClusterIssuer |
 | CronJob / Job | Istio Gateway | StorageClass / PV | PrometheusRule (via job / cronJob) |
-| HPA / PDB | ServiceMonitor / NetworkPolicy | ServiceAccount | ImageUpdater (Argo CD) |
+| HPA / VPA / PDB | ServiceMonitor / NetworkPolicy | ServiceAccount | ImageUpdater (Argo CD) |
 | | | | Istio DestinationRule / PeerAuthentication / AuthorizationPolicy / EnvoyFilter |
 
 ## Quick Start
@@ -449,6 +449,82 @@ hpa:
 ```
 
 When `hpa` is set, the chart omits `replicas` from the Deployment/StatefulSet spec entirely, giving HPA full ownership of the replica count. This prevents GitOps tools such as ArgoCD from showing a perpetual diff on `spec.replicas` caused by HPA scaling the live count away from the chart-rendered value.
+
+### VPA
+
+VPA adjusts CPU and memory **requests** on running pods without changing the replica count — a good fit for single-replica workloads where horizontal scaling is not needed. Cannot be combined with `hpa`; the chart fails at render time if both are set.
+
+```yaml
+deployment:
+  image: myapp
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+vpa:
+  updatePolicy:
+    updateMode: Recreate
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        minAllowed:
+          cpu: 50m
+          memory: 64Mi
+        maxAllowed:
+          cpu: "2"
+          memory: 2Gi
+```
+
+`targetRef` defaults to `apps/v1 / Deployment / <release-name>` and can be overridden:
+
+```yaml
+vpa:
+  targetRef:
+    kind: StatefulSet
+    name: my-sts
+  updatePolicy:
+    updateMode: Recreate
+```
+
+#### Update modes
+
+| Mode | Behaviour | Min AKS version |
+|---|---|---|
+| `Recreate` | Evicts pods and recreates them with updated requests. Default when `updateMode` is omitted. | 1.24 |
+| `Initial` | Sets requests only at pod creation; never updates live pods. | 1.24 |
+| `Off` | Computes recommendations but makes no changes — read via `kubectl describe vpa`. | 1.24 |
+| `InPlaceOrRecreate` | Resizes containers in-place first; evicts only if in-place is not possible. | 1.34 (AKS) |
+
+> `Auto` is accepted but deprecated since VPA 1.4.0 — it is an alias for `Recreate`. Use `Recreate` explicitly.
+
+#### AKS cluster prerequisites
+
+VPA on AKS is a managed addon — no manual CRD installation required. Enable it via the `workload_autoscaler_profile` block in `azurerm_kubernetes_cluster` (requires azurerm provider **`>= 3.47.0`**):
+
+```hcl
+resource "azurerm_kubernetes_cluster" "main" {
+  # ... your existing cluster config ...
+
+  workload_autoscaler_profile {
+    vertical_pod_autoscaler_enabled = true
+  }
+}
+```
+
+The addon installs `autoscaling.k8s.io/v1` CRDs and the three VPA components (`vpa-recommender`, `vpa-updater`, `vpa-admission-controller`) into `kube-system`. Metrics Server — included by default on AKS — is the only additional dependency.
+
+**Limitations to be aware of:**
+
+- **Minimum Kubernetes version:** 1.24. `InPlaceOrRecreate` mode requires AKS 1.34+.
+- **Windows containers** are not supported by VPA.
+- **JVM workloads** — VPA cannot see inside JVM heap, so memory recommendations will be inaccurate. Consider setting `Off` mode and treating recommendations as advisory only.
+- **VPA object count** — memory overhead grows with the number of pods under VPA management; Microsoft recommends staying under 1,000 pods per cluster with VPA objects attached.
+- **Pre-existing CRDs** — if another tool (e.g. Goldilocks) already installed VPA CRDs, delete them before applying the Terraform change or the addon will fail silently:
+  ```bash
+  kubectl delete crd verticalpodautoscalers.autoscaling.k8s.io \
+                      verticalpodautoscalercheckpoints.autoscaling.k8s.io
+  ```
 
 ### PDB
 
@@ -1049,7 +1125,7 @@ helm template test universal-chart/ -f universal-chart/ci/test-values.yaml \
     -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{"{{"}} .Group {{"}}"}}/{{"{{"}} .ResourceKind {{"}}"}}_{{"{{"}} .ResourceAPIVersion {{"}}"}}.json'
 
 # Regenerate README after any values.yaml change
-helm-docs --chart-search-root universal-chart/ -o ../README.md
+helm-docs --chart-search-root universal-chart/ -o ../README.md --sort-values-order=file
 ```
 
 All five must pass before merging a PR.
