@@ -1,3 +1,6 @@
+{{- if and .Values.vpa .Values.hpa }}
+  {{- fail "You can't use both VPA + HPA together, make up your mind" }}
+{{- end }}
 {{- if .Values.hpa }}
   {{- $hpa := .Values.hpa }}
   {{- $name := $hpa.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}

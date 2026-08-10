@@ -115,6 +115,9 @@
     "hpa": {
       "$ref": "#/$defs/hpa"
     },
+    "vpa": {
+      "$ref": "#/$defs/vpa"
+    },
     "pdb": {
       "$ref": "#/$defs/pdb"
     },
@@ -924,6 +927,54 @@
           "type": "array"
         },
         "behavior": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "vpa": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "targetRef": {
+          "type": "object",
+          "properties": {
+            "apiVersion": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        },
+        "updatePolicy": {
+          "type": "object",
+          "properties": {
+            "updateMode": {
+              "type": "string",
+              "enum": ["Off", "Initial", "Recreate", "Auto", "InPlaceOrRecreate"]
+            }
+          },
+          "additionalProperties": true
+        },
+        "resourcePolicy": {
           "type": "object",
           "additionalProperties": true
         },

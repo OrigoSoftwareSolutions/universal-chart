@@ -272,6 +272,7 @@ pvc: {}
 # When `hpa` is set, `replicas` is omitted from the Deployment/StatefulSet spec so HPA
 # has full ownership of the replica count — prevents GitOps tools (e.g. ArgoCD) from
 # showing a perpetual diff on `spec.replicas`.
+# Cannot be used together with `vpa` — enabling both fails with an error at render time.
 hpa: {}
 #   scaleTargetRef:
 #     kind: Deployment
@@ -282,6 +283,30 @@ hpa: {}
 #   targetMemory: 80
 #   metrics: []
 #   behavior: {}
+#   labels: {}
+#   annotations: {}
+
+# -- Kubernetes VerticalPodAutoscaler (autoscaling.k8s.io/v1).  Only one per release.
+# Adjusts CPU/memory requests on existing pods without changing the replica count.
+# Well-suited for single-replica workloads where horizontal scaling is not desired.
+# Cannot be used together with `hpa` — enabling both fails with an error at render time.
+vpa: {}
+#   targetRef:
+#     apiVersion: apps/v1  # defaults to apps/v1
+#     kind: Deployment      # defaults to Deployment
+#     name: ""              # defaults to release name
+#   updatePolicy:
+#     updateMode: Auto      # Off | Initial | Recreate | Auto | InPlaceOrRecreate
+#   resourcePolicy:
+#     containerPolicies:
+#       - containerName: "*"
+#         minAllowed:
+#           cpu: 100m
+#           memory: 50Mi
+#         maxAllowed:
+#           cpu: "1"
+#           memory: 500Mi
+#         controlledResources: ["cpu", "memory"]
 #   labels: {}
 #   annotations: {}
 
