@@ -1,0 +1,125 @@
+suite: serviceaccount rbac naming
+templates:
+  - serviceaccount.yaml
+tests:
+  - it: role with rules defaults to release name everywhere
+    set:
+      serviceAccount:
+        - role:
+            rules:
+              - apiGroups: [""]
+                resources: [pods]
+                verbs: [get]
+    asserts:
+      - hasDocuments:
+          count: 3
+      - isKind:
+          of: Role
+        documentIndex: 1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME
+        documentIndex: 1
+      - isKind:
+          of: RoleBinding
+        documentIndex: 2
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME
+        documentIndex: 2
+      - equal:
+          path: roleRef.name
+          value: RELEASE-NAME
+        documentIndex: 2
+
+  - it: clusterrole with rules defaults to namespace release name everywhere
+    set:
+      serviceAccount:
+        - clusterRole:
+            rules:
+              - apiGroups: [""]
+                resources: [nodes]
+                verbs: [get]
+    asserts:
+      - hasDocuments:
+          count: 3
+      - isKind:
+          of: ClusterRole
+        documentIndex: 1
+      - equal:
+          path: metadata.name
+          value: NAMESPACE-RELEASE-NAME
+        documentIndex: 1
+      - notExists:
+          path: metadata.namespace
+        documentIndex: 1
+      - isKind:
+          of: ClusterRoleBinding
+        documentIndex: 2
+      - equal:
+          path: metadata.name
+          value: NAMESPACE-RELEASE-NAME
+        documentIndex: 2
+      - notExists:
+          path: metadata.namespace
+        documentIndex: 2
+      - equal:
+          path: roleRef.name
+          value: NAMESPACE-RELEASE-NAME
+        documentIndex: 2
+
+  - it: explicit long role name is untruncated and consistent
+    set:
+      serviceAccount:
+        - role:
+            name: "1234567890123456789012345678901234567890123456789012345678901234567890"
+            rules:
+              - apiGroups: [""]
+                resources: [pods]
+                verbs: [get]
+    asserts:
+      - equal:
+          path: metadata.name
+          value: "1234567890123456789012345678901234567890123456789012345678901234567890"
+        documentIndex: 1
+      - equal:
+          path: metadata.name
+          value: "1234567890123456789012345678901234567890123456789012345678901234567890"
+        documentIndex: 2
+      - equal:
+          path: roleRef.name
+          value: "1234567890123456789012345678901234567890123456789012345678901234567890"
+        documentIndex: 2
+
+  - it: role without rules and with explicit name renders binding only
+    set:
+      serviceAccount:
+        - role:
+            name: existing-role
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: RoleBinding
+        documentIndex: 1
+      - equal:
+          path: roleRef.name
+          value: existing-role
+        documentIndex: 1
+
+  - it: role without rules and without name fails template
+    set:
+      serviceAccount:
+        - role:
+            name: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: serviceAccount[].role.name is required when rules are omitted (binding to an existing Role)
+
+  - it: serviceaccount without role blocks renders exactly one document
+    set:
+      serviceAccount:
+        - {}
+    asserts:
+      - hasDocuments:
+          count: 1
