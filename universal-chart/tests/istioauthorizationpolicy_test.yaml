@@ -1,6 +1,6 @@
 suite: istioauthorizationpolicy template
 templates:
-  - istioauthorizationpolicies.yaml
+  - istio-authorization-policies.yaml
 tests:
   - it: renders an authorizationpolicy with api version name and namespace
     capabilities:

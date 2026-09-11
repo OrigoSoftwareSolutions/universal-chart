@@ -1,6 +1,6 @@
 suite: istiopeerauthentication template
 templates:
-  - istiopeerauthentications.yaml
+  - istio-peer-authentications.yaml
 tests:
   - it: renders a peerauthentication with api version name and namespace
     capabilities:

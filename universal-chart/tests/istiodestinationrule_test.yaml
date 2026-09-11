@@ -1,6 +1,6 @@
 suite: istiodestinationrule template
 templates:
-  - istiodestinationrule.yaml
+  - istio-destination-rules.yaml
 tests:
   - it: renders a destinationrule with api version name and namespace
     capabilities:

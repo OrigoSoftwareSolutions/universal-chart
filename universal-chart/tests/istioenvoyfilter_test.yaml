@@ -1,6 +1,6 @@
 suite: istioenvoyfilter template
 templates:
-  - istioenvoyfilters.yaml
+  - istio-envoy-filters.yaml
 tests:
   - it: renders an envoyfilter with api version name and namespace
     capabilities:

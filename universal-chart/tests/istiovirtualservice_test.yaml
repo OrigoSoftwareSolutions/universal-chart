@@ -1,13 +1,13 @@
 suite: istiovirtualservice template
 templates:
-  - istiovirtualservice.yaml
+  - istio-virtual-services.yaml
 tests:
   - it: renders a virtualservice with correct kind apiversion and namespace
     capabilities:
       apiVersions:
         - networking.istio.io/v1
     values:
-      - values/istiovirtualservice.yaml
+      - values/istio-virtual-services.yaml
     asserts:
       - isKind:
           of: VirtualService
@@ -24,7 +24,7 @@ tests:
       apiVersions:
         - networking.istio.io/v1
     values:
-      - values/istiovirtualservice.yaml
+      - values/istio-virtual-services.yaml
     asserts:
       - contains:
           path: spec.hosts
