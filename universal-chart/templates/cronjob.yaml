@@ -7,7 +7,6 @@ apiVersion: {{ include "helpers.capabilities.cronJob.apiVersion" $ }}
 kind: CronJob
 metadata:
   name: {{ $cjName }}
-  namespace: {{ $.Release.Namespace | quote }}
   {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "context" $) | nindent 2 }}
 spec:
   {{- if not (eq $d.suspend nil) }}

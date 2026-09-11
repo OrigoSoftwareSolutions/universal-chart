@@ -22,7 +22,7 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -deny-all$
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
       - equal:
           path: spec.policyTypes[0]

@@ -17,7 +17,7 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -my-vs$
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
   - it: renders hosts and gateways as quoted arrays
     capabilities:

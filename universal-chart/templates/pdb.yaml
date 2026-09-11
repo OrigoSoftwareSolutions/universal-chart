@@ -9,7 +9,6 @@ apiVersion: {{ include "helpers.capabilities.pdb.apiVersion" $ }}
 kind: PodDisruptionBudget
 metadata:
   name: {{ $name }}
-  namespace: {{ $.Release.Namespace | quote }}
   labels:
   {{- include "helpers.app.labels" $ | nindent 4 }}
   {{- with $pdb.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}

@@ -18,7 +18,7 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -my-policy$
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
   - it: passes authorizationpolicy spec through
     capabilities:

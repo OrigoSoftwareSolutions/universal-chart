@@ -17,7 +17,7 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -my-gw$
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
   - it: renders selector and server ports
     capabilities:

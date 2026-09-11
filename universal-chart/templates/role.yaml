@@ -14,7 +14,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ $roleName | quote }}
-  namespace: {{ $.Release.Namespace | quote }}
     {{- include "helpers.workload.metadata" (dict "value" $sa "context" $) | nindent 2 }}
 rules:
     {{- include "helpers.tplvalues.render" (dict "value" $role.rules "context" $) | nindent 2 }}

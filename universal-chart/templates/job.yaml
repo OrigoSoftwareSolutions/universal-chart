@@ -7,7 +7,6 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ $jobName }}
-  namespace: {{ $.Release.Namespace | quote }}
   {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "context" $) | nindent 2 }}
 spec:
   {{- if hasKey $d "parallelism" }}

@@ -66,6 +66,5 @@ tests:
       certificates.my-cert.issuerRef.name: letsencrypt
       certificates.my-cert.secretName: my-cert-tls
     asserts:
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
-

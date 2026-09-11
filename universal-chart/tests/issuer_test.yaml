@@ -19,7 +19,7 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -my-issuer$
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
       - equal:
           path: spec.acme.server

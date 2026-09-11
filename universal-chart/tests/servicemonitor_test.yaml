@@ -15,7 +15,7 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -app$
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
 
   - it: renders only one document per entry

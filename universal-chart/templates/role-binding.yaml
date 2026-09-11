@@ -18,7 +18,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ $roleName | quote }}
-  namespace: {{ $.Release.Namespace | quote }}
     {{- include "helpers.workload.metadata" (dict "value" $sa "context" $) | nindent 2 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io

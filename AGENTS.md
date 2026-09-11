@@ -94,7 +94,6 @@ apiVersion: {{ include "helpers.capabilities.<kind>.apiVersion" $ }}
 kind: <Kind>
 metadata:
   name: {{ $name }}
-  namespace: {{ $.Release.Namespace | quote }}
   labels:
   {{- include "helpers.app.labels" $ | nindent 4 }}
 spec:
@@ -119,6 +118,7 @@ metadata:
 
 Rules:
 - `---` goes **inside** the range, **after** the disabled guard.
+- `namespace` comes from `--namespace` / the GitOps destination - Helm best practice.
 - Singular block resources: name via `$v.name | default $.Release.Name`.
 - Dict-based resources: name via `$val.name | default (include "helpers.app.fullname" ...)` — supports an optional literal `.name:` per entry to override the default `{release}-{key}` expansion.
 - Cluster-scoped resources (ClusterIssuer, ClusterSecretStore, ClusterExternalSecret, PersistentVolume, StorageClass) omit `namespace:`.
@@ -166,7 +166,7 @@ tests:
 ```
 
 - Include `isKind` as an early assertion when a test verifies a rendered resource. For version-negotiated CRD-backed kinds (ExternalSecret, cert-manager, Gateway API, Istio) also assert `apiVersion` against the expected version string (use `helpers.capabilities.*` knowledge). Tests scoped to a single field value or a document count may omit `isKind`.
-- Namespaced kinds → `isNotEmpty: path: metadata.namespace`. Cluster-scoped → `notExists: path: metadata.namespace`.
+- Assert `notExists: path: metadata.namespace` unless the template intentionally sets a different explicit namespace field (for example ImageUpdater `metadataNamespace`). Cluster-scoped kinds also use `notExists: path: metadata.namespace`.
 - `disabled: true` test on dict resources → `hasDocuments: count: 0`.
 - Provide at minimum a container image when `set:`ting a workload, otherwise rendering fails with the `required`-template error from [_container.tpl:14](file:///home/dzhi/git/origo/universal-chart/universal-chart/templates/helpers/_container.tpl#L14) (the `defaultImage` fallback was removed in 1.7.3).
 - Multi-instance dict tests: select with `documentIndex`.

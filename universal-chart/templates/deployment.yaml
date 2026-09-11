@@ -6,7 +6,6 @@ apiVersion: {{ include "helpers.capabilities.deployment.apiVersion" $ }}
 kind: Deployment
 metadata:
   name: {{ $name }}
-  namespace: {{ $.Release.Namespace | quote }}
   {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "context" $) | nindent 2 }}
 spec:
   {{- if not .Values.hpa }}

@@ -14,7 +14,6 @@ metadata:
   name: job-{{ $jobName }}
   labels:
     {{- include "helpers.tplvalues.render" (dict "value" $ruleLabels "context" $) | nindent 4 }}
-  namespace: {{ $.Release.Namespace | quote }}
 spec:
   groups:
   - name: "jobs_rules"

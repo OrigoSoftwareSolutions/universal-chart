@@ -17,7 +17,7 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -my-filter$
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
 
   - it: passes spec through verbatim

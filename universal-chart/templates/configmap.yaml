@@ -27,7 +27,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ $val.name | default (include "helpers.app.fullname" (dict "name" $cName "context" $)) | trunc 63 | trimSuffix "-" }}
-  namespace: {{ $.Release.Namespace | quote }}
   labels:
   {{- include "helpers.app.labels" $ | nindent 4 }}
   {{- with $val.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{ end }}
