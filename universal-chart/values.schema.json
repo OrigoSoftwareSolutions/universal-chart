@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "universal-chart v2 values",
-  "description": "Schema for Origo universal-chart v2.0.0+ \u2014 singular-block pattern.",
+  "title": "universal-chart values",
+  "description": "Schema for Origo universal-chart \u2014 singular-block pattern.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
