@@ -1,6 +1,6 @@
 suite: storageclass
 templates:
-  - storageclasses.yaml
+  - storage-classes.yaml
 tests:
   - it: renders a StorageClass with provisioner and reclaimPolicy
     set:

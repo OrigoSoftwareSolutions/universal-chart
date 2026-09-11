@@ -1,6 +1,6 @@
 suite: networkpolicy template
 templates:
-  - networkpolicies.yaml
+  - network-policies.yaml
 tests:
   - it: renders a networkpolicy with kind apiVersion name and namespace
     set:

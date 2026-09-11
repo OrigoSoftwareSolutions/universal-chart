@@ -1,6 +1,6 @@
 suite: persistentvolume
 templates:
-  - persistentvolumes.yaml
+  - persistent-volumes.yaml
 tests:
   - it: renders a PersistentVolume with correct kind and apiVersion
     set:

@@ -565,7 +565,7 @@ tests:
           value: 10Gi
   - it: renders an imageUpdater
     templates:
-      - imageupdater.yaml
+      - image-updater.yaml
     set:
       imageUpdater.applicationName: my-argocd-app
       imageUpdater.images:
@@ -584,7 +584,7 @@ tests:
 
   - it: imageUpdater renders commonUpdateSettings via toYaml passthrough
     templates:
-      - imageupdater.yaml
+      - image-updater.yaml
     set:
       imageUpdater.applicationName: my-argocd-app
       imageUpdater.images:
@@ -603,7 +603,7 @@ tests:
 
   - it: imageUpdater omits commonUpdateSettings when not set
     templates:
-      - imageupdater.yaml
+      - image-updater.yaml
     set:
       imageUpdater.applicationName: my-argocd-app
       imageUpdater.images:
@@ -644,7 +644,7 @@ tests:
 
   - it: secretStore literal name override
     templates:
-      - secretstores.yaml
+      - secret-stores.yaml
     capabilities:
       apiVersions:
         - external-secrets.io/v1beta1

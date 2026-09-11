@@ -1,6 +1,6 @@
 suite: httproute
 templates:
-  - httproutes.yaml
+  - http-routes.yaml
 tests:
   - it: renders an HTTPRoute with correct apiVersion
     capabilities:
@@ -62,4 +62,3 @@ tests:
       - equal:
           path: spec.hostnames[0]
           value: RELEASE-NAME.example.com
-
