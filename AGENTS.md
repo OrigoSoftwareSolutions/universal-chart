@@ -22,7 +22,7 @@ README.md                  ← COPY of universal-chart/README.md (keep byte-iden
 universal-chart/README.md.gotmpl ← helm-docs source template; generated README.md ships, this doesn't
 examples/                  ← static example values (`*-values.yaml`); not consumed by chart or tests
 .helmfmt, .yamllint        ← style enforcement
-.pre-commit-config.yaml    ← runs helmfmt + helm-docs on commit
+.pre-commit-config.yaml    ← runs helmfmt, helm-docs, values doc-comment coverage, and root README sync on commit
 .github/workflows/         ← ci.yaml (PR gates) + release.yaml (OCI push on main, skip-existing on Chart.yaml version)
 ```
 
@@ -81,7 +81,7 @@ and if `values.yaml` changed, `universal-chart/README.md` was regenerated, copie
 - **`containerSecurityContext` deep-merge** — workload-level `containerSecurityContext:` is deep-merged with each container's own `securityContext:` (container value wins on key conflict). Set shared defaults at the workload level; override per-container via `securityContext:` on each entry in `containers:`. Init containers receive the same merge. Implemented in `_container.tpl:35-41`.
 - **`lifecycle:`** renders verbatim on the container (`_container.tpl`). Set at workload level for the single-container shorthand or per entry in `containers:`. No automatic hooks are injected. Init containers receive the same treatment as regular containers — lifecycle is applied when present.
 - **PDB is singular** — `pdb:` creates one PodDisruptionBudget per release. Selector uses `helpers.app.workloadSelectorLabels`. Requires either `minAvailable:` or `maxUnavailable:` (fails at template time otherwise). Supports `unhealthyPodEvictionPolicy` on K8s ≥1.27.
-- **helm-docs comment syntax**: `# -- <description>` starting the comment block directly above a values key is what helm-docs picks up into the README's Values table. Continuation `#` lines (including `# @default --`) extend the block — they are allowed between the `# --` line and the key. A blank line between the block and the key breaks pickup entirely. `# @section <Title>` introduces a section break. A new values key without a `# --` line silently disappears from the docs table — `docs-check` won't catch this since the diff is generated-vs-generated.
+- **helm-docs comment syntax**: `# -- <description>` starting the comment block directly above a values key is what helm-docs picks up into the README's Values table. Continuation `#` lines (including `# @default --`) extend the block — they are allowed between the `# --` line and the key. A blank line between the block and the key breaks pickup entirely. `# @section <Title>` introduces a section break. A new top-level values key without a `# --` line is caught by the doc-comment coverage check (CI `docs-check` step + pre-commit hook). Nested keys without `# --` still silently disappear from the docs table — the generated-vs-generated diff won't show them.
 
 ## Template Authoring
 
@@ -179,7 +179,7 @@ Three parallel jobs in `.github/workflows/ci.yaml`. All must pass:
 
 - `lint` — `helm lint --strict` + kubeconform schema validation.
 - `unittest` — `helm unittest --strict --file 'tests/*.yaml'`.
-- `docs-check` — re-runs `helm-docs` and `git diff --exit-code README.md`. If you edited `values.yaml` without regenerating, this fails.
+- `docs-check` — checks every top-level `values.yaml` key has a `# --` doc comment, re-runs `helm-docs`, copies the chart README to the root, then `git diff --exit-code` + `git status --porcelain` on both `README.md` and `universal-chart/README.md`. If you edited `values.yaml` without regenerating, this fails.
 
 ## Release
 
@@ -190,7 +190,7 @@ Bump `version:` in `universal-chart/Chart.yaml`, merge to `main`. `.github/workf
 ## Commits & PRs
 
 - Commit subjects use sentence-case, verb-led prose — e.g. `Scoped ServiceMonitor default selector to one workload`, `Updated docs and schema`, `Added logic to prevent releasing lower version of the chart`. No Conventional Commits prefixes (`feat:`, `fix:`, `chore:`), no scope markers, no body in routine commits. Match the existing log style.
-- Work happens on the `fixes` branch; merges to `main` go through PRs (visible via `Merge pull request #N from OrigoSoftwareSolutions/fixes` commits).
+- Work conventionally happens on the `fixes` branch (feature branches like `feat/*` also occur); merges to `main` go through PRs (visible via `Merge pull request #N from OrigoSoftwareSolutions/<branch>` commits).
 - Never commit, amend, or push without an explicit user request.
 
 ## What NOT to Do
