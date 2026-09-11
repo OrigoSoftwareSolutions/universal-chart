@@ -69,6 +69,8 @@ jobs:
 
       - name: Check docs are up to date
         run: |
-          helm-docs --chart-search-root universal-chart/ -o ../README.md --sort-values-order=file
-          git diff --exit-code README.md \
-            || (echo "ERROR: README.md is out of date. Run 'helm-docs --chart-search-root universal-chart/ -o ../README.md --sort-values-order=file' locally and commit." && exit 1)
+          helm-docs --chart-search-root universal-chart/ --sort-values-order=file
+          cp universal-chart/README.md README.md
+          git diff --exit-code README.md universal-chart/README.md
+          test -z "$(git status --porcelain README.md universal-chart/README.md)" \
+            || (echo "ERROR: README.md or universal-chart/README.md is out of date/untracked. Run 'helm-docs --chart-search-root universal-chart/ --sort-values-order=file && cp universal-chart/README.md README.md' locally and commit both files." && exit 1)

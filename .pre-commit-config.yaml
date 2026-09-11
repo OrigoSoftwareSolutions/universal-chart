@@ -11,6 +11,12 @@ repos:
       - id: helm-docs
         args:
           - --chart-search-root=universal-chart/
-          - --output-file=../README.md
           - --sort-values-order=file
 
+  - repo: local
+    hooks:
+      - id: sync-root-readme
+        name: sync root README.md from chart README.md
+        language: system
+        pass_filenames: false
+        entry: cp universal-chart/README.md README.md
