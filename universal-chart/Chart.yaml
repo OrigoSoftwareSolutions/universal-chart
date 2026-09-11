@@ -13,6 +13,9 @@ sources:
 
 maintainers:
   - name: Origo SoftwareSolutions DevOps
+    url: https://github.com/OrigoSoftwareSolutions
+
+icon: https://github.com/OrigoSoftwareSolutions.png
 
 keywords:
   - universal
