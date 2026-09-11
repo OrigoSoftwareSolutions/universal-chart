@@ -1,0 +1,21 @@
+{{- range .Values.serviceAccount }}
+  {{- $sa := . }}
+  {{- $name := $sa.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+  {{- $cr := $sa.clusterRole }}
+  {{- if and $cr $cr.rules }}
+    {{- $clusterRoleName := "" }}
+    {{- if $cr.name }}
+      {{- $clusterRoleName = $cr.name }}
+    {{- else }}
+      {{- $clusterRoleName = printf "%s-%s" $.Release.Namespace $name | trunc 63 | trimSuffix "-" }}
+    {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $clusterRoleName | quote }}
+    {{- include "helpers.workload.metadata" (dict "value" $sa "context" $) | nindent 2 }}
+rules:
+    {{- include "helpers.tplvalues.render" (dict "value" $cr.rules "context" $) | nindent 2 }}
+  {{- end }}
+{{- end }}

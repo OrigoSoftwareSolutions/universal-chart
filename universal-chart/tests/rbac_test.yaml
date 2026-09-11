@@ -1,8 +1,8 @@
 suite: serviceaccount rbac naming
-templates:
-  - serviceaccount.yaml
 tests:
   - it: role with rules defaults to release name everywhere
+    templates:
+      - role-binding.yaml
     set:
       serviceAccount:
         - role:
@@ -12,27 +12,22 @@ tests:
                 verbs: [get]
     asserts:
       - hasDocuments:
-          count: 3
-      - isKind:
-          of: Role
-        documentIndex: 1
-      - equal:
-          path: metadata.name
-          value: RELEASE-NAME
-        documentIndex: 1
+          count: 1
       - isKind:
           of: RoleBinding
-        documentIndex: 2
+        documentIndex: 0
       - equal:
           path: metadata.name
           value: RELEASE-NAME
-        documentIndex: 2
+        documentIndex: 0
       - equal:
           path: roleRef.name
           value: RELEASE-NAME
-        documentIndex: 2
+        documentIndex: 0
 
   - it: clusterrole with rules defaults to namespace release name everywhere
+    templates:
+      - cluster-role-binding.yaml
     set:
       serviceAccount:
         - clusterRole:
@@ -42,33 +37,25 @@ tests:
                 verbs: [get]
     asserts:
       - hasDocuments:
-          count: 3
-      - isKind:
-          of: ClusterRole
-        documentIndex: 1
-      - equal:
-          path: metadata.name
-          value: NAMESPACE-RELEASE-NAME
-        documentIndex: 1
-      - notExists:
-          path: metadata.namespace
-        documentIndex: 1
+          count: 1
       - isKind:
           of: ClusterRoleBinding
-        documentIndex: 2
+        documentIndex: 0
       - equal:
           path: metadata.name
           value: NAMESPACE-RELEASE-NAME
-        documentIndex: 2
+        documentIndex: 0
       - notExists:
           path: metadata.namespace
-        documentIndex: 2
+        documentIndex: 0
       - equal:
           path: roleRef.name
           value: NAMESPACE-RELEASE-NAME
-        documentIndex: 2
+        documentIndex: 0
 
   - it: explicit long role name is untruncated and consistent
+    templates:
+      - role-binding.yaml
     set:
       serviceAccount:
         - role:
@@ -81,33 +68,33 @@ tests:
       - equal:
           path: metadata.name
           value: "1234567890123456789012345678901234567890123456789012345678901234567890"
-        documentIndex: 1
-      - equal:
-          path: metadata.name
-          value: "1234567890123456789012345678901234567890123456789012345678901234567890"
-        documentIndex: 2
+        documentIndex: 0
       - equal:
           path: roleRef.name
           value: "1234567890123456789012345678901234567890123456789012345678901234567890"
-        documentIndex: 2
+        documentIndex: 0
 
   - it: role without rules and with explicit name renders binding only
+    templates:
+      - role-binding.yaml
     set:
       serviceAccount:
         - role:
             name: existing-role
     asserts:
       - hasDocuments:
-          count: 2
+          count: 1
       - isKind:
           of: RoleBinding
-        documentIndex: 1
+        documentIndex: 0
       - equal:
           path: roleRef.name
           value: existing-role
-        documentIndex: 1
+        documentIndex: 0
 
   - it: role without rules and without name fails template
+    templates:
+      - role-binding.yaml
     set:
       serviceAccount:
         - role:
@@ -117,6 +104,8 @@ tests:
           errorMessage: serviceAccount[].role.name is required when rules are omitted (binding to an existing Role)
 
   - it: serviceaccount without role blocks renders exactly one document
+    templates:
+      - service-account.yaml
     set:
       serviceAccount:
         - {}

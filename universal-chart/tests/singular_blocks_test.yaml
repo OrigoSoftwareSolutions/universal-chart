@@ -339,7 +339,7 @@ tests:
           value: LoadBalancer
   - it: renders a serviceaccount with role
     templates:
-      - serviceaccount.yaml
+      - service-account.yaml
     set:
       serviceAccount:
         - name: my-sa
@@ -360,7 +360,7 @@ tests:
 
   - it: renders multiple serviceaccounts
     templates:
-      - serviceaccount.yaml
+      - service-account.yaml
     set:
       serviceAccount:
         - name: my-app

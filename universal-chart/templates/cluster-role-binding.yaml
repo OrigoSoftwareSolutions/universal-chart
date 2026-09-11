@@ -1,0 +1,31 @@
+{{- range .Values.serviceAccount }}
+  {{- $sa := . }}
+  {{- $name := $sa.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+  {{- $cr := $sa.clusterRole }}
+  {{- if $cr }}
+    {{- $clusterRoleName := "" }}
+    {{- if $cr.rules }}
+      {{- if $cr.name }}
+        {{- $clusterRoleName = $cr.name }}
+      {{- else }}
+        {{- $clusterRoleName = printf "%s-%s" $.Release.Namespace $name | trunc 63 | trimSuffix "-" }}
+      {{- end }}
+    {{- else }}
+      {{- $clusterRoleName = required "serviceAccount[].clusterRole.name is required when rules are omitted (binding to an existing ClusterRole)" $cr.name }}
+    {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $clusterRoleName | quote }}
+    {{- include "helpers.workload.metadata" (dict "value" $sa "context" $) | nindent 2 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $clusterRoleName | quote }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ $.Release.Namespace | quote }}
+  {{- end }}
+{{- end }}

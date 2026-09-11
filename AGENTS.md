@@ -139,7 +139,7 @@ Define as `{{- define "helpers.<group>.<name>" -}}…{{- end -}}`.
 | `_capabilities.tpl` | `helpers.capabilities.<kind>.apiVersion` — static strings for stable Kubernetes APIs (`apps/v1`, `batch/v1`, `policy/v1`, `autoscaling/v2`); `.Capabilities.APIVersions.Has`-based version negotiation for CRD-backed kinds (ExternalSecret, cert-manager, Gateway API, Istio). |
 | `_affinities.tpl` | `helpers.affinities.nodes`, `.nodes.soft`, `.nodes.hard`, `helpers.affinities.pods`, `.pods.soft`, `.pods.hard`, `.pods.labelSelector`. |
 | `_tplvalues.tpl` | `helpers.tplvalues.render` — evaluates Go template expressions inside user-provided values. |
-| `_metadata.tpl` | `helpers.workload.metadata`, `.podTemplateMetadata` — metadata labels/annotations for workload-level and pod-template-level resources. |
+| `_metadata.tpl` | `helpers.workload.metadata`, `.podTemplateMetadata` — metadata labels/annotations for workload-level, pod-template-level, and ServiceAccount/RBAC resources. |
 
 
 ## Style (enforced)
