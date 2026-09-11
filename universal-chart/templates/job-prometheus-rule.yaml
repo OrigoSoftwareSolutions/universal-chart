@@ -1,0 +1,31 @@
+{{- if .Values.job }}
+  {{- $d := .Values.job }}
+  {{- $name := $d.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+  {{- $jobName := $name }}
+  {{- $cda := $d.commandDurationAlert }}
+  {{- if ne $cda nil }}
+    {{- $cdaLabels := $d.commandDurationAlertLabels | default (dict "prometheus" "k8s" "role" "alert-rules") }}
+    {{- $ruleLabels := merge (deepCopy $cdaLabels) (include "helpers.app.labels" $ | fromYaml) }}
+    {{- $cdaRuleLabels := $d.commandDurationAlertRuleLabels | default (dict "severity" "warning") }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: job-{{ $jobName }}
+  labels:
+    {{- include "helpers.tplvalues.render" (dict "value" $ruleLabels "context" $) | nindent 4 }}
+  namespace: {{ $.Release.Namespace | quote }}
+spec:
+  groups:
+  - name: "jobs_rules"
+    interval: 1m
+    rules:
+    - alert: "job-{{ $jobName }}-too-long-execution"
+      expr: '((time() - kube_job_status_start_time{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $jobName }}(-.*)?"}) and kube_job_status_active{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $jobName }}(-.*)?"} == 1) > {{ $cda }}'
+      for: 3m
+      labels:
+    {{- include "helpers.tplvalues.render" (dict "value" $cdaRuleLabels "context" $) | nindent 8 }}
+      annotations:
+        message: "Job {{ $.Release.Namespace }}/{{ $jobName }} is taking more than {{ $cda }} to complete"
+  {{- end }}
+{{- end }}
