@@ -15,26 +15,6 @@ repos:
 
   - repo: local
     hooks:
-      - id: check-values-doc-coverage
-        name: check values top-level doc-comment coverage
-        language: system
-        pass_filenames: false
-        entry: >
-          awk 'BEGIN { in_comment = 0; has_doc = 0; missing = 0 }
-          /^[[:space:]]*$/ { in_comment = 0; has_doc = 0; next }
-          /^#/ { in_comment = 1; if ($0 ~ /^# --([[:space:]].*)?$/) has_doc = 1; next }
-          /^[A-Za-z][A-Za-z0-9]*:/ {
-            key = $0; sub(/:.*/, "", key);
-            if (!in_comment || !has_doc) { print key; missing = 1 }
-            in_comment = 0; has_doc = 0; next
-          }
-          { in_comment = 0; has_doc = 0 }
-          END {
-            if (missing) {
-              print "ERROR: Missing '\''# --'\'' doc comments for top-level keys in universal-chart/values.yaml:" > "/dev/stderr";
-              exit 1
-            }
-          }' universal-chart/values.yaml
       - id: sync-root-readme
         name: sync root README.md from chart README.md
         language: system

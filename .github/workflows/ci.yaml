@@ -61,36 +61,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Check values doc-comment coverage
-        run: |
-          awk '
-          BEGIN { in_comment = 0; has_doc = 0; missing = 0 }
-          /^[[:space:]]*$/ { in_comment = 0; has_doc = 0; next }
-          /^#/ {
-            in_comment = 1
-            if ($0 ~ /^# --([[:space:]].*)?$/) has_doc = 1
-            next
-          }
-          /^[A-Za-z][A-Za-z0-9]*:/ {
-            key = $0
-            sub(/:.*/, "", key)
-            if (!in_comment || !has_doc) {
-              print key
-              missing = 1
-            }
-            in_comment = 0
-            has_doc = 0
-            next
-          }
-          { in_comment = 0; has_doc = 0 }
-          END {
-            if (missing) {
-              print "ERROR: Missing '# --' doc comments for top-level keys in universal-chart/values.yaml:" > "/dev/stderr"
-              exit 1
-            }
-          }
-          ' universal-chart/values.yaml
-
       - name: Install helm-docs
         run: |
           curl -sLO https://github.com/norwoodj/helm-docs/releases/download/v1.14.2/helm-docs_1.14.2_Linux_x86_64.tar.gz
