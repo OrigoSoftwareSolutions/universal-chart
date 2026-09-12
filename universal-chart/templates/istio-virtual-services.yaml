@@ -5,7 +5,6 @@ apiVersion: {{ include "helpers.capabilities.istiovirtualservice.apiVersion" $ }
 kind: VirtualService
 metadata:
   name: {{ $virtualservice.name | default (include "helpers.app.fullname" (dict "name" $host "context" $)) | trunc 63 | trimSuffix "-" }}
-  namespace: {{ $.Release.Namespace | quote }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}
     {{- with $virtualservice.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}

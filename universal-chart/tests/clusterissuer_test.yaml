@@ -1,6 +1,6 @@
 suite: clusterissuer
 templates:
-  - clusterissuers.yaml
+  - cluster-issuers.yaml
 tests:
   - it: renders a ClusterIssuer without namespace
     capabilities:

@@ -8,7 +8,6 @@ kind: {{ $kind }}
 metadata:
   name: {{ $iss.name | default (include "helpers.app.fullname" (dict "name" $name "context" $)) | trunc 63 | trimSuffix "-" }}
     {{- if ne $kind "ClusterIssuer" }}
-  namespace: {{ $.Release.Namespace | quote }}
     {{- end }}
   labels:
     {{- include "helpers.app.labels" $ | nindent 4 }}

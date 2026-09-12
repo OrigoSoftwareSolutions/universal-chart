@@ -56,7 +56,6 @@ dnsConfig:
 nodeSelector: {{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 2 }}
       {{- end }}
     {{- end }}
-
     {{- if (ne .tolerations nil) }}
       {{- with .tolerations }}
 tolerations:

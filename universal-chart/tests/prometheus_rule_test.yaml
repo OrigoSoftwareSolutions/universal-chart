@@ -1,0 +1,79 @@
+suite: prometheus rule templates
+tests:
+  - it: job variant renders PrometheusRule with unchanged job name and configured duration in expr
+    templates:
+      - job-prometheus-rule.yaml
+    set:
+      job.image: x
+      job.commandDurationAlert: 300
+    asserts:
+      - isKind:
+          of: PrometheusRule
+      - equal:
+          path: metadata.name
+          value: job-RELEASE-NAME
+      - matchRegex:
+          path: spec.groups[0].rules[0].expr
+          pattern: '> 300$'
+
+  - it: cronjob variant renders PrometheusRule with unchanged cronjob name and configured duration in expr
+    templates:
+      - cronjob-prometheus-rule.yaml
+    set:
+      cronJob.image: x
+      cronJob.schedule: "*/5 * * * *"
+      cronJob.commandDurationAlert: 600
+    asserts:
+      - isKind:
+          of: PrometheusRule
+      - equal:
+          path: metadata.name
+          value: cronjob-RELEASE-NAME
+      - matchRegex:
+          path: spec.groups[0].rules[0].expr
+          pattern: '> 600$'
+
+  - it: default alert labels and standard chart labels are all present
+    templates:
+      - job-prometheus-rule.yaml
+    set:
+      job.image: x
+      job.commandDurationAlert: 300
+    asserts:
+      - equal:
+          path: metadata.labels.prometheus
+          value: k8s
+      - equal:
+          path: metadata.labels.role
+          value: alert-rules
+      - isNotEmpty:
+          path: metadata.labels["app.kubernetes.io/name"]
+      - isNotEmpty:
+          path: metadata.labels["app.kubernetes.io/instance"]
+
+  - it: user commandDurationAlertLabels colliding with standard label wins
+    templates:
+      - job-prometheus-rule.yaml
+    set:
+      job.image: x
+      job.commandDurationAlert: 300
+      job.commandDurationAlertLabels:
+        app.kubernetes.io/name: custom-rule-name
+        prometheus: k8s
+        role: alert-rules
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: custom-rule-name
+
+  - it: no commandDurationAlert set renders no PrometheusRule docs from dedicated templates
+    templates:
+      - job-prometheus-rule.yaml
+      - cronjob-prometheus-rule.yaml
+    set:
+      job.image: x
+      cronJob.image: x
+      cronJob.schedule: "*/15 * * * *"
+    asserts:
+      - hasDocuments:
+          count: 0

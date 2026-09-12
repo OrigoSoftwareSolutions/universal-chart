@@ -7,7 +7,6 @@ apiVersion: {{ include "helpers.capabilities.cronJob.apiVersion" $ }}
 kind: CronJob
 metadata:
   name: {{ $cjName }}
-  namespace: {{ $.Release.Namespace | quote }}
   {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "context" $) | nindent 2 }}
 spec:
   {{- if not (eq $d.suspend nil) }}
@@ -60,29 +59,4 @@ spec:
         spec:
   {{- include "helpers.pod" (dict "value" $d "name" $name "context" $) | trim | nindent 10 }}
           restartPolicy: {{ $d.restartPolicy | default "Never" | quote }}
-  {{- $cda := $d.commandDurationAlert }}
-  {{- if ne $cda nil }}
-    {{- $cdaLabels := $d.commandDurationAlertLabels | default (dict "prometheus" "k8s" "role" "alert-rules") }}
-    {{- $cdaRuleLabels := $d.commandDurationAlertRuleLabels | default (dict "severity" "warning") }}
----
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  name: cronjob-{{ $cjName }}
-  labels:
-    {{- include "helpers.tplvalues.render" (dict "value" $cdaLabels "context" $) | nindent 4 }}
-  namespace: {{ $.Release.Namespace | quote }}
-spec:
-  groups:
-  - name: "cronJobs_rules"
-    interval: 1m
-    rules:
-    - alert: "cronjob-{{ $cjName }}-too-long-execution"
-      expr: '((time() - kube_job_status_start_time{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"}) and kube_job_status_active{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"} == 1) > {{ $cda }}'
-      for: 3m
-      labels:
-    {{- include "helpers.tplvalues.render" (dict "value" $cdaRuleLabels "context" $) | nindent 8 }}
-      annotations:
-        message: "CronJob {{ $.Release.Namespace }}/{{ $cjName }} is taking more than {{ $cda }} to complete"
-  {{- end }}
 {{- end }}

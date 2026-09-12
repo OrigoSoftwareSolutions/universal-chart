@@ -1,6 +1,6 @@
 suite: servicemonitor
 templates:
-  - servicemonitor.yaml
+  - service-monitors.yaml
 tests:
   - it: renders a ServiceMonitor with correct kind and apiVersion
     set:
@@ -15,7 +15,7 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -app$
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
 
   - it: renders only one document per entry

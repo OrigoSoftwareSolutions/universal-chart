@@ -1,0 +1,21 @@
+{{- range .Values.serviceAccount }}
+  {{- $sa := . }}
+  {{- $name := $sa.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+  {{- $role := $sa.role }}
+  {{- if and $role $role.rules }}
+    {{- $roleName := "" }}
+    {{- if $role.name }}
+      {{- $roleName = $role.name }}
+    {{- else }}
+      {{- $roleName = $name | trunc 63 | trimSuffix "-" }}
+    {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $roleName | quote }}
+    {{- include "helpers.workload.metadata" (dict "value" $sa "context" $) | nindent 2 }}
+rules:
+    {{- include "helpers.tplvalues.render" (dict "value" $role.rules "context" $) | nindent 2 }}
+  {{- end }}
+{{- end }}

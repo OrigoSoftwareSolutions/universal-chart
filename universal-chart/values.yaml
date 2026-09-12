@@ -568,6 +568,5 @@ extraDeploy: {}
 #     kind: NetworkPolicy
 #     metadata:
 #       name: {{ .Release.Name }}-nw-policy
-#       namespace: {{ .Release.Namespace | quote }}
 #     spec:
 #       podSelector: { matchLabels: { role: db } }

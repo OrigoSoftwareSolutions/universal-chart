@@ -339,7 +339,7 @@ tests:
           value: LoadBalancer
   - it: renders a serviceaccount with role
     templates:
-      - serviceaccount.yaml
+      - service-account.yaml
     set:
       serviceAccount:
         - name: my-sa
@@ -360,7 +360,7 @@ tests:
 
   - it: renders multiple serviceaccounts
     templates:
-      - serviceaccount.yaml
+      - service-account.yaml
     set:
       serviceAccount:
         - name: my-app
@@ -411,7 +411,7 @@ tests:
       - equal:
           path: metadata.name
           value: RELEASE-NAME
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
       - equal:
           path: spec.targetRef.apiVersion
@@ -565,7 +565,7 @@ tests:
           value: 10Gi
   - it: renders an imageUpdater
     templates:
-      - imageupdater.yaml
+      - image-updater.yaml
     set:
       imageUpdater.applicationName: my-argocd-app
       imageUpdater.images:
@@ -584,7 +584,7 @@ tests:
 
   - it: imageUpdater renders commonUpdateSettings via toYaml passthrough
     templates:
-      - imageupdater.yaml
+      - image-updater.yaml
     set:
       imageUpdater.applicationName: my-argocd-app
       imageUpdater.images:
@@ -603,7 +603,7 @@ tests:
 
   - it: imageUpdater omits commonUpdateSettings when not set
     templates:
-      - imageupdater.yaml
+      - image-updater.yaml
     set:
       imageUpdater.applicationName: my-argocd-app
       imageUpdater.images:
@@ -644,7 +644,7 @@ tests:
 
   - it: secretStore literal name override
     templates:
-      - secretstores.yaml
+      - secret-stores.yaml
     capabilities:
       apiVersions:
         - external-secrets.io/v1beta1

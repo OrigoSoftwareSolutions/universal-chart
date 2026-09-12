@@ -1,13 +1,13 @@
 suite: istiogateway template
 templates:
-  - istiogateway.yaml
+  - istio-gateways.yaml
 tests:
   - it: renders a gateway with correct kind apiversion and namespace
     capabilities:
       apiVersions:
         - networking.istio.io/v1
     values:
-      - values/istiogateway.yaml
+      - values/istio-gateways.yaml
     asserts:
       - isKind:
           of: Gateway
@@ -17,14 +17,14 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -my-gw$
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
   - it: renders selector and server ports
     capabilities:
       apiVersions:
         - networking.istio.io/v1
     values:
-      - values/istiogateway.yaml
+      - values/istio-gateways.yaml
     asserts:
       - equal:
           path: spec.selector.istio
@@ -43,7 +43,7 @@ tests:
       apiVersions:
         - networking.istio.io/v1
     values:
-      - values/istiogateway.yaml
+      - values/istio-gateways.yaml
     set:
       istioGateways.my-gw.name: custom-gateway
     asserts:

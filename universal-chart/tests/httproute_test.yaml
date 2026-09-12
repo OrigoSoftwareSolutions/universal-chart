@@ -1,6 +1,6 @@
 suite: httproute
 templates:
-  - httproutes.yaml
+  - http-routes.yaml
 tests:
   - it: renders an HTTPRoute with correct apiVersion
     capabilities:
@@ -16,7 +16,7 @@ tests:
       - equal:
           path: apiVersion
           value: gateway.networking.k8s.io/v1
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
 
   - it: falls back to v1beta1 without gateway API
@@ -62,4 +62,3 @@ tests:
       - equal:
           path: spec.hostnames[0]
           value: RELEASE-NAME.example.com
-

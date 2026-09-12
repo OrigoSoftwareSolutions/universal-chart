@@ -1,6 +1,6 @@
 suite: istioenvoyfilter template
 templates:
-  - istioenvoyfilters.yaml
+  - istio-envoy-filters.yaml
 tests:
   - it: renders an envoyfilter with api version name and namespace
     capabilities:
@@ -17,7 +17,7 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -my-filter$
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
 
   - it: passes spec through verbatim

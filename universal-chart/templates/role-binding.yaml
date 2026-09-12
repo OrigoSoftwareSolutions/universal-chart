@@ -1,0 +1,31 @@
+{{- range .Values.serviceAccount }}
+  {{- $sa := . }}
+  {{- $name := $sa.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+  {{- $role := $sa.role }}
+  {{- if $role }}
+    {{- $roleName := "" }}
+    {{- if $role.rules }}
+      {{- if $role.name }}
+        {{- $roleName = $role.name }}
+      {{- else }}
+        {{- $roleName = $name | trunc 63 | trimSuffix "-" }}
+      {{- end }}
+    {{- else }}
+      {{- $roleName = required "serviceAccount[].role.name is required when rules are omitted (binding to an existing Role)" $role.name }}
+    {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $roleName | quote }}
+    {{- include "helpers.workload.metadata" (dict "value" $sa "context" $) | nindent 2 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $roleName | quote }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ $.Release.Namespace | quote }}
+  {{- end }}
+{{- end }}

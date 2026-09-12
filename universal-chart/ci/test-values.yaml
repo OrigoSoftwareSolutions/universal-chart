@@ -41,6 +41,39 @@ hpa:
 pdb:
   minAvailable: 1
 
+serviceAccount:
+  - name: ci-sa-defaults
+    role:
+      rules:
+        - apiGroups: [""]
+          resources: [pods]
+          verbs: [get, list]
+    clusterRole:
+      rules:
+        - apiGroups: [""]
+          resources: [nodes]
+          verbs: [get]
+  - name: ci-sa-binding
+    role:
+      name: ci-existing-role
+    clusterRole:
+      name: ci-existing-cluster-role
+
+job:
+  image: busybox
+  commandDurationAlert: 300
+
+cronJob:
+  image: busybox
+  schedule: "0 * * * *"
+  commandDurationAlert: 600
+
+statefulset:
+  image: nginx
+
+daemonset:
+  image: nginx
+
 pvc:
   accessModes:
     - ReadWriteOnce
@@ -696,3 +729,24 @@ serviceMonitors:
     endpoints:
       - port: http
         interval: 30s
+
+extraDeploy:
+  ci-extra-image-updater: |-
+    apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+    kind: ImageUpdater
+    metadata:
+      name: ci-extra-image-updater
+      namespace: argocd
+    spec:
+      namespace: argocd
+      applicationRefs:
+        - namePattern: ci-argocd-app
+          images:
+            - alias: app
+              imageName: ghcr.io/origosoftwaresolutions/example
+              manifestTargets:
+                helm:
+                  name: deployment.image
+                  tag: deployment.imageTag
+      writeBackConfig:
+        method: argocd

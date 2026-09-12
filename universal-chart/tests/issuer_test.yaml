@@ -1,6 +1,6 @@
 suite: issuer template
 templates:
-  - issuer.yaml
+  - issuers.yaml
 tests:
   - it: renders an issuer when cert-manager is available
     capabilities:
@@ -19,7 +19,7 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: -my-issuer$
-      - isNotEmpty:
+      - notExists:
           path: metadata.namespace
       - equal:
           path: spec.acme.server
@@ -79,4 +79,3 @@ tests:
       - equal:
           path: spec.acme.privateKeySecretRef.name
           value: letsencrypt-key
-

@@ -1,0 +1,30 @@
+{{- if .Values.cronJob }}
+  {{- $d := .Values.cronJob }}
+  {{- $name := $d.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+  {{- $cjName := $name }}
+  {{- $cda := $d.commandDurationAlert }}
+  {{- if ne $cda nil }}
+    {{- $cdaLabels := $d.commandDurationAlertLabels | default (dict "prometheus" "k8s" "role" "alert-rules") }}
+    {{- $ruleLabels := merge (deepCopy $cdaLabels) (include "helpers.app.labels" $ | fromYaml) }}
+    {{- $cdaRuleLabels := $d.commandDurationAlertRuleLabels | default (dict "severity" "warning") }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cronjob-{{ $cjName }}
+  labels:
+    {{- include "helpers.tplvalues.render" (dict "value" $ruleLabels "context" $) | nindent 4 }}
+spec:
+  groups:
+  - name: "cronJobs_rules"
+    interval: 1m
+    rules:
+    - alert: "cronjob-{{ $cjName }}-too-long-execution"
+      expr: '((time() - kube_job_status_start_time{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"}) and kube_job_status_active{namespace="{{ $.Release.Namespace }}", job_name=~"{{ $cjName }}-.*"} == 1) > {{ $cda }}'
+      for: 3m
+      labels:
+    {{- include "helpers.tplvalues.render" (dict "value" $cdaRuleLabels "context" $) | nindent 8 }}
+      annotations:
+        message: "CronJob {{ $.Release.Namespace }}/{{ $cjName }} is taking more than {{ $cda }} to complete"
+  {{- end }}
+{{- end }}
