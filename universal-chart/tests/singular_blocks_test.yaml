@@ -48,6 +48,17 @@ tests:
           path: spec.template.spec.containers[0].image
           value: myapp:1.2.3
 
+  - it: preserves zero deployment replicas
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+      deployment.replicas: 0
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+
   - it: deployment omits replicas when hpa is enabled
     templates:
       - deployment.yaml
@@ -152,6 +163,38 @@ tests:
       - equal:
           path: metadata.name
           value: RELEASE-NAME
+
+  - it: defaults statefulset replicas to one
+    templates:
+      - statefulset.yaml
+    set:
+      statefulset.image: nginx
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: preserves zero statefulset replicas
+    templates:
+      - statefulset.yaml
+    set:
+      statefulset.image: nginx
+      statefulset.replicas: 0
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+
+  - it: preserves positive statefulset replicas
+    templates:
+      - statefulset.yaml
+    set:
+      statefulset.image: nginx
+      statefulset.replicas: 3
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
 
   - it: statefulset with serviceName and volumeClaimTemplates
     templates:
