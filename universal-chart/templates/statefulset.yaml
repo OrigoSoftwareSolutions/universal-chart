@@ -9,7 +9,7 @@ metadata:
   {{- include "helpers.workload.metadata" (dict "name" $name "value" $d "context" $) | nindent 2 }}
 spec:
   {{- if not .Values.hpa }}
-  replicas: {{ $d.replicas | default 1 | int }}
+  replicas: {{ ternary $d.replicas 1 (hasKey $d "replicas") | int }}
   {{- end }}
   {{- $rhl := $d.revisionHistoryLimit }}
   {{- if ne $rhl nil }}
