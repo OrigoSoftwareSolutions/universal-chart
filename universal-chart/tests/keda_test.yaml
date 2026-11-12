@@ -1,0 +1,162 @@
+suite: keda
+templates:
+  - keda-scaled-object.yaml
+  - keda-trigger-authentications.yaml
+  - hpa.yaml
+  - deployment.yaml
+  - statefulset.yaml
+tests:
+  - it: scaledobject targets the deployment by default and passes spec through
+    templates:
+      - keda-scaled-object.yaml
+    set:
+      deployment.image: nginx
+      kedaScaledObject.spec:
+        minReplicaCount: 0
+        maxReplicaCount: 10
+        triggers:
+          - type: cpu
+            metricType: Utilization
+            metadata:
+              value: "70"
+    asserts:
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: apiVersion
+          value: keda.sh/v1alpha1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME
+      - notExists:
+          path: metadata.namespace
+      - equal:
+          path: spec.scaleTargetRef
+          value:
+            name: RELEASE-NAME
+      - equal:
+          path: spec.minReplicaCount
+          value: 0
+      - equal:
+          path: spec.triggers[0].type
+          value: cpu
+
+  - it: scaledobject follows a renamed deployment
+    templates:
+      - keda-scaled-object.yaml
+    set:
+      deployment.image: nginx
+      deployment.name: api
+      kedaScaledObject.spec.maxReplicaCount: 5
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: api
+
+  - it: scaledobject targets the statefulset when no deployment is set
+    templates:
+      - keda-scaled-object.yaml
+    set:
+      statefulset.image: nginx
+      statefulset.name: db
+      kedaScaledObject.spec.maxReplicaCount: 5
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef
+          value:
+            apiVersion: apps/v1
+            kind: StatefulSet
+            name: db
+
+  - it: scaledobject keeps an explicit scaleTargetRef
+    templates:
+      - keda-scaled-object.yaml
+    set:
+      kedaScaledObject.spec.scaleTargetRef:
+        kind: Rollout
+        apiVersion: argoproj.io/v1alpha1
+        name: "{{ .Release.Name }}-canary"
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef
+          value:
+            kind: Rollout
+            apiVersion: argoproj.io/v1alpha1
+            name: RELEASE-NAME-canary
+
+  - it: scaledobject and vpa together fail
+    templates:
+      - keda-scaled-object.yaml
+    set:
+      kedaScaledObject.spec.maxReplicaCount: 5
+      vpa.updatePolicy.updateMode: Auto
+    asserts:
+      - failedTemplate:
+          errorMessage: You can't use both VPA + KEDA together, make up your mind
+
+  - it: hpa is not rendered when keda is set
+    templates:
+      - hpa.yaml
+    set:
+      hpa.minReplicas: 2
+      hpa.maxReplicas: 5
+      kedaScaledObject.spec.maxReplicaCount: 5
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: deployment omits replicas when keda is set
+    templates:
+      - deployment.yaml
+    set:
+      deployment.image: nginx
+      deployment.replicas: 3
+      kedaScaledObject.spec.maxReplicaCount: 5
+    asserts:
+      - isKind:
+          of: Deployment
+      - notExists:
+          path: spec.replicas
+
+  - it: statefulset omits replicas when keda is set
+    templates:
+      - statefulset.yaml
+    set:
+      statefulset.image: nginx
+      statefulset.replicas: 3
+      kedaScaledObject.spec.maxReplicaCount: 5
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - notExists:
+          path: spec.replicas
+
+  - it: renders a triggerauthentication with passthrough spec
+    templates:
+      - keda-trigger-authentications.yaml
+    set:
+      kedaTriggerAuthentications.servicebus.spec.podIdentity.provider: azure-workload
+    asserts:
+      - isKind:
+          of: TriggerAuthentication
+      - equal:
+          path: apiVersion
+          value: keda.sh/v1alpha1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-servicebus
+      - notExists:
+          path: metadata.namespace
+      - equal:
+          path: spec.podIdentity.provider
+          value: azure-workload
+
+  - it: disabled triggerauthentication is not rendered
+    templates:
+      - keda-trigger-authentications.yaml
+    set:
+      kedaTriggerAuthentications.servicebus.disabled: true
+      kedaTriggerAuthentications.servicebus.spec.podIdentity.provider: azure-workload
+    asserts:
+      - hasDocuments:
+          count: 0

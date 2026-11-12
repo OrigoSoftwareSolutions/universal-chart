@@ -1,0 +1,33 @@
+{{- if and .Values.vpa .Values.kedaScaledObject }}
+  {{- fail "You can't use both VPA + KEDA together, make up your mind" }}
+{{- end }}
+{{- if .Values.kedaScaledObject }}
+  {{- $so := .Values.kedaScaledObject }}
+  {{- $name := $so.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+  {{- $spec := deepCopy ($so.spec | default dict) }}
+  {{- if not $spec.scaleTargetRef }}
+    {{- if and .Values.statefulset (not .Values.deployment) }}
+      {{- $target := .Values.statefulset.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+      {{- $_ := set $spec "scaleTargetRef" (dict "apiVersion" "apps/v1" "kind" "StatefulSet" "name" $target) }}
+    {{- else }}
+      {{- $target := .Values.deployment.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+      {{- $_ := set $spec "scaleTargetRef" (dict "name" $target) }}
+    {{- end }}
+  {{- end }}
+---
+apiVersion: {{ include "helpers.capabilities.keda.apiVersion" $ }}
+kind: ScaledObject
+metadata:
+  name: {{ $name }}
+  labels:
+  {{- include "helpers.app.labels" $ | nindent 4 }}
+  {{- with $so.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+  {{- if or $annots $so.annotations }}
+  annotations:
+    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+    {{- with $so.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- end }}
+spec:
+  {{- include "helpers.tplvalues.render" (dict "value" $spec "context" $) | nindent 2 }}
+{{- end }}

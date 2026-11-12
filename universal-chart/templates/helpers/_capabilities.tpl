@@ -92,3 +92,6 @@
 {{- print "networking.istio.io/v1alpha3" -}}
   {{- end -}}
 {{- end -}}
+{{- define "helpers.capabilities.keda.apiVersion" -}}
+{{- print "keda.sh/v1alpha1" -}}
+{{- end -}}
