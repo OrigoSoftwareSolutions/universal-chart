@@ -1,5 +1,3 @@
-@~/.config/opencode/AGENTS.md
-
 # AGENTS.md — Origo Universal Helm Chart
 
 Guidance for agentic coding assistants. Chart source lives in `universal-chart/`.
