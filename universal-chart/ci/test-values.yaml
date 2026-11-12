@@ -738,7 +738,6 @@ extraDeploy:
       name: ci-extra-image-updater
       namespace: argocd
     spec:
-      namespace: argocd
       applicationRefs:
         - namePattern: ci-argocd-app
           images:
