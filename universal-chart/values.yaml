@@ -273,6 +273,7 @@ pvc: {}
 # has full ownership of the replica count — prevents GitOps tools (e.g. ArgoCD) from
 # showing a perpetual diff on `spec.replicas`.
 # Cannot be used together with `vpa` — enabling both fails with an error at render time.
+# Ignored (not rendered) when `kedaScaledObject` is set — KEDA creates and owns its own HPA.
 hpa: {}
 #   scaleTargetRef:
 #     kind: Deployment
@@ -289,7 +290,7 @@ hpa: {}
 # -- Kubernetes VerticalPodAutoscaler (autoscaling.k8s.io/v1).  Only one per release.
 # Adjusts CPU/memory requests on existing pods without changing the replica count.
 # Well-suited for single-replica workloads where horizontal scaling is not desired.
-# Cannot be used together with `hpa` — enabling both fails with an error at render time.
+# Cannot be used together with `hpa` or `kedaScaledObject` — enabling both fails with an error at render time.
 vpa: {}
 #   targetRef:
 #     apiVersion: apps/v1  # defaults to apps/v1
@@ -309,6 +310,35 @@ vpa: {}
 #         controlledResources: ["cpu", "memory"]
 #   labels: {}
 #   annotations: {}
+
+# -- KEDA ScaledObject (keda.sh/v1alpha1).  Only one per release.
+# Takes precedence over `hpa` and `replicas`: when set, the chart's HPA is not rendered and
+# `replicas` is omitted from the Deployment/StatefulSet spec, so KEDA alone owns the replica count.
+# `spec` is passed through verbatim (template expressions allowed). `spec.scaleTargetRef` defaults
+# to the chart's Deployment, or to its StatefulSet when only `statefulset` is set.
+# Cannot be used together with `vpa` — enabling both fails with an error at render time.
+kedaScaledObject: {}
+#   name: ""             # defaults to release name
+#   spec:
+#     minReplicaCount: 1
+#     maxReplicaCount: 10
+#     triggers:
+#       - type: cpu
+#         metricType: Utilization
+#         metadata:
+#           value: "70"
+#   labels: {}
+#   annotations: {}
+
+# -- KEDA TriggerAuthentication resources (keda.sh/v1alpha1). Each key creates one instance;
+# name defaults to `{release-name}-{key}`, overridable per entry with a `name:` field.
+kedaTriggerAuthentications: {}
+#   servicebus:
+#     spec:
+#       podIdentity:
+#         provider: azure-workload
+#     labels: {}
+#     annotations: {}
 
 # -- Kubernetes PodDisruptionBudget.  Only one per release.
 pdb: {}

@@ -1,0 +1,20 @@
+{{- range $name, $ta := .Values.kedaTriggerAuthentications }}
+  {{- if not ($ta.disabled | default false) }}
+---
+apiVersion: {{ include "helpers.capabilities.keda.apiVersion" $ }}
+kind: TriggerAuthentication
+metadata:
+  name: {{ $ta.name | default (include "helpers.app.fullname" (dict "name" $name "context" $)) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "helpers.app.labels" $ | nindent 4 }}
+    {{- with $ta.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+    {{- if or $annots $ta.annotations }}
+  annotations:
+      {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+      {{- with $ta.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+    {{- end }}
+spec:
+    {{- include "helpers.tplvalues.render" (dict "value" $ta.spec "context" $) | nindent 2 }}
+  {{- end }}
+{{- end }}
