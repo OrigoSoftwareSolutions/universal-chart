@@ -2,6 +2,7 @@ suite: keda
 templates:
   - keda-scaled-object.yaml
   - keda-trigger-authentications.yaml
+  - keda-interceptor-route.yaml
   - hpa.yaml
   - deployment.yaml
   - statefulset.yaml
@@ -160,3 +161,108 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: interceptorroute targets the chart service and its first port by default
+    templates:
+      - keda-interceptor-route.yaml
+    set:
+      service.name: web
+      service.ports:
+        - name: http
+          port: 3000
+        - name: metrics
+          port: 9090
+      kedaInterceptorRoute.spec:
+        rules:
+          - hosts:
+              - app.example.com
+        scalingMetric:
+          concurrency:
+            targetValue: 100
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: InterceptorRoute
+      - equal:
+          path: apiVersion
+          value: http.keda.sh/v1beta1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME
+      - notExists:
+          path: metadata.namespace
+      - equal:
+          path: spec.target
+          value:
+            service: web
+            port: 3000
+      - equal:
+          path: spec.rules[0].hosts[0]
+          value: app.example.com
+
+  - it: interceptorroute keeps an explicit target
+    templates:
+      - keda-interceptor-route.yaml
+    set:
+      service.ports:
+        - port: 3000
+      kedaInterceptorRoute.spec.target:
+        service: other
+        portName: http
+      kedaInterceptorRoute.spec.scalingMetric.concurrency.targetValue: 100
+    asserts:
+      - equal:
+          path: spec.target
+          value:
+            service: other
+            portName: http
+
+  - it: interceptorroute without a service or target fails
+    templates:
+      - keda-interceptor-route.yaml
+    set:
+      kedaInterceptorRoute.spec.scalingMetric.concurrency.targetValue: 100
+    asserts:
+      - failedTemplate:
+          errorMessage: kedaInterceptorRoute.spec.target is required when the chart renders no service
+
+  - it: proxy service points in-cluster callers at the interceptor and its host is templated
+    templates:
+      - keda-interceptor-route.yaml
+    set:
+      service.ports:
+        - port: 8080
+      kedaInterceptorRoute.spec:
+        rules:
+          - hosts:
+              - "{{ .Release.Name }}-proxy.{{ .Release.Namespace }}.svc.cluster.local"
+        scalingMetric:
+          concurrency:
+            targetValue: 100
+      kedaInterceptorRoute.proxyService.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: spec.rules[0].hosts[0]
+          value: RELEASE-NAME-proxy.NAMESPACE.svc.cluster.local
+        documentIndex: 0
+      - isKind:
+          of: Service
+        documentIndex: 1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-proxy
+        documentIndex: 1
+      - notExists:
+          path: metadata.namespace
+        documentIndex: 1
+      - equal:
+          path: spec
+          value:
+            type: ExternalName
+            externalName: keda-add-ons-http-interceptor-proxy.keda.svc.cluster.local
+            ports:
+              - port: 8080
+        documentIndex: 1

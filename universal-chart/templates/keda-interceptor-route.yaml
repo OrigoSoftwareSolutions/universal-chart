@@ -1,0 +1,50 @@
+{{- if .Values.kedaInterceptorRoute }}
+  {{- $ir := .Values.kedaInterceptorRoute }}
+  {{- $name := $ir.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+  {{- $spec := deepCopy ($ir.spec | default dict) }}
+  {{- if and (not $spec.target) .Values.service }}
+    {{- $svc := .Values.service }}
+    {{- $port := first ($svc.ports | default list) | default dict }}
+    {{- $svcName := $svc.name | default $.Release.Name | trunc 63 | trimSuffix "-" }}
+    {{- $_ := set $spec "target" (dict "service" $svcName "port" $port.port) }}
+  {{- end }}
+  {{- if not $spec.target }}
+    {{- fail "kedaInterceptorRoute.spec.target is required when the chart renders no service" }}
+  {{- end }}
+  {{- $annots := include "helpers.app.defaultAnnotations" $ | trim }}
+---
+apiVersion: {{ include "helpers.capabilities.kedaHttp.apiVersion" $ }}
+kind: InterceptorRoute
+metadata:
+  name: {{ $name }}
+  labels:
+  {{- include "helpers.app.labels" $ | nindent 4 }}
+  {{- with $ir.labels }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- if or $annots $ir.annotations }}
+  annotations:
+    {{- if $annots }}{{ $annots | nindent 4 }}{{- end }}
+    {{- with $ir.annotations }}{{- include "helpers.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}{{- end }}
+  {{- end }}
+spec:
+  {{- include "helpers.tplvalues.render" (dict "value" $spec "context" $) | nindent 2 }}
+  {{- with $ir.proxyService }}
+    {{- if .enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name | default (printf "%s-proxy" $name) | trunc 63 | trimSuffix "-" }}
+  labels:
+      {{- include "helpers.app.labels" $ | nindent 4 }}
+      {{- if $annots }}
+  annotations:
+    {{- $annots | nindent 4 }}
+      {{- end }}
+spec:
+  type: ExternalName
+  externalName: {{ .externalName | default "keda-add-ons-http-interceptor-proxy.keda.svc.cluster.local" | quote }}
+  ports:
+    - port: {{ .port | default 8080 }}
+    {{- end }}
+  {{- end }}
+{{- end }}

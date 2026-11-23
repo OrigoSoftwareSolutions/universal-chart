@@ -340,6 +340,30 @@ kedaTriggerAuthentications: {}
 #     labels: {}
 #     annotations: {}
 
+# -- KEDA HTTP add-on InterceptorRoute (http.keda.sh/v1beta1).  Only one per release.
+# Lets the add-on's interceptor proxy hold requests while the app scales from zero; route traffic
+# to the interceptor and add an `external-push` trigger to `kedaScaledObject` (see README).
+# `spec` is passed through verbatim (template expressions allowed). `spec.target` defaults to the
+# chart's Service and its first port. `proxyService.enabled` adds an ExternalName Service
+# (`{name}-proxy` by default) pointing at the interceptor, for in-cluster callers; list its FQDN in `spec.rules[].hosts`.
+kedaInterceptorRoute: {}
+#   name: ""             # defaults to release name
+#   spec:
+#     rules:
+#       - hosts:
+#           - app.example.com
+#           - "{{ .Release.Name }}-proxy.{{ .Release.Namespace }}.svc.cluster.local"
+#     scalingMetric:
+#       concurrency:
+#         targetValue: 100
+#   proxyService:
+#     enabled: false
+#     name: ""           # defaults to `{name}-proxy`
+#     externalName: keda-add-ons-http-interceptor-proxy.keda.svc.cluster.local
+#     port: 8080
+#   labels: {}
+#   annotations: {}
+
 # -- Kubernetes PodDisruptionBudget.  Only one per release.
 pdb: {}
 #   minAvailable: 1
