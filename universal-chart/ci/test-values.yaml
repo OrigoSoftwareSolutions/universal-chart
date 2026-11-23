@@ -38,6 +38,18 @@ hpa:
     scaleDown:
       stabilizationWindowSeconds: 120
 
+kedaInterceptorRoute:
+  proxyService:
+    enabled: true
+  spec:
+    rules:
+      - hosts:
+          - app.example.com
+          - "{{ .Release.Name }}-proxy.{{ .Release.Namespace }}.svc.cluster.local"
+    scalingMetric:
+      concurrency:
+        targetValue: 100
+
 pdb:
   minAvailable: 1
 

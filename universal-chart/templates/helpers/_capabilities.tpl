@@ -95,3 +95,6 @@
 {{- define "helpers.capabilities.keda.apiVersion" -}}
 {{- print "keda.sh/v1alpha1" -}}
 {{- end -}}
+{{- define "helpers.capabilities.kedaHttp.apiVersion" -}}
+{{- print "http.keda.sh/v1beta1" -}}
+{{- end -}}
